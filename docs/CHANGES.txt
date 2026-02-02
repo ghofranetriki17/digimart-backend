@@ -14,8 +14,12 @@ Summary of changes
 3) API module
    - Added DTOs for Tenant/User create and response
    - Added REST controllers: TenantController, UserController
-   - Updated main application class to scan com.nexashop packages
+   - Added auth controller with token login
+   - Added security filter + stateless config
+   - Added DTOs for login and update operations
+   - Added role assignment behavior for first user (OWNER)
+   - Added SUPER_ADMIN role (platform-wide)
 
 Notes
 - User.passwordHash is filled with the incoming "password" field for now.
-  Hashing will be added with the auth/security layer later.
+  Hashing will be added later; login compares raw values for now.

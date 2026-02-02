@@ -1,15 +1,20 @@
 package com.nexashop.api.controller.tenant;
 
 import com.nexashop.api.dto.request.tenant.CreateTenantRequest;
+import com.nexashop.api.dto.request.tenant.UpdateTenantRequest;
 import com.nexashop.api.dto.response.tenant.TenantResponse;
+import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -54,7 +59,35 @@ public class TenantController {
     public TenantResponse getTenant(@PathVariable Long id) {
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Tenant not found"));
+        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
         return toResponse(tenant);
+    }
+
+    @GetMapping
+    public List<TenantResponse> listTenants() {
+        SecurityContextUtil.requireAdminAny();
+        return tenantRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @PutMapping("/{id}")
+    public TenantResponse updateTenant(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateTenantRequest request
+    ) {
+        Tenant tenant = tenantRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Tenant not found"));
+        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
+
+        tenant.setName(request.getName());
+        tenant.setContactEmail(request.getContactEmail());
+        tenant.setContactPhone(request.getContactPhone());
+        tenant.setStatus(request.getStatus());
+        tenant.setDefaultLocale(request.getDefaultLocale());
+
+        Tenant saved = tenantRepository.save(tenant);
+        return toResponse(saved);
     }
 
     private TenantResponse toResponse(Tenant tenant) {

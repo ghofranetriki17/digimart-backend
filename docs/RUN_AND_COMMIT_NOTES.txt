@@ -1,0 +1,40 @@
+Run Guide
+
+Prerequisites
+- PostgreSQL running
+- Database: digimart_db
+- User: postgres
+- Password: admin
+
+If you use different credentials, update:
+`digimart-api/src/main/resources/application.properties`
+
+Optional: Seed data
+1) Run `docs/SEED_SQL.sql` in PostgreSQL.
+2) This clears existing data and inserts demo tenants, users, roles, and audits.
+
+Run the API
+1) From the repo root:
+   mvn -pl digimart-api -am spring-boot:run
+2) Server URL:
+   http://localhost:8080
+
+Auth (token)
+1) Login: `POST /api/auth/login`
+2) Use token in requests:
+   Authorization: Bearer <token>
+
+Commit Logic
+
+This commit introduces:
+- Core domain entities from the class diagram (tenant/user/roles/audit)
+- Simple auth flow with bearer token and role checks
+- SUPER_ADMIN role for platform-wide access
+- Seed SQL to create demo tenants/users/roles
+- Thunder Client test guide + report for all cases
+
+Access rules:
+- Anyone can create tenant or user
+- OWNER/ADMIN can view/update their tenant
+- ADMIN lists users per tenant
+- SUPER_ADMIN can access all tenants and grant SUPER_ADMIN

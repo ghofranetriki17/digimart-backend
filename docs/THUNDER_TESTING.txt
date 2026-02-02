@@ -1,4 +1,4 @@
-Thunder Client - Test Steps (Tenant + User)
+Thunder Client - Full Test Steps (Auth + Tenant + User)
 
 Prerequisites
 1) PostgreSQL is running and the database exists:
@@ -7,6 +7,8 @@ Prerequisites
    - Password: admin
 2) If you use different credentials, update:
    digimart-api/src/main/resources/application.properties
+3) Seed data (recommended):
+   - Run docs/SEED_SQL.sql
 
 Run the API
 1) From the repo root:
@@ -14,59 +16,144 @@ Run the API
 2) Server starts on:
    http://localhost:8080
 
-Request 1: Create Tenant
+Auth
+Request 1: Login as SUPER_ADMIN (seeded)
 Method: POST
-URL: http://localhost:8080/api/tenants
-Headers:
-  Content-Type: application/json
-Body (JSON):
-{
-  "name": "NexaShop Demo",
-  "subdomain": "demo",
-  "contactEmail": "owner@nexashop.com",
-  "contactPhone": "+212600000000",
-  "status": "ACTIVE",
-  "defaultLocale": "FR"
-}
-Expected:
-- 201 Created
-- Response body includes "id" and timestamps
-
-Request 2: Get Tenant
-Method: GET
-URL: http://localhost:8080/api/tenants/{id}
-Replace {id} with the id from Request 1
-Expected:
-- 200 OK
-- Same tenant data
-
-Request 3: Create User
-Method: POST
-URL: http://localhost:8080/api/users
+URL: http://localhost:8080/api/auth/login
 Headers:
   Content-Type: application/json
 Body (JSON):
 {
   "tenantId": 1,
   "email": "admin@demo.com",
+  "password": "Password123!"
+}
+Expected:
+- 200 OK
+- roles include SUPER_ADMIN (and OWNER/ADMIN)
+Save token as <super_token>
+
+Tenant
+Request 2: List all tenants (SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/tenants
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+- 3 tenants from seed
+
+Request 3: Get tenant by id (OWNER/ADMIN of tenant or SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/tenants/1
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 4: Update tenant (OWNER/ADMIN or SUPER_ADMIN)
+Method: PUT
+URL: http://localhost:8080/api/tenants/1
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <super_token>
+Body (JSON):
+{
+  "name": "Demo Tenant Updated",
+  "contactEmail": "owner@demo.com",
+  "contactPhone": "+212600000000",
+  "status": "ACTIVE",
+  "defaultLocale": "FR"
+}
+Expected:
+- 200 OK
+
+User
+Request 5: List users for tenant (ADMIN or SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/users?tenantId=1
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 6: Get user by id (same tenant or SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/users/2
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 7: Update user (OWNER/ADMIN or SUPER_ADMIN)
+Method: PUT
+URL: http://localhost:8080/api/users/2
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <super_token>
+Body (JSON):
+{
+  "firstName": "StaffUpdated",
+  "lastName": "UserUpdated",
+  "enabled": true
+}
+Expected:
+- 200 OK
+
+Request 8: Grant ADMIN (OWNER/ADMIN or SUPER_ADMIN)
+Method: POST
+URL: http://localhost:8080/api/users/2/roles/admin
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 9: Grant SUPER_ADMIN (SUPER_ADMIN only)
+Method: POST
+URL: http://localhost:8080/api/users/2/roles/super-admin
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Public endpoints
+Request 10: Create tenant (public)
+Method: POST
+URL: http://localhost:8080/api/tenants
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "name": "New Tenant",
+  "subdomain": "new-tenant",
+  "contactEmail": "owner@new.com",
+  "contactPhone": "+212633333333",
+  "status": "TRIAL",
+  "defaultLocale": "EN"
+}
+Expected:
+- 201 Created
+
+Request 11: Create user (public)
+Method: POST
+URL: http://localhost:8080/api/users
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "tenantId": 2,
+  "email": "member@trial.com",
   "password": "Password123!",
-  "firstName": "Admin",
-  "lastName": "User",
+  "firstName": "Member",
+  "lastName": "Trial",
   "enabled": true
 }
 Expected:
 - 201 Created
-- Response body includes "id" and timestamps
 
-Request 4: Get User
-Method: GET
-URL: http://localhost:8080/api/users/{id}
-Replace {id} with the id from Request 3
-Expected:
-- 200 OK
-- Same user data
-
-Error checks (optional)
-- POST /api/tenants with same subdomain => 409 CONFLICT
-- POST /api/users with unknown tenantId => 404 NOT FOUND
-- POST /api/users with same email and tenantId => 409 CONFLICT
+Negative cases
+- GET /api/tenants without token => 401
+- GET /api/users?tenantId=1 with non-admin => 403
+- PUT /api/tenants/2 with tenant 1 admin => 403
+- POST /api/users/2/roles/super-admin without SUPER_ADMIN => 403
+- POST /api/auth/login with wrong password => 401

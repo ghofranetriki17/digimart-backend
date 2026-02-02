@@ -1,0 +1,76 @@
+NexaShop - Thunder Client Test Report (Core Modules)
+
+Seed Data
+- File: docs/SEED_SQL.sql
+- Contains tenants, users, roles, permissions, role assignments, tokens, audit events
+
+Access Rules (Expected)
+1) Anyone can create Tenant/User (POST)
+2) Login returns token
+3) OWNER/ADMIN can view/update tenant in same tenant
+4) ADMIN can list users for a tenant
+5) SUPER_ADMIN can access across tenants and list all tenants
+6) SUPER_ADMIN can grant SUPER_ADMIN to others
+
+Test Cases (Thunder Client)
+
+Auth
+1) Login as SUPER_ADMIN
+   POST /api/auth/login
+   Body: { "tenantId": 1, "email": "admin@demo.com", "password": "Password123!" }
+   Expect: 200, roles include SUPER_ADMIN
+
+Tenant
+2) List tenants (admin global)
+   GET /api/tenants with Authorization (SUPER_ADMIN)
+   Expect: 200 list of all tenants
+
+3) Get tenant (owner/admin only)
+   GET /api/tenants/1 with Authorization
+   Expect: 200
+
+4) Update tenant (owner/admin only)
+   PUT /api/tenants/1 with Authorization
+   Expect: 200
+
+User
+5) Get user (same tenant or SUPER_ADMIN)
+   GET /api/users/2 with Authorization
+   Expect: 200
+
+6) List users (tenant admin only)
+   GET /api/users?tenantId=1 with Authorization (ADMIN/SUPER_ADMIN)
+   Expect: 200 list
+
+7) Update user (owner/admin only)
+   PUT /api/users/2 with Authorization
+   Expect: 200
+
+8) Grant admin (owner/admin only)
+   POST /api/users/2/roles/admin with Authorization
+   Expect: 200
+
+9) Grant super admin (super admin only)
+   POST /api/users/2/roles/super-admin with Authorization (SUPER_ADMIN)
+   Expect: 200
+
+Negative Cases
+10) List users without ADMIN
+   GET /api/users?tenantId=1
+   Expect: 403
+
+11) Get tenant without token
+   GET /api/tenants/1
+   Expect: 401
+
+12) Update tenant cross-tenant (non SUPER_ADMIN)
+   PUT /api/tenants/2 with token from tenant 1
+   Expect: 403
+
+13) Login with wrong password
+   POST /api/auth/login (bad password)
+   Expect: 401
+
+14) Grant super admin without SUPER_ADMIN
+   POST /api/users/2/roles/super-admin with non-super token
+   Expect: 403

@@ -1,22 +1,33 @@
 package com.nexashop.api.controller.user;
 
 import com.nexashop.api.dto.request.user.CreateUserRequest;
+import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.response.user.UserResponse;
+import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.User;
+import com.nexashop.domain.user.entity.UserRoleAssignment;
+import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
@@ -25,13 +36,19 @@ public class UserController {
 
     private final TenantJpaRepository tenantRepository;
     private final UserJpaRepository userRepository;
+    private final RoleJpaRepository roleRepository;
+    private final UserRoleAssignmentJpaRepository assignmentRepository;
 
     public UserController(
             TenantJpaRepository tenantRepository,
-            UserJpaRepository userRepository
+            UserJpaRepository userRepository,
+            RoleJpaRepository roleRepository,
+            UserRoleAssignmentJpaRepository assignmentRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     @PostMapping
@@ -45,6 +62,9 @@ public class UserController {
             throw new ResponseStatusException(CONFLICT, "Email already exists for tenant");
         }
 
+        long existingUsers = userRepository.countByTenantId(request.getTenantId());
+        long totalUsers = userRepository.count();
+
         User user = new User();
         user.setTenantId(request.getTenantId());
         user.setEmail(request.getEmail());
@@ -56,15 +76,71 @@ public class UserController {
         }
 
         User saved = userRepository.save(user);
+        if (totalUsers == 0) {
+            assignRole(saved, "SUPER_ADMIN", "Platform Admin");
+        }
+        if (existingUsers == 0) {
+            assignRole(saved, "OWNER", "Tenant Owner");
+        }
         return ResponseEntity
                 .created(URI.create("/api/users/" + saved.getId()))
                 .body(toResponse(saved));
+    }
+
+    @GetMapping
+    public List<UserResponse> listUsers(@RequestParam Long tenantId) {
+        SecurityContextUtil.requireAdmin(tenantId);
+        return userRepository.findByTenantId(tenantId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     public UserResponse getUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        if (!SecurityContextUtil.requireUser().getTenantId().equals(user.getTenantId())
+                && !SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")) {
+            throw new ResponseStatusException(FORBIDDEN, "Cross-tenant access forbidden");
+        }
+        return toResponse(user);
+    }
+
+    @PutMapping("/{id}")
+    public UserResponse updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRequest request
+    ) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        SecurityContextUtil.requireOwnerOrAdmin(user.getTenantId());
+
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        if (request.getEnabled() != null) {
+            user.setEnabled(request.getEnabled());
+        }
+
+        return toResponse(userRepository.save(user));
+    }
+
+    @PostMapping("/{id}/roles/admin")
+    public UserResponse grantAdmin(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        SecurityContextUtil.requireOwnerOrAdmin(user.getTenantId());
+
+        assignRole(user, "ADMIN", "Tenant Admin");
+        return toResponse(user);
+    }
+
+    @PostMapping("/{id}/roles/super-admin")
+    public UserResponse grantSuperAdmin(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        SecurityContextUtil.requireSuperAdmin();
+
+        assignRole(user, "SUPER_ADMIN", "Platform Admin");
         return toResponse(user);
     }
 
@@ -80,5 +156,31 @@ public class UserController {
                 .updatedAt(user.getUpdatedAt())
                 .lastLogin(user.getLastLogin())
                 .build();
+    }
+
+    private void assignRole(User user, String code, String label) {
+        Role role = roleRepository.findByTenantIdAndCode(user.getTenantId(), code)
+                .orElseGet(() -> {
+                    Role created = new Role();
+                    created.setTenantId(user.getTenantId());
+                    created.setCode(code);
+                    created.setLabel(label);
+                    created.setSystemRole(true);
+                    return roleRepository.save(created);
+                });
+
+        assignmentRepository.findByTenantIdAndUserIdAndRoleId(
+                        user.getTenantId(),
+                        user.getId(),
+                        role.getId()
+                )
+                .orElseGet(() -> {
+                    UserRoleAssignment assignment = new UserRoleAssignment();
+                    assignment.setTenantId(user.getTenantId());
+                    assignment.setUserId(user.getId());
+                    assignment.setRoleId(role.getId());
+                    assignment.setActive(true);
+                    return assignmentRepository.save(assignment);
+                });
     }
 }
