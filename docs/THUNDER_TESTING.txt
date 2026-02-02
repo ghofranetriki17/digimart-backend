@@ -1,0 +1,72 @@
+Thunder Client - Test Steps (Tenant + User)
+
+Prerequisites
+1) PostgreSQL is running and the database exists:
+   - DB: digimart_db
+   - User: postgres
+   - Password: admin
+2) If you use different credentials, update:
+   digimart-api/src/main/resources/application.properties
+
+Run the API
+1) From the repo root:
+   mvn -pl digimart-api -am spring-boot:run
+2) Server starts on:
+   http://localhost:8080
+
+Request 1: Create Tenant
+Method: POST
+URL: http://localhost:8080/api/tenants
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "name": "NexaShop Demo",
+  "subdomain": "demo",
+  "contactEmail": "owner@nexashop.com",
+  "contactPhone": "+212600000000",
+  "status": "ACTIVE",
+  "defaultLocale": "FR"
+}
+Expected:
+- 201 Created
+- Response body includes "id" and timestamps
+
+Request 2: Get Tenant
+Method: GET
+URL: http://localhost:8080/api/tenants/{id}
+Replace {id} with the id from Request 1
+Expected:
+- 200 OK
+- Same tenant data
+
+Request 3: Create User
+Method: POST
+URL: http://localhost:8080/api/users
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "tenantId": 1,
+  "email": "admin@demo.com",
+  "password": "Password123!",
+  "firstName": "Admin",
+  "lastName": "User",
+  "enabled": true
+}
+Expected:
+- 201 Created
+- Response body includes "id" and timestamps
+
+Request 4: Get User
+Method: GET
+URL: http://localhost:8080/api/users/{id}
+Replace {id} with the id from Request 3
+Expected:
+- 200 OK
+- Same user data
+
+Error checks (optional)
+- POST /api/tenants with same subdomain => 409 CONFLICT
+- POST /api/users with unknown tenantId => 404 NOT FOUND
+- POST /api/users with same email and tenantId => 409 CONFLICT

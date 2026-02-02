@@ -1,0 +1,21 @@
+NexaShop - Phase 1 (Tenant/User/Audit domain)
+
+Summary of changes
+1) Domain module
+   - Added base entities: BaseEntity, AuditableEntity, TenantEntity
+   - Added enums: TenantStatus, AuditAction, Locale
+   - Added entities: Tenant, User, RefreshToken, Role, Permission,
+     UserRoleAssignment, RolePermission, AuditEvent
+   - Added jakarta.persistence-api dependency for JPA annotations
+
+2) Infrastructure module
+   - Added JPA repositories: TenantJpaRepository, UserJpaRepository
+
+3) API module
+   - Added DTOs for Tenant/User create and response
+   - Added REST controllers: TenantController, UserController
+   - Updated main application class to scan com.nexashop packages
+
+Notes
+- User.passwordHash is filled with the incoming "password" field for now.
+  Hashing will be added with the auth/security layer later.
