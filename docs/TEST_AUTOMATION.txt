@@ -1,0 +1,37 @@
+Test Automation (DigiMart)
+==========================
+
+Where to put unit tests
+-----------------------
+Backend:
+- Module: digimart-api
+- Path: digimart-api/src/test/java/
+- Package example: com.nexashop.api.security
+
+Frontend:
+- Module: nexashop-frontend
+- Path: src/
+- Test files: *.test.jsx or *.spec.jsx (if you add Vitest/Jest)
+
+How to run tests locally
+------------------------
+Backend (unit tests):
+  mvn -pl digimart-api -am test
+
+Backend (using wrapper):
+  ./mvnw -pl digimart-api -am test
+
+Automation (CI)
+---------------
+GitHub Actions is ready in:
+  .github/workflows/tests.yml
+
+It runs backend tests on:
+- push
+- pull_request
+
+Notes
+-----
+- The CI uses Java 17.
+- If you want frontend tests automated too, we can add a second job once a test
+  runner (Vitest/Jest) is installed in nexashop-frontend.

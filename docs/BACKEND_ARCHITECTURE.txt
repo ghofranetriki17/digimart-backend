@@ -1,0 +1,73 @@
+Backend Architecture (DigiMart)
+================================
+
+Overview
+--------
+The backend follows a Clean Architecture style and is split into Maven modules:
+
+1) digimart-domain
+   - Pure business model: entities, enums, and base classes.
+   - No Spring dependencies.
+   - Common base classes: BaseEntity, AuditableEntity, TenantEntity.
+
+2) digimart-application
+   - Reserved for application use-cases and services.
+   - Currently minimal; most logic is inside API controllers.
+
+3) digimart-infrastructure
+   - Persistence layer (Spring Data JPA repositories).
+   - Maps domain entities to database tables using JPA.
+
+4) digimart-api
+   - Presentation layer (REST controllers, DTOs, security).
+   - Contains authentication, authorization checks, and HTTP wiring.
+
+Key Domain Concepts
+-------------------
+Multi-tenancy
+- tenantId is present on tenant-owned entities (users, stores, roles, etc.).
+- Tenant has subdomain and optional logoUrl.
+- Email is globally unique (login does not require tenantId).
+
+Authentication and Security
+- Token-based authentication (AuthTokenFilter).
+- SecurityContextUtil enforces role checks:
+  - requireUser, requireAdmin, requireOwnerOrAdmin, requireSuperAdmin.
+- First user in a tenant auto-receives OWNER role on login if no roles exist.
+
+RBAC (Roles and Permissions)
+- Permission: global dictionary of permissions (unique by code).
+- Role: tenant-scoped, can be a template when tenantId = 0.
+- RolePermission: association between Role and Permission.
+- UserRoleAssignment: links User to Role for a tenant.
+
+Stores (Points de Vente)
+- Store entity belongs to a tenant.
+- CRUD endpoints with tenant access checks (no OWNER/ADMIN restriction).
+
+API Layer Structure
+-------------------
+- Controllers expose REST endpoints:
+  - AuthController: login + 2-step tenant/owner registration.
+  - TenantController: CRUD + logo upload.
+  - UserController: user CRUD and role assignment.
+  - StoreController: store CRUD + image upload.
+  - RoleController: list/clone/update roles + permissions.
+  - PermissionController: list/create permissions.
+
+DTOs
+----
+All HTTP inputs/outputs are via DTOs to keep the domain model clean:
+- request/auth, request/tenant, request/user, request/store, request/role, request/permission
+- response/auth, response/tenant, response/user, response/store, response/role, response/permission
+
+Persistence
+-----------
+Spring Data JPA repositories live in digimart-infrastructure and are injected
+into API controllers.
+
+Uploads
+-------
+- Local file storage under /uploads.
+- WebConfig exposes /uploads/** as static resources.
+- Tenant logo and store image are uploaded via multipart endpoints.

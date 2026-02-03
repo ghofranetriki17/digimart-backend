@@ -32,6 +32,8 @@ public class Tenant extends AuditableEntity {
 
     private String contactPhone;
 
+    private String logoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TenantStatus status;

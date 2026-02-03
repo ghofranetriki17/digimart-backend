@@ -119,11 +119,11 @@ VALUES
       (SELECT id FROM permissions WHERE code = 'ORDER_VIEW'), now(), now());
 
 -- Tenants
-INSERT INTO tenants (id, name, subdomain, contact_email, contact_phone, status, default_locale, created_at, updated_at)
+INSERT INTO tenants (id, name, subdomain, contact_email, contact_phone, logo_url, status, default_locale, created_at, updated_at)
 VALUES
-  (1, 'Digimart HQ', 'digimart', 'hq@digimart.com', '+21670000000', 'ACTIVE', 'FR', now(), now()),
-  (2, 'Vendor Alpha', 'alpha', 'owner@alpha.com', '+21671111111', 'ACTIVE', 'FR', now(), now()),
-  (3, 'Vendor Beta', 'beta', 'owner@beta.com', '+21672222222', 'ACTIVE', 'FR', now(), now());
+  (1, 'Digimart HQ', 'digimart', 'hq@digimart.com', '+21670000000', 'https://i.pravatar.cc/120?img=8', 'ACTIVE', 'FR', now(), now()),
+  (2, 'Vendor Alpha', 'alpha', 'owner@alpha.com', '+21671111111', 'https://i.pravatar.cc/120?img=9', 'ACTIVE', 'FR', now(), now()),
+  (3, 'Vendor Beta', 'beta', 'owner@beta.com', '+21672222222', 'https://i.pravatar.cc/120?img=7', 'ACTIVE', 'FR', now(), now());
 
 -- Users (passwordHash is raw for now, per app logic)
 INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, phone, image_url, enabled, created_at, updated_at, last_login)

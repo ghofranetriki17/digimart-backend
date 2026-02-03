@@ -118,6 +118,7 @@ public class AuthController {
         tenant.setSubdomain(normalizedSubdomain);
         tenant.setContactEmail(request.getContactEmail());
         tenant.setContactPhone(request.getContactPhone());
+        tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
 

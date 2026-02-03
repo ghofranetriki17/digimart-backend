@@ -7,9 +7,15 @@ import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,9 +25,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/tenants")
@@ -46,6 +54,7 @@ public class TenantController {
         tenant.setSubdomain(request.getSubdomain());
         tenant.setContactEmail(request.getContactEmail());
         tenant.setContactPhone(request.getContactPhone());
+        tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
 
@@ -83,9 +92,41 @@ public class TenantController {
         tenant.setName(request.getName());
         tenant.setContactEmail(request.getContactEmail());
         tenant.setContactPhone(request.getContactPhone());
+        tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
 
+        Tenant saved = tenantRepository.save(tenant);
+        return toResponse(saved);
+    }
+
+    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TenantResponse uploadTenantLogo(
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file
+    ) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Logo file is required");
+        }
+
+        Tenant tenant = tenantRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Tenant not found"));
+        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
+
+        Path uploadDir = Paths.get("uploads", "tenants");
+        Files.createDirectories(uploadDir);
+
+        String originalName = file.getOriginalFilename() == null ? "logo" : file.getOriginalFilename();
+        String ext = "";
+        int dotIndex = originalName.lastIndexOf('.');
+        if (dotIndex > -1) {
+            ext = originalName.substring(dotIndex);
+        }
+        String filename = UUID.randomUUID() + ext;
+        Path target = uploadDir.resolve(filename);
+        file.transferTo(target.toFile());
+
+        tenant.setLogoUrl("/uploads/tenants/" + filename);
         Tenant saved = tenantRepository.save(tenant);
         return toResponse(saved);
     }
@@ -97,6 +138,7 @@ public class TenantController {
                 .subdomain(tenant.getSubdomain())
                 .contactEmail(tenant.getContactEmail())
                 .contactPhone(tenant.getContactPhone())
+                .logoUrl(tenant.getLogoUrl())
                 .status(tenant.getStatus())
                 .defaultLocale(tenant.getDefaultLocale())
                 .createdAt(tenant.getCreatedAt())

@@ -18,6 +18,8 @@ public class UpdateTenantRequest {
 
     private String contactPhone;
 
+    private String logoUrl;
+
     @NotNull
     private TenantStatus status;
 

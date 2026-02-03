@@ -1,0 +1,37 @@
+Unit Test Report (DigiMart)
+===========================
+
+Date: 2026-02-03
+Command: mvn -pl digimart-api -am test
+
+Result
+------
+Status: BUILD SUCCESS
+Tests run: 37
+Failures: 0
+Errors: 0
+Skipped: 0
+
+Modules
+-------
+- digimart-domain: SUCCESS
+- digimart-application: SUCCESS
+- digimart-infrastructure: SUCCESS
+- digimart-api: SUCCESS
+
+Detailed results (by test class)
+--------------------------------
+- com.nexashop.DigimartBackendApplicationTests: 1 test, 0 fail, 0 error, 0 skipped, 4.482 s
+- com.nexashop.api.security.SecurityContextUtilTest: 8 tests, 0 fail, 0 error, 0 skipped, 0.014 s
+- com.nexashop.api.security.AuthenticatedUserTest: 3 tests, 0 fail, 0 error, 0 skipped, 0.006 s
+- com.nexashop.api.dto.DtoValidationTest: 9 tests, 0 fail, 0 error, 0 skipped, 0.391 s
+- com.nexashop.api.controller.UserControllerTest: 3 tests, 0 fail, 0 error, 0 skipped, 0.011 s
+- com.nexashop.api.controller.TenantControllerTest: 2 tests, 0 fail, 0 error, 0 skipped, 0.008 s
+- com.nexashop.api.controller.StoreControllerTest: 2 tests, 0 fail, 0 error, 0 skipped, 0.038 s
+- com.nexashop.api.controller.RoleControllerTest: 4 tests, 0 fail, 0 error, 0 skipped, 0.057 s
+- com.nexashop.api.controller.PermissionControllerTest: 3 tests, 0 fail, 0 error, 0 skipped, 0.060 s
+- com.nexashop.api.controller.AuthControllerTest: 2 tests, 0 fail, 0 error, 0 skipped, 1.143 s
+
+Notes
+-----
+- Spring Boot context loaded successfully (DigimartBackendApplicationTests).

@@ -22,6 +22,8 @@ public class RegisterTenantStep1Request {
     @NotBlank
     private String contactPhone;
 
+    private String logoUrl;
+
     @NotNull
     private TenantStatus status;
 

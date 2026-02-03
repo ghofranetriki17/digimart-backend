@@ -15,6 +15,7 @@ public class TenantResponse {
     private String subdomain;
     private String contactEmail;
     private String contactPhone;
+    private String logoUrl;
     private TenantStatus status;
     private Locale defaultLocale;
     private LocalDateTime createdAt;

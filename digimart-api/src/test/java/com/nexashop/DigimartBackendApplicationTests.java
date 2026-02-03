@@ -1,9 +1,9 @@
-package com.digimart;
+package com.nexashop;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@SpringBootTest(classes = NexaShopApplication.class)
 class DigimartBackendApplicationTests {
 
     @Test

@@ -1,0 +1,62 @@
+Frontend Architecture (DigiMart)
+================================
+
+Overview
+--------
+The frontend is a Vite + React (JSX) app using an atomic, reusable component
+structure. It mirrors the backend features: authentication, tenant dashboard,
+store management, and user management.
+
+Core Structure
+--------------
+src/
+  App.jsx               - App shell, auth flow, role-based routing.
+  main.jsx              - React bootstrap.
+  index.css             - Global styles.
+
+components/
+  ui/                   - Atomic reusable building blocks
+    Button, TextInput, Modal, ConfirmDialog
+  layout/               - Global layout parts
+    Navbar, Sidebar, TenantNavbar, TenantSidebar
+  stores/               - Store cards
+  users/                - User cards
+
+layouts/
+  AdminLayout           - Platform admin dashboard layout.
+  TenantLayout          - Tenant dashboard layout (navbar + sidebar + content).
+
+pages/
+  auth/                 - Login + registration (2-step tenant creation).
+  dashboard/            - Landing dashboard content.
+  stores/               - Store management UI.
+  users/                - User management + roles/permissions UI.
+
+Routing and State
+-----------------
+- Lightweight client routing managed in App.jsx by state.
+- After login:
+  - SUPER_ADMIN -> AdminLayout
+  - Tenant users -> TenantLayout
+- tenantId and userId stored in localStorage.
+
+API Integration
+---------------
+- Uses fetch to call backend endpoints through Vite proxy.
+- Handles token-based auth and error messages from backend.
+- For uploads, uses multipart/form-data (store images, tenant logo).
+
+Design Principles
+-----------------
+Atomic UI
+- Small, reusable components in components/ui.
+- Page-specific components (StoreCard, UserCard) are isolated.
+
+Responsive Design
+- Layout adapts for mobile (sidebar overlay, grid-only on phone).
+- Store and user pages support grid/list view toggles, forced grid on mobile.
+
+Consistency
+-----------
+- Shared visual style across cards and modals.
+- Icons via react-icons for uniform action affordances.

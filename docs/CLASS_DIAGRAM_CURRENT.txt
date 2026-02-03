@@ -1,0 +1,121 @@
+Current Class Diagram (Domain)le 2 et 3 fev 2026
+==============================
+
+Mermaid (classDiagram)
+----------------------
+classDiagram
+  direction LR
+
+  class Tenant {
+    +Long id
+    +String name
+    +String subdomain
+    +String email
+    +String phone
+    +String address
+    +String city
+    +String country
+    +String logoUrl
+    +TenantStatus status
+  }
+
+  class Store {
+    +Long id
+    +Long tenantId
+    +String name
+    +String code
+    +String phone
+    +String email
+    +String address
+    +String city
+    +String country
+    +String imageUrl
+    +Double latitude
+    +Double longitude
+    +Boolean active
+  }
+
+  class User {
+    +Long id
+    +Long tenantId
+    +String firstName
+    +String lastName
+    +String email
+    +String password
+    +String phone
+    +String imageUrl
+    +LocalDateTime lastLogin
+    +Boolean active
+  }
+
+  class Role {
+    +Long id
+    +Long tenantId
+    +String code
+    +String label
+    +boolean systemRole
+  }
+
+  class Permission {
+    +Long id
+    +String code
+    +String domain
+    +String description
+  }
+
+  class UserRoleAssignment {
+    +Long id
+    +Long tenantId
+    +Long userId
+    +Long roleId
+    +boolean active
+  }
+
+  class RolePermission {
+    +Long id
+    +Long tenantId
+    +Long roleId
+    +Long permissionId
+  }
+
+  class RefreshToken {
+    +Long id
+    +Long userId
+    +String tokenHash
+    +LocalDateTime revokedAt
+  }
+
+  class AuditEvent {
+    +Long id
+    +Long tenantId
+    +Long userId
+    +AuditAction action
+    +String entity
+    +Long entityId
+    +String details
+    +LocalDateTime createdAt
+  }
+
+  class TenantStatus {
+    <<enum>>
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+  }
+
+  class AuditAction {
+    <<enum>>
+    CREATE
+    UPDATE
+    DELETE
+    LOGIN
+  }
+
+  Tenant "1" --> "many" Store : owns
+  Tenant "1" --> "many" User : owns
+  User "1" --> "many" RefreshToken : tokens
+  User "1" --> "many" AuditEvent : actions
+  Role "1" --> "many" RolePermission : grants
+  Permission "1" --> "many" RolePermission : used by
+  User "1" --> "many" UserRoleAssignment : assigned
+  Role "1" --> "many" UserRoleAssignment : assigned

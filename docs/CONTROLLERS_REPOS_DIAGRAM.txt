@@ -1,0 +1,45 @@
+Controllers and Repositories Diagram
+====================================
+
+Mermaid (flowchart)
+-------------------
+flowchart LR
+  subgraph API["digimart-api (controllers)"]
+    AuthController
+    TenantController
+    UserController
+    StoreController
+    RoleController
+    PermissionController
+  end
+
+  subgraph INFRA["digimart-infrastructure (repositories)"]
+    TenantJpaRepository
+    UserJpaRepository
+    StoreJpaRepository
+    RoleJpaRepository
+    PermissionJpaRepository
+    RolePermissionJpaRepository
+    UserRoleAssignmentJpaRepository
+    RefreshTokenJpaRepository
+  end
+
+  AuthController --> UserJpaRepository
+  AuthController --> RefreshTokenJpaRepository
+  AuthController --> TenantJpaRepository
+  AuthController --> RoleJpaRepository
+  AuthController --> UserRoleAssignmentJpaRepository
+
+  TenantController --> TenantJpaRepository
+  UserController --> UserJpaRepository
+  UserController --> RoleJpaRepository
+  UserController --> UserRoleAssignmentJpaRepository
+
+  StoreController --> StoreJpaRepository
+  StoreController --> TenantJpaRepository
+
+  RoleController --> RoleJpaRepository
+  RoleController --> RolePermissionJpaRepository
+  RoleController --> PermissionJpaRepository
+
+  PermissionController --> PermissionJpaRepository
