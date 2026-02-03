@@ -1,7 +1,6 @@
 package com.nexashop.api.dto.request.store;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +9,6 @@ import lombok.Setter;
 @Setter
 public class CreateStoreRequest {
 
-    @NotNull
     private Long tenantId;
 
     @NotBlank

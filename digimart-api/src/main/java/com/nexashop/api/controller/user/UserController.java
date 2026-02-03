@@ -55,19 +55,23 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody CreateUserRequest request
     ) {
-        if (!tenantRepository.existsById(request.getTenantId())) {
+        Long tenantId = request.getTenantId();
+        if (tenantId == null) {
+            tenantId = SecurityContextUtil.requireUser().getTenantId();
+        }
+        if (!tenantRepository.existsById(tenantId)) {
             throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
         }
-        SecurityContextUtil.requireOwnerOrAdmin(request.getTenantId());
+        SecurityContextUtil.requireOwnerOrAdmin(tenantId);
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(CONFLICT, "Email already exists");
         }
 
-        long existingUsers = userRepository.countByTenantId(request.getTenantId());
+        long existingUsers = userRepository.countByTenantId(tenantId);
         long totalUsers = userRepository.count();
 
         User user = new User();
-        user.setTenantId(request.getTenantId());
+        user.setTenantId(tenantId);
         user.setEmail(request.getEmail());
         user.setPasswordHash(request.getPassword());
         user.setFirstName(request.getFirstName());
@@ -90,7 +94,7 @@ public class UserController {
 
     @GetMapping
     public List<UserResponse> listUsers(@RequestParam Long tenantId) {
-        SecurityContextUtil.requireAdmin(tenantId);
+        SecurityContextUtil.requireOwnerOrAdmin(tenantId);
         return userRepository.findByTenantId(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -146,6 +150,16 @@ public class UserController {
     }
 
     private UserResponse toResponse(User user) {
+        java.util.Set<Long> roleIds = assignmentRepository
+                .findByTenantIdAndUserIdAndActiveTrue(user.getTenantId(), user.getId())
+                .stream()
+                .map(UserRoleAssignment::getRoleId)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Set<String> roles = roleIds.isEmpty()
+                ? java.util.Set.of()
+                : roleRepository.findByTenantIdAndIdIn(user.getTenantId(), roleIds).stream()
+                        .map(Role::getCode)
+                        .collect(java.util.stream.Collectors.toSet());
         return UserResponse.builder()
                 .id(user.getId())
                 .tenantId(user.getTenantId())
@@ -153,6 +167,7 @@ public class UserController {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .enabled(user.isEnabled())
+                .roles(roles)
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .lastLogin(user.getLastLogin())

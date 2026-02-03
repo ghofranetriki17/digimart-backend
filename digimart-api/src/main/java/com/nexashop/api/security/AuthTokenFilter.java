@@ -1,6 +1,7 @@
 package com.nexashop.api.security;
 
 import com.nexashop.domain.user.entity.User;
+import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
 import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
@@ -77,10 +78,45 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 .map(UserRoleAssignment::getRoleId)
                 .collect(Collectors.toSet());
         Set<String> roles = roleIds.isEmpty()
-                ? Set.of()
+                ? new java.util.HashSet<>()
                 : roleRepository.findByTenantIdAndIdIn(user.getTenantId(), roleIds).stream()
                         .map(role -> role.getCode())
                         .collect(Collectors.toSet());
+
+        if (roles.isEmpty()) {
+            userRepository.findFirstByTenantIdOrderByIdAsc(user.getTenantId())
+                    .filter(first -> first.getId().equals(user.getId()))
+                    .ifPresent(firstUser -> {
+                        Role ownerRole = roleRepository.findByTenantIdAndCode(
+                                        user.getTenantId(),
+                                        "OWNER"
+                                )
+                                .orElseGet(() -> {
+                                    Role created = new Role();
+                                    created.setTenantId(user.getTenantId());
+                                    created.setCode("OWNER");
+                                    created.setLabel("Tenant Owner");
+                                    created.setSystemRole(true);
+                                    return roleRepository.save(created);
+                                });
+
+                        assignmentRepository.findByTenantIdAndUserIdAndRoleId(
+                                        user.getTenantId(),
+                                        user.getId(),
+                                        ownerRole.getId()
+                                )
+                                .orElseGet(() -> {
+                                    UserRoleAssignment assignment = new UserRoleAssignment();
+                                    assignment.setTenantId(user.getTenantId());
+                                    assignment.setUserId(user.getId());
+                                    assignment.setRoleId(ownerRole.getId());
+                                    assignment.setActive(true);
+                                    return assignmentRepository.save(assignment);
+                                });
+
+                        roles.add("OWNER");
+                    });
+        }
         return new AuthenticatedUser(user.getId(), user.getTenantId(), roles);
     }
 }

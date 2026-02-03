@@ -9,6 +9,8 @@ import lombok.Setter;
 @Setter
 public class UpdateStoreRequest {
 
+    private String code;
+
     @NotBlank
     private String name;
 
