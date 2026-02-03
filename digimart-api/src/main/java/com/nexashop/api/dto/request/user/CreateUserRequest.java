@@ -24,5 +24,9 @@ public class CreateUserRequest {
     @NotBlank
     private String lastName;
 
+    private String phone;
+
+    private String imageUrl;
+
     private Boolean enabled;
 }

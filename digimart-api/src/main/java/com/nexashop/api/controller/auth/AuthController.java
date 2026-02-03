@@ -18,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,6 +63,9 @@ public class AuthController {
         if (!user.isEnabled() || !request.getPassword().equals(user.getPasswordHash())) {
             throw new ResponseStatusException(UNAUTHORIZED, "Invalid credentials");
         }
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
 
         Set<String> roles = assignmentRepository
                 .findByTenantIdAndUserIdAndActiveTrue(user.getTenantId(), user.getId())

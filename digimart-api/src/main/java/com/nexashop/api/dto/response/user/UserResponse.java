@@ -13,6 +13,8 @@ public class UserResponse {
     private String email;
     private String firstName;
     private String lastName;
+    private String phone;
+    private String imageUrl;
     private boolean enabled;
     private java.util.Set<String> roles;
     private LocalDateTime createdAt;

@@ -2,6 +2,7 @@ package com.nexashop.api.controller.user;
 
 import com.nexashop.api.dto.request.user.CreateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRequest;
+import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
 import com.nexashop.api.dto.response.user.UserResponse;
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.user.entity.Role;
@@ -55,14 +56,18 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody CreateUserRequest request
     ) {
+        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
         Long tenantId = request.getTenantId();
         if (tenantId == null) {
-            tenantId = SecurityContextUtil.requireUser().getTenantId();
+            tenantId = requesterTenantId;
+        }
+        if (!SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
+                && !tenantId.equals(requesterTenantId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
         }
         if (!tenantRepository.existsById(tenantId)) {
             throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
         }
-        SecurityContextUtil.requireOwnerOrAdmin(tenantId);
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResponseStatusException(CONFLICT, "Email already exists");
         }
@@ -76,6 +81,8 @@ public class UserController {
         user.setPasswordHash(request.getPassword());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setImageUrl(request.getImageUrl());
         if (request.getEnabled() != null) {
             user.setEnabled(request.getEnabled());
         }
@@ -94,7 +101,11 @@ public class UserController {
 
     @GetMapping
     public List<UserResponse> listUsers(@RequestParam Long tenantId) {
-        SecurityContextUtil.requireOwnerOrAdmin(tenantId);
+        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
+        if (!SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
+                && !tenantId.equals(requesterTenantId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+        }
         return userRepository.findByTenantId(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -118,15 +129,84 @@ public class UserController {
     ) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
-        SecurityContextUtil.requireOwnerOrAdmin(user.getTenantId());
+        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
+        if (!SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
+                && !user.getTenantId().equals(requesterTenantId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+        }
 
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setPhone(request.getPhone());
+        user.setImageUrl(request.getImageUrl());
         if (request.getEnabled() != null) {
             user.setEnabled(request.getEnabled());
         }
 
         return toResponse(userRepository.save(user));
+    }
+
+    @PutMapping("/{id}/roles")
+    public UserResponse updateUserRoles(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRolesRequest request
+    ) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
+        if (!SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
+                && !user.getTenantId().equals(requesterTenantId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+        }
+
+        java.util.Set<String> desired = request.getRoles() == null
+                ? java.util.Set.of()
+                : request.getRoles().stream()
+                        .filter(role -> role != null && !role.isBlank())
+                        .collect(java.util.stream.Collectors.toSet());
+
+        java.util.List<Role> desiredRoles = desired.isEmpty()
+                ? java.util.List.of()
+                : roleRepository.findByTenantIdAndCodeIn(user.getTenantId(), desired);
+
+        if (desiredRoles.size() != desired.size()) {
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "One or more roles are invalid"
+            );
+        }
+
+        java.util.List<UserRoleAssignment> existing = assignmentRepository
+                .findByTenantIdAndUserIdAndActiveTrue(user.getTenantId(), user.getId());
+
+        java.util.Set<Long> desiredRoleIds = desiredRoles.stream()
+                .map(Role::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (Role role : desiredRoles) {
+            assignmentRepository.findByTenantIdAndUserIdAndRoleId(
+                            user.getTenantId(),
+                            user.getId(),
+                            role.getId()
+                    )
+                    .orElseGet(() -> {
+                        UserRoleAssignment assignment = new UserRoleAssignment();
+                        assignment.setTenantId(user.getTenantId());
+                        assignment.setUserId(user.getId());
+                        assignment.setRoleId(role.getId());
+                        assignment.setActive(true);
+                        return assignmentRepository.save(assignment);
+                    });
+        }
+
+        for (UserRoleAssignment assignment : existing) {
+            if (!desiredRoleIds.contains(assignment.getRoleId())) {
+                assignment.setActive(false);
+                assignmentRepository.save(assignment);
+            }
+        }
+
+        return toResponse(user);
     }
 
     @PostMapping("/{id}/roles/admin")
@@ -166,6 +246,8 @@ public class UserController {
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
+                .phone(user.getPhone())
+                .imageUrl(user.getImageUrl())
                 .enabled(user.isEnabled())
                 .roles(roles)
                 .createdAt(user.getCreatedAt())

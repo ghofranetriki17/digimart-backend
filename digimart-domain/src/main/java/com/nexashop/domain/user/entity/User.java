@@ -32,6 +32,10 @@ public class User extends TenantEntity {
     @Column(nullable = false)
     private String lastName;
 
+    private String phone;
+
+    private String imageUrl;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
