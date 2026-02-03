@@ -58,8 +58,9 @@ public class UserController {
         if (!tenantRepository.existsById(request.getTenantId())) {
             throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
         }
-        if (userRepository.existsByTenantIdAndEmail(request.getTenantId(), request.getEmail())) {
-            throw new ResponseStatusException(CONFLICT, "Email already exists for tenant");
+        SecurityContextUtil.requireOwnerOrAdmin(request.getTenantId());
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ResponseStatusException(CONFLICT, "Email already exists");
         }
 
         long existingUsers = userRepository.countByTenantId(request.getTenantId());

@@ -24,7 +24,6 @@ Headers:
   Content-Type: application/json
 Body (JSON):
 {
-  "tenantId": 1,
   "email": "admin@demo.com",
   "password": "Password123!"
 }
@@ -33,8 +32,42 @@ Expected:
 - roles include SUPER_ADMIN (and OWNER/ADMIN)
 Save token as <super_token>
 
+Request 2: Register tenant (step1)
+Method: POST
+URL: http://localhost:8080/api/auth/register-tenant/step1
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "tenantName": "New Tenant",
+  "contactEmail": "owner@new.com",
+  "contactPhone": "+212633333333",
+  "status": "ACTIVE",
+  "defaultLocale": "FR",
+}
+Expected:
+- 200 OK
+- Response includes tenantId + subdomain
+
+Request 3: Register owner (step2)
+Method: POST
+URL: http://localhost:8080/api/auth/register-tenant/step2
+Headers:
+  Content-Type: application/json
+Body (JSON):
+{
+  "tenantId": 4,
+  "ownerEmail": "owner@new.com",
+  "ownerPassword": "Password123!",
+  "ownerFirstName": "Owner",
+  "ownerLastName": "New"
+}
+Expected:
+- 200 OK
+- Response includes token + roles
+
 Tenant
-Request 2: List all tenants (SUPER_ADMIN)
+Request 4: List all tenants (SUPER_ADMIN)
 Method: GET
 URL: http://localhost:8080/api/tenants
 Headers:
@@ -43,7 +76,7 @@ Expected:
 - 200 OK
 - 3 tenants from seed
 
-Request 3: Get tenant by id (OWNER/ADMIN of tenant or SUPER_ADMIN)
+Request 5: Get tenant by id (OWNER/ADMIN of tenant or SUPER_ADMIN)
 Method: GET
 URL: http://localhost:8080/api/tenants/1
 Headers:
@@ -51,7 +84,7 @@ Headers:
 Expected:
 - 200 OK
 
-Request 4: Update tenant (OWNER/ADMIN or SUPER_ADMIN)
+Request 6: Update tenant (OWNER/ADMIN or SUPER_ADMIN)
 Method: PUT
 URL: http://localhost:8080/api/tenants/1
 Headers:
@@ -69,7 +102,7 @@ Expected:
 - 200 OK
 
 User
-Request 5: List users for tenant (ADMIN or SUPER_ADMIN)
+Request 7: List users for tenant (ADMIN or SUPER_ADMIN)
 Method: GET
 URL: http://localhost:8080/api/users?tenantId=1
 Headers:
@@ -77,7 +110,7 @@ Headers:
 Expected:
 - 200 OK
 
-Request 6: Get user by id (same tenant or SUPER_ADMIN)
+Request 8: Get user by id (same tenant or SUPER_ADMIN)
 Method: GET
 URL: http://localhost:8080/api/users/2
 Headers:
@@ -85,7 +118,7 @@ Headers:
 Expected:
 - 200 OK
 
-Request 7: Update user (OWNER/ADMIN or SUPER_ADMIN)
+Request 9: Update user (OWNER/ADMIN or SUPER_ADMIN)
 Method: PUT
 URL: http://localhost:8080/api/users/2
 Headers:
@@ -100,7 +133,7 @@ Body (JSON):
 Expected:
 - 200 OK
 
-Request 8: Grant ADMIN (OWNER/ADMIN or SUPER_ADMIN)
+Request 10: Grant ADMIN (OWNER/ADMIN or SUPER_ADMIN)
 Method: POST
 URL: http://localhost:8080/api/users/2/roles/admin
 Headers:
@@ -108,7 +141,7 @@ Headers:
 Expected:
 - 200 OK
 
-Request 9: Grant SUPER_ADMIN (SUPER_ADMIN only)
+Request 11: Grant SUPER_ADMIN (SUPER_ADMIN only)
 Method: POST
 URL: http://localhost:8080/api/users/2/roles/super-admin
 Headers:
@@ -116,8 +149,109 @@ Headers:
 Expected:
 - 200 OK
 
+Stores (Point de Vente)
+Request 12: Create store (OWNER/ADMIN or SUPER_ADMIN)
+Method: POST
+URL: http://localhost:8080/api/stores
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <super_token>
+Body (JSON):
+{
+  "tenantId": 1,
+  "name": "Store Casablanca",
+  "code": "CASA-01",
+  "address": "1 Rue Exemple",
+  "city": "Casablanca",
+  "postalCode": "20000",
+  "country": "MA",
+  "phone": "+212600000000",
+  "email": "store@demo.com",
+  "imageUrl": "https://example.com/store.png",
+  "latitude": 33.5731,
+  "longitude": -7.5898
+}
+Expected:
+- 201 Created
+
+Request 13: List stores (OWNER/ADMIN or SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/stores?tenantId=1
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 14: Get store by id (OWNER/ADMIN or SUPER_ADMIN)
+Method: GET
+URL: http://localhost:8080/api/stores/{id}
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 15: Update store (OWNER/ADMIN or SUPER_ADMIN)
+Method: PUT
+URL: http://localhost:8080/api/stores/{id}
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <super_token>
+Body (JSON):
+{
+  "name": "Store Casa Updated",
+  "address": "2 Rue Exemple",
+  "city": "Casablanca",
+  "postalCode": "20000",
+  "country": "MA",
+  "phone": "+212600000001",
+  "email": "store@demo.com",
+  "imageUrl": "https://example.com/store.png",
+  "latitude": 33.5731,
+  "longitude": -7.5898,
+  "active": true
+}
+Expected:
+- 200 OK
+
+Request 16: Update store image (OWNER/ADMIN or SUPER_ADMIN)
+Method: POST
+URL: http://localhost:8080/api/stores/{id}/image
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer <super_token>
+Body (JSON):
+{
+  "imageUrl": "https://example.com/store-new.png"
+}
+Expected:
+- 200 OK
+
+Request 17: Deactivate store (OWNER/ADMIN or SUPER_ADMIN)
+Method: POST
+URL: http://localhost:8080/api/stores/{id}/deactivate
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 18: Activate store (OWNER/ADMIN or SUPER_ADMIN)
+Method: POST
+URL: http://localhost:8080/api/stores/{id}/activate
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 200 OK
+
+Request 19: Delete store (OWNER/ADMIN or SUPER_ADMIN)
+Method: DELETE
+URL: http://localhost:8080/api/stores/{id}
+Headers:
+  Authorization: Bearer <super_token>
+Expected:
+- 204 No Content
+
 Public endpoints
-Request 10: Create tenant (public)
+Request 20: Create tenant (public)
 Method: POST
 URL: http://localhost:8080/api/tenants
 Headers:
@@ -134,11 +268,12 @@ Body (JSON):
 Expected:
 - 201 Created
 
-Request 11: Create user (public)
+Request 21: Create user (OWNER/ADMIN or SUPER_ADMIN)
 Method: POST
 URL: http://localhost:8080/api/users
 Headers:
   Content-Type: application/json
+  Authorization: Bearer <super_token>
 Body (JSON):
 {
   "tenantId": 2,
@@ -157,3 +292,5 @@ Negative cases
 - PUT /api/tenants/2 with tenant 1 admin => 403
 - POST /api/users/2/roles/super-admin without SUPER_ADMIN => 403
 - POST /api/auth/login with wrong password => 401
+- GET /api/stores?tenantId=1 without OWNER/ADMIN => 403
+- POST /api/users without token => 401

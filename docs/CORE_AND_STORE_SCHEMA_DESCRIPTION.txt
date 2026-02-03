@@ -1,0 +1,58 @@
+DIGIMART — DESCRIPTION DES ENTITES (CORE + STORE)
+
+Ce document résume la partie "Core" et "Point de Vente" du modèle.
+
+1) Tenant
+- Rôle: entité principale multi‑tenant.
+- Contient: nom, sous‑domaine unique, contacts, statut, locale, timestamps.
+
+2) User
+- Rôle: utilisateurs d’un tenant (admin, owner, staff, etc.).
+- Contraintes: email unique global (plateforme).
+- Contient: nom/prénom, mot de passe hashé, statut, lastLogin.
+
+3) RefreshToken
+- Rôle: token de session (renouvellement / bearer).
+- Lié à: tenant et user.
+
+4) Role
+- Rôle: rôle métier par tenant (OWNER, ADMIN, etc.).
+- Contraintes: code unique par tenant.
+
+5) Permission
+- Rôle: permission globale (ex: TENANT_READ, USER_WRITE).
+- Lié aux rôles via RolePermission.
+
+6) UserRoleAssignment
+- Rôle: attribution d’un rôle à un user (tenant).
+- Contraintes: unique (tenantId, userId, roleId).
+
+7) RolePermission
+- Rôle: mapping roles → permissions.
+- Contraintes: unique (tenantId, roleId, permissionId).
+
+8) AuditEvent
+- Rôle: historique des actions.
+- Contient: type d’entité, action, snapshots JSON, acteur, IP, agent, corrId.
+
+9) Store (Point de Vente)
+- Rôle: magasin/point de vente d’un tenant.
+- Lié à un seul tenant, un tenant peut en avoir plusieurs.
+- Contient:
+  - Identité: name, code (unique par tenant)
+  - Adresse: address, city, postalCode, country
+  - Contact: phone, email
+  - Media: imageUrl (optionnel)
+  - Geo: latitude, longitude (optionnels pour maps)
+  - Etat: active
+
+Relations clés
+- Tenant 1..* User
+- Tenant 1..* Role
+- Tenant 1..* Store
+- User 1..* RefreshToken
+- User 1..* UserRoleAssignment
+- Role 1..* UserRoleAssignment
+- Role 1..* RolePermission
+- Permission 1..* RolePermission
+- User 1..* AuditEvent

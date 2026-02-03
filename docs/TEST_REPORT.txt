@@ -11,66 +11,109 @@ Access Rules (Expected)
 4) ADMIN can list users for a tenant
 5) SUPER_ADMIN can access across tenants and list all tenants
 6) SUPER_ADMIN can grant SUPER_ADMIN to others
+7) OWNER/ADMIN can manage stores for their tenant
+8) Register tenant creates tenant + owner
 
 Test Cases (Thunder Client)
 
 Auth
 1) Login as SUPER_ADMIN
    POST /api/auth/login
-   Body: { "tenantId": 1, "email": "admin@demo.com", "password": "Password123!" }
+   Body: { "email": "admin@demo.com", "password": "Password123!" }
    Expect: 200, roles include SUPER_ADMIN
 
+2) Register new tenant + owner
+   POST /api/auth/register-tenant
+   Expect: 200
+
 Tenant
-2) List tenants (admin global)
+3) List tenants (admin global)
    GET /api/tenants with Authorization (SUPER_ADMIN)
    Expect: 200 list of all tenants
 
-3) Get tenant (owner/admin only)
+4) Get tenant (owner/admin only)
    GET /api/tenants/1 with Authorization
    Expect: 200
 
-4) Update tenant (owner/admin only)
+5) Update tenant (owner/admin only)
    PUT /api/tenants/1 with Authorization
    Expect: 200
 
 User
-5) Get user (same tenant or SUPER_ADMIN)
+6) Get user (same tenant or SUPER_ADMIN)
    GET /api/users/2 with Authorization
    Expect: 200
 
-6) List users (tenant admin only)
+7) List users (tenant admin only)
    GET /api/users?tenantId=1 with Authorization (ADMIN/SUPER_ADMIN)
    Expect: 200 list
 
-7) Update user (owner/admin only)
+8) Update user (owner/admin only)
    PUT /api/users/2 with Authorization
    Expect: 200
 
-8) Grant admin (owner/admin only)
+9) Grant admin (owner/admin only)
    POST /api/users/2/roles/admin with Authorization
    Expect: 200
 
-9) Grant super admin (super admin only)
+10) Grant super admin (super admin only)
    POST /api/users/2/roles/super-admin with Authorization (SUPER_ADMIN)
    Expect: 200
 
+Stores
+11) Create store (owner/admin)
+   POST /api/stores with Authorization
+   Expect: 201
+
+12) List stores (owner/admin)
+   GET /api/stores?tenantId=1 with Authorization
+   Expect: 200
+
+13) Update store (owner/admin)
+   PUT /api/stores/{id} with Authorization
+   Expect: 200
+
+14) Update store image (owner/admin)
+   POST /api/stores/{id}/image with Authorization
+   Expect: 200
+
+15) Deactivate store (owner/admin)
+   POST /api/stores/{id}/deactivate with Authorization
+   Expect: 200
+
+16) Activate store (owner/admin)
+   POST /api/stores/{id}/activate with Authorization
+   Expect: 200
+
+17) Delete store (owner/admin)
+   DELETE /api/stores/{id} with Authorization
+   Expect: 204
+
 Negative Cases
-10) List users without ADMIN
+18) List users without ADMIN
    GET /api/users?tenantId=1
    Expect: 403
 
-11) Get tenant without token
+19) Get tenant without token
    GET /api/tenants/1
    Expect: 401
 
-12) Update tenant cross-tenant (non SUPER_ADMIN)
+20) Update tenant cross-tenant (non SUPER_ADMIN)
    PUT /api/tenants/2 with token from tenant 1
    Expect: 403
 
-13) Login with wrong password
+21) Login with wrong password
    POST /api/auth/login (bad password)
    Expect: 401
 
-14) Grant super admin without SUPER_ADMIN
+22) Grant super admin without SUPER_ADMIN
    POST /api/users/2/roles/super-admin with non-super token
    Expect: 403
+
+23) List stores without owner/admin
+   GET /api/stores?tenantId=1 without token
+   Expect: 403
+
+24) Create user without token
+   POST /api/users without Authorization
+   Expect: 401

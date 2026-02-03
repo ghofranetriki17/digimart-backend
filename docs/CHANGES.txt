@@ -19,6 +19,10 @@ Summary of changes
    - Added DTOs for login and update operations
    - Added role assignment behavior for first user (OWNER)
    - Added SUPER_ADMIN role (platform-wide)
+   - Added Store (Point de Vente) entity and APIs
+   - Added store image, activate/deactivate, and delete endpoints
+   - Made user email unique globally and login without tenantId
+   - Added public tenant+owner registration endpoint
 
 Notes
 - User.passwordHash is filled with the incoming "password" field for now.

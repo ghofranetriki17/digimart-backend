@@ -10,6 +10,7 @@ TRUNCATE TABLE
   permissions,
   roles,
   users,
+  stores,
   tenants
 RESTART IDENTITY CASCADE;
 
@@ -27,6 +28,13 @@ VALUES
   (2, 1, 'staff@demo.com', 'Password123!', 'Staff', 'User', true, now(), now(), null),
   (3, 2, 'owner@trial.com', 'Password123!', 'Trial', 'Owner', true, now(), now(), null),
   (4, 3, 'owner@sus.com', 'Password123!', 'Suspended', 'Owner', false, now(), now(), null);
+
+-- Stores (Point de Vente)
+INSERT INTO stores (id, tenant_id, name, code, address, city, postal_code, country, phone, email, image_url, latitude, longitude, active, created_at, updated_at)
+VALUES
+  (1, 1, 'Store Casablanca', 'CASA-01', '1 Rue Exemple', 'Casablanca', '20000', 'MA', '+212600000000', 'store@demo.com', 'https://example.com/store.png', 33.5731, -7.5898, true, now(), now()),
+  (2, 1, 'Store Rabat', 'RAB-01', '10 Avenue Test', 'Rabat', '10000', 'MA', '+212600000001', 'rabat@demo.com', null, 34.0209, -6.8416, true, now(), now()),
+  (3, 2, 'Trial Store', 'TRY-01', '2 Trial Road', 'Rabat', '10010', 'MA', '+212611111111', 'trial@demo.com', null, 34.0209, -6.8416, true, now(), now());
 
 -- Roles
 INSERT INTO roles (id, tenant_id, code, label, system_role, created_at, updated_at)

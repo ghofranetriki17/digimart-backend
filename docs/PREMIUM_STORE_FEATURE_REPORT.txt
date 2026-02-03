@@ -1,0 +1,50 @@
+DIGIMART — RAPPORT (FEATURE PREMIUM “POINT DE VENTE”)
+
+Objectif
+Activer la gestion multi‑points de vente (stores) et l’inventaire par magasin
+uniquement pour les tenants “Premium”, afin de garder le mode standard simple
+(stock global) et offrir une valeur claire aux clients avancés.
+
+Résumé de l’idée
+- Le mode standard utilise un stock global au niveau Produit/Variante.
+- Le mode premium active :
+  - Points de vente (stores)
+  - Stock par point de vente
+  - Rôles utilisateurs par point de vente
+  - POS par store
+
+Activation / Désactivation
+- Champ Tenant : storeEnabled (boolean) ou plan (FREE/PRO/ENTERPRISE)
+- Si désactivé :
+  - Pas d’écran store
+  - Pas d’inventaire par store
+  - Toute requête liée à un store est refusée
+- Si activé :
+  - Stock géré par store
+  - Orders assignés à un store
+  - Notifications envoyées aux utilisateurs du store
+
+Processus métier
+1) Création produit
+   - Mode standard : quantité globale
+   - Mode premium : quantités par store pour chaque variante
+
+2) Commande en ligne
+   - Choix du store selon règle (proche / stock / défaut)
+   - Décrément stock uniquement dans ce store
+
+3) POS
+   - Chaque caisse liée à un store
+   - Visibilité limitée aux utilisateurs autorisés
+
+Avantages
+- Simplicité pour petits tenants
+- Scalabilité pour multi‑stores
+- Monétisation claire (premium)
+- Evolution progressive sans casser le modèle existant
+
+Conclusion
+La gestion “Point de Vente” est une fonctionnalité premium pertinente. Elle peut
+être activée par un flag ou un plan, et s’intègre proprement au modèle
+multi‑tenant actuel. L’activation progressive assure une transition simple pour
+les tenants existants.

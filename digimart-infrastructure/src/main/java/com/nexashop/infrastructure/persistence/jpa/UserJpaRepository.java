@@ -5,9 +5,9 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserJpaRepository extends JpaRepository<User, Long> {
-    boolean existsByTenantIdAndEmail(Long tenantId, String email);
+    boolean existsByEmail(String email);
 
-    Optional<User> findByTenantIdAndEmail(Long tenantId, String email);
+    Optional<User> findByEmail(String email);
 
     long countByTenantId(Long tenantId);
 

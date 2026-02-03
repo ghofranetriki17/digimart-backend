@@ -13,7 +13,7 @@ import lombok.Setter;
 @Table(
         name = "users",
         uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"tenant_id", "email"})
+                @UniqueConstraint(columnNames = {"email"})
         }
 )
 @Getter
