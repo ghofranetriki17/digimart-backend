@@ -8,6 +8,7 @@ import com.nexashop.api.security.AuthTokenService;
 import com.nexashop.domain.common.Locale;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.tenant.entity.TenantStatus;
+import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
@@ -33,6 +34,7 @@ class AuthControllerTest {
                 Mockito.mock(UserRoleAssignmentJpaRepository.class),
                 Mockito.mock(RoleJpaRepository.class),
                 Mockito.mock(TenantJpaRepository.class),
+                Mockito.mock(ActivitySectorJpaRepository.class),
                 Mockito.mock(AuthTokenService.class)
         );
         when(userRepo.findByEmail("no@user.com")).thenReturn(Optional.empty());
@@ -66,6 +68,7 @@ class AuthControllerTest {
                 Mockito.mock(UserRoleAssignmentJpaRepository.class),
                 Mockito.mock(RoleJpaRepository.class),
                 tenantRepo,
+                Mockito.mock(ActivitySectorJpaRepository.class),
                 Mockito.mock(AuthTokenService.class)
         );
 

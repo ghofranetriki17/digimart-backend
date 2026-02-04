@@ -5,6 +5,7 @@ import com.nexashop.api.security.AuthenticatedUser;
 import com.nexashop.domain.common.Locale;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.tenant.entity.TenantStatus;
+import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import java.util.Optional;
 import java.util.Set;
@@ -30,7 +31,10 @@ class TenantControllerTest {
     @Test
     void getTenantForbiddenWithoutOwnerOrAdmin() {
         TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
-        TenantController controller = new TenantController(tenantRepo);
+        TenantController controller = new TenantController(
+                tenantRepo,
+                Mockito.mock(ActivitySectorJpaRepository.class)
+        );
 
         Tenant tenant = new Tenant();
         tenant.setId(3L);
@@ -52,7 +56,10 @@ class TenantControllerTest {
     @Test
     void listTenantsRequiresAdminAny() {
         TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
-        TenantController controller = new TenantController(tenantRepo);
+        TenantController controller = new TenantController(
+                tenantRepo,
+                Mockito.mock(ActivitySectorJpaRepository.class)
+        );
 
         setAuth(1L, "USER");
         ResponseStatusException ex = assertThrows(
