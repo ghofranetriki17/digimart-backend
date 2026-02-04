@@ -28,4 +28,6 @@ public class CreateTenantRequest {
 
     @NotNull
     private Locale defaultLocale;
+
+    private Long sectorId;
 }

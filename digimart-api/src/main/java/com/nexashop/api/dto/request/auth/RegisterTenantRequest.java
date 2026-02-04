@@ -28,6 +28,8 @@ public class RegisterTenantRequest {
     @NotNull
     private Locale defaultLocale;
 
+    private Long sectorId;
+
     @Email
     @NotBlank
     private String ownerEmail;

@@ -10,8 +10,18 @@ TRUNCATE TABLE
   roles,
   users,
   stores,
-  tenants
+  tenants,
+  activity_sectors
 RESTART IDENTITY CASCADE;
+
+-- Activity sectors
+INSERT INTO activity_sectors (label, description, active, created_at, updated_at)
+VALUES
+  ('Retail', 'Boutiques, commerces de detail, franches.', true, now(), now()),
+  ('Food & Beverage', 'Restaurants, cafes, traiteurs, alimentation.', true, now(), now()),
+  ('Electronics', 'Materiel electronique, high-tech, accessoires.', true, now(), now()),
+  ('Fashion', 'Mode, vetements, accessoires, chaussures.', true, now(), now()),
+  ('Services', 'Services professionnels, agences, prestations.', true, now(), now());
 
 -- Permissions (global catalog)
 INSERT INTO permissions (code, domain, description)
@@ -119,11 +129,14 @@ VALUES
       (SELECT id FROM permissions WHERE code = 'ORDER_VIEW'), now(), now());
 
 -- Tenants
-INSERT INTO tenants (id, name, subdomain, contact_email, contact_phone, logo_url, status, default_locale, created_at, updated_at)
+INSERT INTO tenants (id, name, subdomain, contact_email, contact_phone, logo_url, status, default_locale, sector_id, created_at, updated_at)
 VALUES
-  (1, 'Digimart HQ', 'digimart', 'hq@digimart.com', '+21670000000', 'https://i.pravatar.cc/120?img=8', 'ACTIVE', 'FR', now(), now()),
-  (2, 'Vendor Alpha', 'alpha', 'owner@alpha.com', '+21671111111', 'https://i.pravatar.cc/120?img=9', 'ACTIVE', 'FR', now(), now()),
-  (3, 'Vendor Beta', 'beta', 'owner@beta.com', '+21672222222', 'https://i.pravatar.cc/120?img=7', 'ACTIVE', 'FR', now(), now());
+  (1, 'Digimart HQ', 'digimart', 'hq@digimart.com', '+21670000000', 'https://i.pravatar.cc/120?img=8', 'ACTIVE', 'FR',
+   (SELECT id FROM activity_sectors WHERE label = 'Services'), now(), now()),
+  (2, 'Vendor Alpha', 'alpha', 'owner@alpha.com', '+21671111111', 'https://i.pravatar.cc/120?img=9', 'ACTIVE', 'FR',
+   (SELECT id FROM activity_sectors WHERE label = 'Retail'), now(), now()),
+  (3, 'Vendor Beta', 'beta', 'owner@beta.com', '+21672222222', 'https://i.pravatar.cc/120?img=7', 'ACTIVE', 'FR',
+   (SELECT id FROM activity_sectors WHERE label = 'Food & Beverage'), now(), now());
 
 -- Users (passwordHash is raw for now, per app logic)
 INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, phone, image_url, enabled, created_at, updated_at, last_login)

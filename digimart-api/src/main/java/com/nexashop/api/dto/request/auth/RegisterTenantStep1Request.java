@@ -29,4 +29,6 @@ public class RegisterTenantStep1Request {
 
     @NotNull
     private Locale defaultLocale;
+
+    private Long sectorId;
 }

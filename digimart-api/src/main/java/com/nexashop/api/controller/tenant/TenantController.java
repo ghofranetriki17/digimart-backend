@@ -4,7 +4,9 @@ import com.nexashop.api.dto.request.tenant.CreateTenantRequest;
 import com.nexashop.api.dto.request.tenant.UpdateTenantRequest;
 import com.nexashop.api.dto.response.tenant.TenantResponse;
 import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
+import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -36,9 +38,14 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 public class TenantController {
 
     private final TenantJpaRepository tenantRepository;
+    private final ActivitySectorJpaRepository sectorRepository;
 
-    public TenantController(TenantJpaRepository tenantRepository) {
+    public TenantController(
+            TenantJpaRepository tenantRepository,
+            ActivitySectorJpaRepository sectorRepository
+    ) {
         this.tenantRepository = tenantRepository;
+        this.sectorRepository = sectorRepository;
     }
 
     @PostMapping
@@ -57,6 +64,7 @@ public class TenantController {
         tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
+        tenant.setSectorId(resolveSectorId(request.getSectorId()));
 
         Tenant saved = tenantRepository.save(tenant);
         return ResponseEntity
@@ -95,6 +103,7 @@ public class TenantController {
         tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
+        tenant.setSectorId(resolveSectorId(request.getSectorId()));
 
         Tenant saved = tenantRepository.save(tenant);
         return toResponse(saved);
@@ -141,8 +150,21 @@ public class TenantController {
                 .logoUrl(tenant.getLogoUrl())
                 .status(tenant.getStatus())
                 .defaultLocale(tenant.getDefaultLocale())
+                .sectorId(tenant.getSectorId())
                 .createdAt(tenant.getCreatedAt())
                 .updatedAt(tenant.getUpdatedAt())
                 .build();
+    }
+
+    private Long resolveSectorId(Long sectorId) {
+        if (sectorId == null) {
+            return null;
+        }
+        ActivitySector sector = sectorRepository.findById(sectorId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Activity sector not found"));
+        if (!sector.isActive()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Activity sector is inactive");
+        }
+        return sector.getId();
     }
 }

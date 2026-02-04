@@ -11,4 +11,6 @@ public interface StoreJpaRepository extends JpaRepository<Store, Long> {
     Optional<Store> findByIdAndTenantId(Long id, Long tenantId);
 
     List<Store> findByTenantId(Long tenantId);
+
+    List<Store> findByTenantIdIn(List<Long> tenantIds);
 }

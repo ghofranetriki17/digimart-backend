@@ -41,4 +41,7 @@ public class Tenant extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Locale defaultLocale;
+
+    @Column(name = "sector_id")
+    private Long sectorId;
 }

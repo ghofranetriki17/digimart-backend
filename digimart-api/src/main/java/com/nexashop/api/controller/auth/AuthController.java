@@ -6,10 +6,12 @@ import com.nexashop.api.dto.request.auth.RegisterTenantStep2Request;
 import com.nexashop.api.dto.response.auth.LoginResponse;
 import com.nexashop.api.dto.response.auth.RegisterTenantStep1Response;
 import com.nexashop.api.security.AuthTokenService;
+import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
+import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
@@ -36,6 +38,7 @@ public class AuthController {
     private final UserRoleAssignmentJpaRepository assignmentRepository;
     private final RoleJpaRepository roleRepository;
     private final TenantJpaRepository tenantRepository;
+    private final ActivitySectorJpaRepository sectorRepository;
     private final AuthTokenService tokenService;
 
     public AuthController(
@@ -43,12 +46,14 @@ public class AuthController {
             UserRoleAssignmentJpaRepository assignmentRepository,
             RoleJpaRepository roleRepository,
             TenantJpaRepository tenantRepository,
+            ActivitySectorJpaRepository sectorRepository,
             AuthTokenService tokenService
     ) {
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
         this.roleRepository = roleRepository;
         this.tenantRepository = tenantRepository;
+        this.sectorRepository = sectorRepository;
         this.tokenService = tokenService;
     }
 
@@ -88,10 +93,21 @@ public class AuthController {
                 httpRequest.getHeader("User-Agent")
         );
 
+        Long sectorId = tenantRepository.findById(user.getTenantId())
+                .map(Tenant::getSectorId)
+                .orElse(null);
+        String sectorLabel = sectorId == null
+                ? null
+                : sectorRepository.findById(sectorId)
+                    .map(ActivitySector::getLabel)
+                    .orElse(null);
+
         return LoginResponse.builder()
                 .token(token)
                 .userId(user.getId())
                 .tenantId(user.getTenantId())
+                .sectorId(sectorId)
+                .sectorLabel(sectorLabel)
                 .roles(roles)
                 .build();
     }
@@ -121,6 +137,7 @@ public class AuthController {
         tenant.setLogoUrl(request.getLogoUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
+        tenant.setSectorId(resolveSectorId(request.getSectorId()));
 
         Tenant savedTenant = tenantRepository.save(tenant);
         return RegisterTenantStep1Response.builder()
@@ -168,12 +185,32 @@ public class AuthController {
                 httpRequest.getHeader("User-Agent")
         );
 
+        String sectorLabel = tenant.getSectorId() == null
+                ? null
+                : sectorRepository.findById(tenant.getSectorId())
+                    .map(ActivitySector::getLabel)
+                    .orElse(null);
+
         return LoginResponse.builder()
                 .token(token)
                 .userId(savedOwner.getId())
                 .tenantId(savedOwner.getTenantId())
+                .sectorId(tenant.getSectorId())
+                .sectorLabel(sectorLabel)
                 .roles(roles)
                 .build();
+    }
+
+    private Long resolveSectorId(Long sectorId) {
+        if (sectorId == null) {
+            return null;
+        }
+        ActivitySector sector = sectorRepository.findById(sectorId)
+                .orElseThrow(() -> new ResponseStatusException(CONFLICT, "Activity sector not found"));
+        if (!sector.isActive()) {
+            throw new ResponseStatusException(CONFLICT, "Activity sector is inactive");
+        }
+        return sector.getId();
     }
 
     private Set<String> ensureOwnerIfFirstUser(User user) {

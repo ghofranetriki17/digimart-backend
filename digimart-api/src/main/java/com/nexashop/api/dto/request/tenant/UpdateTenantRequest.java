@@ -25,4 +25,6 @@ public class UpdateTenantRequest {
 
     @NotNull
     private Locale defaultLocale;
+
+    private Long sectorId;
 }
