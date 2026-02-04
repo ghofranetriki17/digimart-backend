@@ -10,13 +10,11 @@ classDiagram
     +Long id
     +String name
     +String subdomain
-    +String email
-    +String phone
-    +String address
-    +String city
-    +String country
+    +String contactEmail
+    +String contactPhone
     +String logoUrl
     +TenantStatus status
+    +Locale defaultLocale
   }
 
   class Store {
@@ -24,28 +22,29 @@ classDiagram
     +Long tenantId
     +String name
     +String code
-    +String phone
-    +String email
     +String address
     +String city
+    +String postalCode
     +String country
+    +String phone
+    +String email
     +String imageUrl
-    +Double latitude
-    +Double longitude
-    +Boolean active
+    +BigDecimal latitude
+    +BigDecimal longitude
+    +boolean active
   }
 
   class User {
     +Long id
     +Long tenantId
+    +String email
+    +String passwordHash
     +String firstName
     +String lastName
-    +String email
-    +String password
     +String phone
     +String imageUrl
     +LocalDateTime lastLogin
-    +Boolean active
+    +boolean enabled
   }
 
   class Role {
@@ -80,27 +79,42 @@ classDiagram
 
   class RefreshToken {
     +Long id
+    +Long tenantId
     +Long userId
     +String tokenHash
+    +LocalDateTime expiresAt
     +LocalDateTime revokedAt
+    +String deviceInfo
   }
 
   class AuditEvent {
     +Long id
     +Long tenantId
-    +Long userId
-    +AuditAction action
-    +String entity
+    +String entityType
     +Long entityId
-    +String details
-    +LocalDateTime createdAt
+    +AuditAction action
+    +String beforeJson
+    +String afterJson
+    +Long actorUserId
+    +String ipAddress
+    +String userAgent
+    +String correlationId
+    +LocalDateTime occurredAt
+  }
+
+  class Locale {
+    <<enum>>
+    FR
+    AR
+    EN
   }
 
   class TenantStatus {
     <<enum>>
     ACTIVE
-    INACTIVE
     SUSPENDED
+    TRIAL
+    EXPIRED
   }
 
   class AuditAction {
@@ -108,7 +122,7 @@ classDiagram
     CREATE
     UPDATE
     DELETE
-    LOGIN
+    STATUS_CHANGE
   }
 
   Tenant "1" --> "many" Store : owns

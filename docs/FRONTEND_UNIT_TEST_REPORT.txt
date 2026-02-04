@@ -1,0 +1,22 @@
+Frontend Unit Test Report (DigiMart)
+====================================
+
+Date: 2026-02-03
+Command: npx vitest run
+
+Result
+------
+Status: SUCCESS
+Test Files: 5 passed
+Tests: 8 passed
+Failures: 0
+Errors: 0
+Skipped: 0
+
+Test Files
+----------
+- src/components/users/UserCard.test.jsx (1 test)
+- src/pages/auth/LoginPage.test.jsx (2 tests)
+- src/components/stores/StoreCard.test.jsx (1 test)
+- src/pages/users/UsersPage.test.jsx (2 tests)
+- src/pages/stores/StoresPage.test.jsx (2 tests)

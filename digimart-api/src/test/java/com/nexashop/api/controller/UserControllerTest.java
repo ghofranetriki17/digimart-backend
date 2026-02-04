@@ -8,6 +8,7 @@ import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
@@ -20,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UserControllerTest {
@@ -95,6 +98,44 @@ class UserControllerTest {
                 () -> controller.getUser(10L)
         );
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void updateUserRolesCreatesMissingForPlatformTenant() {
+        UserJpaRepository userRepo = Mockito.mock(UserJpaRepository.class);
+        RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
+        UserRoleAssignmentJpaRepository assignmentRepo = Mockito.mock(UserRoleAssignmentJpaRepository.class);
+        UserController controller = new UserController(
+                Mockito.mock(TenantJpaRepository.class),
+                userRepo,
+                roleRepo,
+                assignmentRepo
+        );
+
+        setAuth(1L, "SUPER_ADMIN");
+        User user = new User();
+        user.setId(1L);
+        user.setTenantId(1L);
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        com.nexashop.domain.user.entity.Role role = new com.nexashop.domain.user.entity.Role();
+        role.setId(9L);
+        role.setTenantId(0L);
+        role.setCode("PLATFORM_SUPPORT");
+        role.setLabel("PLATFORM_SUPPORT");
+
+        when(roleRepo.findByTenantIdAndCodeIn(1L, Set.of("PLATFORM_SUPPORT")))
+                .thenReturn(List.of())
+                .thenReturn(List.of(role));
+        when(roleRepo.save(Mockito.any(com.nexashop.domain.user.entity.Role.class))).thenReturn(role);
+        when(assignmentRepo.findByTenantIdAndUserIdAndActiveTrue(1L, 1L)).thenReturn(List.of());
+        when(assignmentRepo.findByTenantIdAndUserIdAndRoleId(1L, 1L, 9L)).thenReturn(Optional.empty());
+
+        UpdateUserRolesRequest request = new UpdateUserRolesRequest();
+        request.setRoles(Set.of("PLATFORM_SUPPORT"));
+
+        assertDoesNotThrow(() -> controller.updateUserRoles(1L, request));
+        verify(roleRepo).save(Mockito.any(com.nexashop.domain.user.entity.Role.class));
     }
 
     private void setAuth(Long tenantId, String... roles) {

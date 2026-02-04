@@ -28,6 +28,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
                         .requestMatchers("/api/auth/register-tenant/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/roles/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .httpBasic(AbstractHttpConfigurer::disable)

@@ -11,6 +11,7 @@ import com.nexashop.domain.user.entity.RolePermission;
 import com.nexashop.infrastructure.persistence.jpa.PermissionJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.RolePermissionJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -40,7 +41,12 @@ class RoleControllerTest {
         RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
         RolePermissionJpaRepository rolePermRepo = Mockito.mock(RolePermissionJpaRepository.class);
         PermissionJpaRepository permRepo = Mockito.mock(PermissionJpaRepository.class);
-        RoleController controller = new RoleController(roleRepo, rolePermRepo, permRepo);
+        RoleController controller = new RoleController(
+                roleRepo,
+                rolePermRepo,
+                permRepo,
+                Mockito.mock(UserRoleAssignmentJpaRepository.class)
+        );
 
         setAuth(1L, "USER");
         ResponseStatusException ex = assertThrows(
@@ -55,7 +61,12 @@ class RoleControllerTest {
         RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
         RolePermissionJpaRepository rolePermRepo = Mockito.mock(RolePermissionJpaRepository.class);
         PermissionJpaRepository permRepo = Mockito.mock(PermissionJpaRepository.class);
-        RoleController controller = new RoleController(roleRepo, rolePermRepo, permRepo);
+        RoleController controller = new RoleController(
+                roleRepo,
+                rolePermRepo,
+                permRepo,
+                Mockito.mock(UserRoleAssignmentJpaRepository.class)
+        );
 
         setAuth(10L, "ADMIN");
         Role role = new Role();
@@ -81,7 +92,12 @@ class RoleControllerTest {
         RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
         RolePermissionJpaRepository rolePermRepo = Mockito.mock(RolePermissionJpaRepository.class);
         PermissionJpaRepository permRepo = Mockito.mock(PermissionJpaRepository.class);
-        RoleController controller = new RoleController(roleRepo, rolePermRepo, permRepo);
+        RoleController controller = new RoleController(
+                roleRepo,
+                rolePermRepo,
+                permRepo,
+                Mockito.mock(UserRoleAssignmentJpaRepository.class)
+        );
 
         setAuth(1L, "ADMIN");
         Role role = new Role();
@@ -104,7 +120,12 @@ class RoleControllerTest {
         RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
         RolePermissionJpaRepository rolePermRepo = Mockito.mock(RolePermissionJpaRepository.class);
         PermissionJpaRepository permRepo = Mockito.mock(PermissionJpaRepository.class);
-        RoleController controller = new RoleController(roleRepo, rolePermRepo, permRepo);
+        RoleController controller = new RoleController(
+                roleRepo,
+                rolePermRepo,
+                permRepo,
+                Mockito.mock(UserRoleAssignmentJpaRepository.class)
+        );
 
         setAuth(1L, "ADMIN");
         Role role = new Role();

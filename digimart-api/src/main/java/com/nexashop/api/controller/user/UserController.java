@@ -170,10 +170,27 @@ public class UserController {
                 : roleRepository.findByTenantIdAndCodeIn(user.getTenantId(), desired);
 
         if (desiredRoles.size() != desired.size()) {
-            throw new ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST,
-                    "One or more roles are invalid"
-            );
+            if (SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN") && user.getTenantId() == 1L) {
+                java.util.Set<String> foundCodes = desiredRoles.stream()
+                        .map(Role::getCode)
+                        .collect(java.util.stream.Collectors.toSet());
+                java.util.Set<String> missing = new java.util.HashSet<>(desired);
+                missing.removeAll(foundCodes);
+                for (String code : missing) {
+                    Role created = new Role();
+                    created.setTenantId(user.getTenantId());
+                    created.setCode(code);
+                    created.setLabel(code);
+                    created.setSystemRole(false);
+                    roleRepository.save(created);
+                }
+                desiredRoles = roleRepository.findByTenantIdAndCodeIn(user.getTenantId(), desired);
+            } else {
+                throw new ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "One or more roles are invalid"
+                );
+            }
         }
 
         java.util.List<UserRoleAssignment> existing = assignmentRepository
