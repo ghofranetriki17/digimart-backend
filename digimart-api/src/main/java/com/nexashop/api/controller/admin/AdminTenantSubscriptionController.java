@@ -103,19 +103,28 @@ public class AdminTenantSubscriptionController {
 
         Long actorId = currentUserId();
 
-        // expire current
-        subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
-                .ifPresent(active -> {
-                    active.setStatus(SubscriptionStatus.EXPIRED);
-                    subscriptionRepository.save(active);
-                    historyRepository.save(historyEntry(
-                            active,
-                            active.getPlanId(),
-                            SubscriptionAction.EXPIRED,
-                            "Replaced by " + plan.getCode(),
-                            actorId
-                    ));
-                });
+        // expire current (and avoid duplicate ACTIVE)
+        TenantSubscription active = subscriptionRepository
+                .findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                .orElse(null);
+        if (active != null) {
+            subscriptionRepository
+                    .findByTenantIdAndStatus(tenantId, SubscriptionStatus.EXPIRED)
+                    .filter(existingExpired -> !existingExpired.getId().equals(active.getId()))
+                    .ifPresent(existingExpired -> subscriptionRepository.deleteById(existingExpired.getId()));
+            if (active.getPlanId() != null && active.getPlanId().equals(plan.getId())) {
+                return toResponse(active, plan);
+            }
+            active.setStatus(SubscriptionStatus.EXPIRED);
+            subscriptionRepository.saveAndFlush(active);
+            historyRepository.save(historyEntry(
+                    active,
+                    active.getPlanId(),
+                    SubscriptionAction.EXPIRED,
+                    "Replaced by " + plan.getCode(),
+                    actorId
+            ));
+        }
 
         TenantSubscription sub = new TenantSubscription();
         sub.setTenantId(tenantId);
@@ -154,6 +163,10 @@ public class AdminTenantSubscriptionController {
         requirePlatformOrOwner();
         TenantSubscription active = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "No active subscription"));
+        subscriptionRepository
+                .findByTenantIdAndStatus(tenantId, SubscriptionStatus.EXPIRED)
+                .filter(existingExpired -> !existingExpired.getId().equals(active.getId()))
+                .ifPresent(existingExpired -> subscriptionRepository.deleteById(existingExpired.getId()));
         active.setStatus(SubscriptionStatus.EXPIRED);
         subscriptionRepository.save(active);
 

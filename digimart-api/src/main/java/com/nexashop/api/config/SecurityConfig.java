@@ -31,17 +31,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Temporary: open admin endpoints for dev
-                        .requestMatchers("/api/admin/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
-                        .requestMatchers("/api/auth/register-tenant/**").permitAll()
-                        .requestMatchers("/api/activity-sectors/**").permitAll()
-                        .requestMatchers(HttpMethod.DELETE, "/api/roles/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
