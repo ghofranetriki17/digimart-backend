@@ -4,6 +4,7 @@ import com.nexashop.api.dto.request.tenant.CreateTenantRequest;
 import com.nexashop.api.dto.request.tenant.UpdateTenantRequest;
 import com.nexashop.api.dto.response.tenant.TenantResponse;
 import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.api.service.TenantProvisioningService;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -39,16 +41,20 @@ public class TenantController {
 
     private final TenantJpaRepository tenantRepository;
     private final ActivitySectorJpaRepository sectorRepository;
+    private final TenantProvisioningService provisioningService;
 
     public TenantController(
             TenantJpaRepository tenantRepository,
-            ActivitySectorJpaRepository sectorRepository
+            ActivitySectorJpaRepository sectorRepository,
+            TenantProvisioningService provisioningService
     ) {
         this.tenantRepository = tenantRepository;
         this.sectorRepository = sectorRepository;
+        this.provisioningService = provisioningService;
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<TenantResponse> createTenant(
             @Valid @RequestBody CreateTenantRequest request
     ) {
@@ -67,6 +73,7 @@ public class TenantController {
         tenant.setSectorId(resolveSectorId(request.getSectorId()));
 
         Tenant saved = tenantRepository.save(tenant);
+        provisioningService.provisionTenant(saved.getId());
         return ResponseEntity
                 .created(URI.create("/api/tenants/" + saved.getId()))
                 .body(toResponse(saved));

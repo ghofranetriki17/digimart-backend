@@ -13,6 +13,7 @@ import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
 import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import com.nexashop.api.service.TenantProvisioningService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,8 @@ class AuthControllerTest {
                 Mockito.mock(RoleJpaRepository.class),
                 Mockito.mock(TenantJpaRepository.class),
                 Mockito.mock(ActivitySectorJpaRepository.class),
-                Mockito.mock(AuthTokenService.class)
+                Mockito.mock(AuthTokenService.class),
+                Mockito.mock(TenantProvisioningService.class)
         );
         when(userRepo.findByEmail("no@user.com")).thenReturn(Optional.empty());
 
@@ -69,7 +71,8 @@ class AuthControllerTest {
                 Mockito.mock(RoleJpaRepository.class),
                 tenantRepo,
                 Mockito.mock(ActivitySectorJpaRepository.class),
-                Mockito.mock(AuthTokenService.class)
+                Mockito.mock(AuthTokenService.class),
+                Mockito.mock(TenantProvisioningService.class)
         );
 
         RegisterTenantStep1Request request = new RegisterTenantStep1Request();

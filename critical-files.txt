@@ -1,0 +1,636 @@
+===== SecurityContextUtil.java (digimart-api/src/main/java/com/nexashop/api/security/SecurityContextUtil.java) =====
+package com.nexashop.api.security;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
+
+public final class SecurityContextUtil {
+
+    private SecurityContextUtil() {
+    }
+
+    public static AuthenticatedUser requireUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser)) {
+            throw new ResponseStatusException(UNAUTHORIZED, "Authentication required");
+        }
+        return (AuthenticatedUser) authentication.getPrincipal();
+    }
+
+    public static void requireAdmin(Long tenantId) {
+        AuthenticatedUser user = requireUser();
+        if (user.hasRole("SUPER_ADMIN")) {
+            return;
+        }
+        if (!tenantId.equals(user.getTenantId()) || !user.hasRole("ADMIN")) {
+            throw new ResponseStatusException(FORBIDDEN, "Admin access required");
+        }
+    }
+
+    public static void requireAdminAny() {
+        AuthenticatedUser user = requireUser();
+        if (!user.hasRole("ADMIN") && !user.hasRole("SUPER_ADMIN")) {
+            throw new ResponseStatusException(FORBIDDEN, "Admin access required");
+        }
+    }
+
+    public static void requireOwnerOrAdmin(Long tenantId) {
+        AuthenticatedUser user = requireUser();
+        if (user.hasRole("SUPER_ADMIN")) {
+            return;
+        }
+        boolean allowed = tenantId.equals(user.getTenantId())
+                && (user.hasRole("OWNER") || user.hasRole("ADMIN"));
+        if (!allowed) {
+            throw new ResponseStatusException(FORBIDDEN, "Owner or admin access required");
+        }
+    }
+
+    public static void requireSuperAdmin() {
+        AuthenticatedUser user = requireUser();
+        if (!user.hasRole("SUPER_ADMIN")) {
+            throw new ResponseStatusException(FORBIDDEN, "Super admin access required");
+        }
+    }
+}
+
+===== AuthTokenFilter.java (digimart-api/src/main/java/com/nexashop/api/security/AuthTokenFilter.java) =====
+package com.nexashop.api.security;
+
+import com.nexashop.domain.user.entity.User;
+import com.nexashop.domain.user.entity.Role;
+import com.nexashop.domain.user.entity.UserRoleAssignment;
+import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+@Component
+public class AuthTokenFilter extends OncePerRequestFilter {
+
+    private final AuthTokenService authTokenService;
+    private final UserJpaRepository userRepository;
+    private final UserRoleAssignmentJpaRepository assignmentRepository;
+    private final RoleJpaRepository roleRepository;
+
+    public AuthTokenFilter(
+            AuthTokenService authTokenService,
+            UserJpaRepository userRepository,
+            UserRoleAssignmentJpaRepository assignmentRepository,
+            RoleJpaRepository roleRepository
+    ) {
+        this.authTokenService = authTokenService;
+        this.userRepository = userRepository;
+        this.assignmentRepository = assignmentRepository;
+        this.roleRepository = roleRepository;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String rawToken = authHeader.substring("Bearer ".length()).trim();
+            authTokenService.validateToken(rawToken).ifPresent(token -> {
+                userRepository.findById(token.getUserId()).ifPresent(user -> {
+                    AuthenticatedUser principal = buildPrincipal(user);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    principal,
+                                    null,
+                                    principal.getRoles().stream()
+                                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                                            .collect(Collectors.toSet())
+                            );
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                });
+            });
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private AuthenticatedUser buildPrincipal(User user) {
+        List<UserRoleAssignment> assignments =
+                assignmentRepository.findByTenantIdAndUserIdAndActiveTrue(
+                        user.getTenantId(),
+                        user.getId()
+                );
+        Set<Long> roleIds = assignments.stream()
+                .map(UserRoleAssignment::getRoleId)
+                .collect(Collectors.toSet());
+        Set<String> roles = roleIds.isEmpty()
+                ? new java.util.HashSet<>()
+                : roleRepository.findByTenantIdAndIdIn(user.getTenantId(), roleIds).stream()
+                        .map(role -> role.getCode())
+                        .collect(Collectors.toSet());
+
+        if (roles.isEmpty()) {
+            userRepository.findFirstByTenantIdOrderByIdAsc(user.getTenantId())
+                    .filter(first -> first.getId().equals(user.getId()))
+                    .ifPresent(firstUser -> {
+                        Role ownerRole = roleRepository.findByTenantIdAndCode(
+                                        user.getTenantId(),
+                                        "OWNER"
+                                )
+                                .orElseGet(() -> {
+                                    Role created = new Role();
+                                    created.setTenantId(user.getTenantId());
+                                    created.setCode("OWNER");
+                                    created.setLabel("Tenant Owner");
+                                    created.setSystemRole(true);
+                                    return roleRepository.save(created);
+                                });
+
+                        assignmentRepository.findByTenantIdAndUserIdAndRoleId(
+                                        user.getTenantId(),
+                                        user.getId(),
+                                        ownerRole.getId()
+                                )
+                                .orElseGet(() -> {
+                                    UserRoleAssignment assignment = new UserRoleAssignment();
+                                    assignment.setTenantId(user.getTenantId());
+                                    assignment.setUserId(user.getId());
+                                    assignment.setRoleId(ownerRole.getId());
+                                    assignment.setActive(true);
+                                    return assignmentRepository.save(assignment);
+                                });
+
+                        roles.add("OWNER");
+                    });
+        }
+        return new AuthenticatedUser(user.getId(), user.getTenantId(), roles);
+    }
+}
+
+===== AdminTenantSubscriptionController.java (digimart-api/src/main/java/com/nexashop/api/controller/admin/AdminTenantSubscriptionController.java) =====
+package com.nexashop.api.controller.admin;
+
+import com.nexashop.api.dto.request.billing.ActivateSubscriptionRequest;
+import com.nexashop.api.dto.response.billing.SubscriptionHistoryResponse;
+import com.nexashop.api.dto.response.billing.TenantSubscriptionResponse;
+import com.nexashop.api.security.AuthenticatedUser;
+import com.nexashop.api.service.TenantProvisioningService;
+import com.nexashop.domain.billing.entity.SubscriptionHistory;
+import com.nexashop.domain.billing.entity.SubscriptionPlan;
+import com.nexashop.domain.billing.entity.TenantSubscription;
+import com.nexashop.domain.billing.enums.BillingCycle;
+import com.nexashop.domain.billing.enums.SubscriptionAction;
+import com.nexashop.domain.billing.enums.SubscriptionStatus;
+import com.nexashop.infrastructure.persistence.jpa.SubscriptionHistoryJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.SubscriptionPlanJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.nexashop.infrastructure.persistence.jpa.TenantSubscriptionJpaRepository;
+import jakarta.validation.Valid;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+
+@RestController
+@RequestMapping("/api/admin/tenants/{tenantId}/subscriptions")
+public class AdminTenantSubscriptionController {
+
+    private final TenantSubscriptionJpaRepository subscriptionRepository;
+    private final SubscriptionPlanJpaRepository planRepository;
+    private final SubscriptionHistoryJpaRepository historyRepository;
+    private final TenantJpaRepository tenantRepository;
+    private final TenantProvisioningService provisioningService;
+
+    public AdminTenantSubscriptionController(
+            TenantSubscriptionJpaRepository subscriptionRepository,
+            SubscriptionPlanJpaRepository planRepository,
+            SubscriptionHistoryJpaRepository historyRepository,
+            TenantJpaRepository tenantRepository,
+            TenantProvisioningService provisioningService
+    ) {
+        this.subscriptionRepository = subscriptionRepository;
+        this.planRepository = planRepository;
+        this.historyRepository = historyRepository;
+        this.tenantRepository = tenantRepository;
+        this.provisioningService = provisioningService;
+    }
+
+    // Temporary: open access (no role check) so UI can function while RBAC is finalized.
+    private void requirePlatformOrOwner() {
+        // no-op
+    }
+
+    @GetMapping("/current")
+    public TenantSubscriptionResponse getCurrent(@PathVariable Long tenantId) {
+        requirePlatformOrOwner();
+        TenantSubscription sub = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                .orElseGet(() -> subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.PENDING_ACTIVATION).orElse(null));
+        if (sub == null) {
+            provisioningService.ensureSubscription(tenantId);
+            sub = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                    .orElseGet(() -> subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.PENDING_ACTIVATION).orElse(null));
+        }
+        if (sub == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Subscription not found");
+        }
+        SubscriptionPlan plan = planRepository.findById(sub.getPlanId())
+                .orElse(null);
+        return toResponse(sub, plan);
+    }
+
+    @GetMapping("/history")
+    public List<SubscriptionHistoryResponse> history(@PathVariable Long tenantId) {
+        requirePlatformOrOwner();
+        return historyRepository.findByTenantIdOrderByPerformedAtDesc(tenantId).stream()
+                .map(this::toHistoryResponse)
+                .collect(Collectors.toList());
+    }
+
+    @PostMapping("/activate")
+    @Transactional
+    public TenantSubscriptionResponse activate(
+            @PathVariable Long tenantId,
+            @Valid @RequestBody ActivateSubscriptionRequest request
+    ) {
+        requirePlatformOrOwner();
+        if (!tenantRepository.existsById(tenantId)) {
+            throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
+        }
+
+        SubscriptionPlan plan = planRepository.findById(request.getPlanId())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Plan not found"));
+
+        Long actorId = currentUserId();
+
+        // expire current
+        subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                .ifPresent(active -> {
+                    active.setStatus(SubscriptionStatus.EXPIRED);
+                    subscriptionRepository.save(active);
+                    historyRepository.save(historyEntry(
+                            active,
+                            active.getPlanId(),
+                            SubscriptionAction.EXPIRED,
+                            "Replaced by " + plan.getCode(),
+                            actorId
+                    ));
+                });
+
+        TenantSubscription sub = new TenantSubscription();
+        sub.setTenantId(tenantId);
+        sub.setPlanId(plan.getId());
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        LocalDateTime now = LocalDateTime.now();
+        sub.setStartDate(now);
+        sub.setEndDate(calculateEndDate(now, plan.getBillingCycle()));
+        sub.setNextBillingDate(sub.getEndDate());
+        sub.setPricePaid(request.getPricePaid() != null ? request.getPricePaid() : plan.getPrice());
+        sub.setPaymentReference(request.getPaymentReference());
+        TenantSubscription saved = subscriptionRepository.save(sub);
+        historyRepository.save(historyEntry(
+                saved,
+                saved.getPlanId(),
+                SubscriptionAction.CREATED,
+                null,
+                actorId
+        ));
+        return toResponse(saved, plan);
+    }
+
+    private LocalDateTime calculateEndDate(LocalDateTime start, BillingCycle cycle) {
+        if (cycle == null) return null;
+        return switch (cycle) {
+            case MONTHLY -> start.plusDays(30);
+            case QUARTERLY -> start.plusDays(90);
+            case YEARLY -> start.plusDays(365);
+            case ONE_TIME -> null;
+        };
+    }
+
+    @PostMapping("/deactivate")
+    @Transactional
+    public TenantSubscriptionResponse deactivate(@PathVariable Long tenantId) {
+        requirePlatformOrOwner();
+        TenantSubscription active = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "No active subscription"));
+        active.setStatus(SubscriptionStatus.EXPIRED);
+        subscriptionRepository.save(active);
+
+        Long actorId = currentUserId();
+        historyRepository.save(historyEntry(
+                active,
+                active.getPlanId(),
+                SubscriptionAction.EXPIRED,
+                "Deactivated",
+                actorId
+        ));
+        SubscriptionPlan plan = planRepository.findById(active.getPlanId()).orElse(null);
+        return toResponse(active, plan);
+    }
+
+    private Long currentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
+            return user.getUserId();
+        }
+        return null;
+    }
+
+    private SubscriptionHistory historyEntry(
+            TenantSubscription sub,
+            Long newPlanId,
+            SubscriptionAction action,
+            String notes,
+            Long performedBy
+    ) {
+        SubscriptionHistory h = new SubscriptionHistory();
+        h.setTenantId(sub.getTenantId());
+        h.setSubscriptionId(sub.getId());
+        h.setOldPlanId(sub.getPlanId());
+        h.setNewPlanId(newPlanId != null ? newPlanId : sub.getPlanId());
+        h.setAction(action);
+        h.setNotes(notes);
+        h.setPerformedBy(performedBy);
+        h.setPerformedAt(LocalDateTime.now());
+        return h;
+    }
+
+    private TenantSubscriptionResponse toResponse(TenantSubscription sub, SubscriptionPlan plan) {
+        return TenantSubscriptionResponse.builder()
+                .id(sub.getId())
+                .tenantId(sub.getTenantId())
+                .planId(sub.getPlanId())
+                .planCode(plan != null ? plan.getCode() : null)
+                .planName(plan != null ? plan.getName() : null)
+                .status(sub.getStatus())
+                .startDate(sub.getStartDate())
+                .endDate(sub.getEndDate())
+                .nextBillingDate(sub.getNextBillingDate())
+                .pricePaid(sub.getPricePaid())
+                .paymentReference(sub.getPaymentReference())
+                .activatedBy(sub.getActivatedBy())
+                .activatedAt(sub.getActivatedAt())
+                .cancelledAt(sub.getCancelledAt())
+                .cancellationReason(sub.getCancellationReason())
+                .createdAt(sub.getCreatedAt())
+                .updatedAt(sub.getUpdatedAt())
+                .build();
+    }
+
+    private SubscriptionHistoryResponse toHistoryResponse(SubscriptionHistory h) {
+        return SubscriptionHistoryResponse.builder()
+                .id(h.getId())
+                .tenantId(h.getTenantId())
+                .subscriptionId(h.getSubscriptionId())
+                .oldPlanId(h.getOldPlanId())
+                .newPlanId(h.getNewPlanId())
+                .action(h.getAction())
+                .notes(h.getNotes())
+                .performedBy(h.getPerformedBy())
+                .performedAt(h.getPerformedAt())
+                .build();
+    }
+}
+
+===== SecurityConfig.java (digimart-api/src/main/java/com/nexashop/api/config/SecurityConfig.java) =====
+package com.nexashop.api.config;
+
+import com.nexashop.api.security.AuthTokenFilter;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            AuthTokenFilter authTokenFilter,
+            CorsConfigurationSource corsConfigurationSource
+    ) throws Exception {
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
+                        .requestMatchers("/api/auth/register-tenant/**").permitAll()
+                        .requestMatchers("/api/activity-sectors/**").permitAll()
+                        // Temporary: open admin tenant subscription endpoints for dev
+                        .requestMatchers("/api/admin/tenants/**").permitAll()
+
+                        .requestMatchers(HttpMethod.DELETE, "/api/roles/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins:*}") String allowedOrigins
+    ) {
+        CorsConfiguration config = new CorsConfiguration();
+
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
+
+        if (origins.contains("*")) {
+            config.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            config.setAllowedOrigins(origins);
+        }
+
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+}
+
+===== AdminTenantsPage.jsx (nexashop-frontend/src/pages/tenants/AdminTenantsPage.jsx) =====
+import { useEffect, useState } from 'react'
+import './AdminTenantsPage.css'
+
+export default function AdminTenantsPage({ token }) {
+  const [tenants, setTenants] = useState([])
+  const [plans, setPlans] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [subStatus, setSubStatus] = useState({}) // { [tenantId]: { planId, planName } }
+  const [rowLoading, setRowLoading] = useState({})
+
+  const auth = { Authorization: `Bearer ${token}` }
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [tRes, pRes] = await Promise.all([
+        fetch('/api/tenants', { headers: auth }),
+        fetch('/api/plans', { headers: auth }),
+      ])
+      if (!tRes.ok) throw new Error('Impossible de charger les tenants')
+      const tenantsData = await tRes.json()
+      setTenants(Array.isArray(tenantsData) ? tenantsData : [])
+
+      const plansData = pRes.ok ? await pRes.json() : []
+      setPlans(Array.isArray(plansData) ? plansData : [])
+
+      const statuses = {}
+      await Promise.all(
+        (Array.isArray(tenantsData) ? tenantsData : []).map(async (t) => {
+          const subRes = await fetch(`/api/admin/tenants/${t.id}/subscriptions/current`, { headers: auth })
+          if (subRes.ok) {
+            const sub = await subRes.json()
+            statuses[t.id] = {
+              planId: sub.planId,
+              planName: sub.planName || sub.planCode || '—',
+            }
+          } else {
+            statuses[t.id] = null
+          }
+        }),
+      )
+      setSubStatus(statuses)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const activate = async (tenantId, planId) => {
+    if (!planId) return
+    setRowLoading((prev) => ({ ...prev, [tenantId]: true }))
+    await fetch(`/api/admin/tenants/${tenantId}/subscriptions/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ planId: Number(planId) }),
+    })
+    setRowLoading((prev) => ({ ...prev, [tenantId]: false }))
+    await load()
+  }
+
+  return (
+    <div className="admin-tenants-page">
+      <header className="admin-tenants-hero">
+        <div className="admin-hero-title">
+          <h2>Tenants &amp; abonnements</h2>
+          <span className="admin-hero-badge">SUPER ADMIN</span>
+        </div>
+        <p>Gérez les plans d’abonnement des tenants et basculez un plan actif en un clic.</p>
+      </header>
+
+      {loading ? <div className="admin-tenants-status">Chargement…</div> : null}
+      {error ? <div className="admin-tenants-error">{error}</div> : null}
+
+      <section className="admin-tenants-grid">
+        {tenants.map((t) => {
+          const current = subStatus[t.id]
+          return (
+            <div key={t.id} className="tenant-card">
+              <div className="tenant-card-head">
+                <div className="tenant-id">
+                  <div className="admin-tenant-name">{t.name}</div>
+                  <span className="admin-tenant-sub">{t.subdomain}</span>
+                </div>
+                <span className={`tenant-plan-pill ${current ? 'active' : 'inactive'}`}>
+                  {current ? 'Plan actif' : 'Aucun plan'}
+                </span>
+              </div>
+
+              <div className="tenant-card-body">
+                <div className="tenant-current">
+                  <span className="tenant-label">Plan actuel</span>
+                  <strong>{current?.planName || 'Aucun'}</strong>
+                </div>
+                <div className="tenant-planlist">
+                  {plans.map((p) => {
+                    const isOn = current?.planId === p.id
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`tenant-toggle ${isOn ? 'on' : 'off'}`}
+                        disabled={rowLoading[t.id]}
+                        onClick={() => {
+                          if (!isOn) activate(t.id, p.id)
+                        }}
+                      >
+                        <span className="toggle-dot" />
+                        <span className="toggle-label">
+                          {p.name} ({p.price} {p.currency})
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {rowLoading[t.id] ? <div className="tenant-row-loading">Mise à jour…</div> : null}
+            </div>
+          )
+        })}
+
+        {tenants.length === 0 ? <div className="admin-tenants-empty">Aucun tenant</div> : null}
+      </section>
+    </div>
+  )
+}

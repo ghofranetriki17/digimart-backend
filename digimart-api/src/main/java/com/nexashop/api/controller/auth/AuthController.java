@@ -6,6 +6,7 @@ import com.nexashop.api.dto.request.auth.RegisterTenantStep2Request;
 import com.nexashop.api.dto.response.auth.LoginResponse;
 import com.nexashop.api.dto.response.auth.RegisterTenantStep1Response;
 import com.nexashop.api.security.AuthTokenService;
+import com.nexashop.api.service.TenantProvisioningService;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.user.entity.User;
@@ -40,6 +41,7 @@ public class AuthController {
     private final TenantJpaRepository tenantRepository;
     private final ActivitySectorJpaRepository sectorRepository;
     private final AuthTokenService tokenService;
+    private final TenantProvisioningService provisioningService;
 
     public AuthController(
             UserJpaRepository userRepository,
@@ -47,7 +49,8 @@ public class AuthController {
             RoleJpaRepository roleRepository,
             TenantJpaRepository tenantRepository,
             ActivitySectorJpaRepository sectorRepository,
-            AuthTokenService tokenService
+            AuthTokenService tokenService,
+            TenantProvisioningService provisioningService
     ) {
         this.userRepository = userRepository;
         this.assignmentRepository = assignmentRepository;
@@ -55,6 +58,7 @@ public class AuthController {
         this.tenantRepository = tenantRepository;
         this.sectorRepository = sectorRepository;
         this.tokenService = tokenService;
+        this.provisioningService = provisioningService;
     }
 
     @PostMapping("/login")
@@ -140,6 +144,7 @@ public class AuthController {
         tenant.setSectorId(resolveSectorId(request.getSectorId()));
 
         Tenant savedTenant = tenantRepository.save(tenant);
+        provisioningService.provisionTenant(savedTenant.getId());
         return RegisterTenantStep1Response.builder()
                 .tenantId(savedTenant.getId())
                 .subdomain(savedTenant.getSubdomain())

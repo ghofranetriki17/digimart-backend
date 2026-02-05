@@ -2,6 +2,7 @@ package com.nexashop.api.controller;
 
 import com.nexashop.api.controller.tenant.TenantController;
 import com.nexashop.api.security.AuthenticatedUser;
+import com.nexashop.api.service.TenantProvisioningService;
 import com.nexashop.domain.common.Locale;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.tenant.entity.TenantStatus;
@@ -31,9 +32,11 @@ class TenantControllerTest {
     @Test
     void getTenantForbiddenWithoutOwnerOrAdmin() {
         TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
+        TenantProvisioningService provisioningService = Mockito.mock(TenantProvisioningService.class);
         TenantController controller = new TenantController(
                 tenantRepo,
-                Mockito.mock(ActivitySectorJpaRepository.class)
+                Mockito.mock(ActivitySectorJpaRepository.class),
+                provisioningService
         );
 
         Tenant tenant = new Tenant();
@@ -56,9 +59,11 @@ class TenantControllerTest {
     @Test
     void listTenantsRequiresAdminAny() {
         TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
+        TenantProvisioningService provisioningService = Mockito.mock(TenantProvisioningService.class);
         TenantController controller = new TenantController(
                 tenantRepo,
-                Mockito.mock(ActivitySectorJpaRepository.class)
+                Mockito.mock(ActivitySectorJpaRepository.class),
+                provisioningService
         );
 
         setAuth(1L, "USER");

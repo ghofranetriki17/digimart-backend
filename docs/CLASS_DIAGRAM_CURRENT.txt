@@ -1,25 +1,53 @@
-Current Class Diagram (Domain)le 2 et 3 fev 2026
+Current Class Diagram (Domain + Standalone Billing) - updated 2026-02-05
 ==============================
 
 Mermaid (classDiagram)
 ----------------------
 classDiagram
-  direction LR
+  direction TB
+
+  %% ========================================
+  %% EXISTING - Core Multi-Tenant
+  %% ========================================
+
+  class ActivitySector {
+    <<entity>> [EXISTING]
+    +Long id PK
+    +String label UNIQUE
+    +String description
+    +boolean active
+  }
+  style ActivitySector fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
 
   class Tenant {
-    +Long id
+    <<entity>> [EXISTING]
+    +Long id PK
     +String name
-    +String subdomain
+    +String subdomain UNIQUE
     +String contactEmail
     +String contactPhone
     +String logoUrl
     +TenantStatus status
     +Locale defaultLocale
+    +Long sectorId FK
+    +LocalDateTime createdAt
+    +LocalDateTime updatedAt
   }
+  style Tenant fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:4px
+
+  class TenantStatus {
+    <<enum>> [EXISTING]
+    ACTIVE
+    SUSPENDED
+    TRIAL
+    EXPIRED
+  }
+  style TenantStatus fill:#3F51B5,stroke:#1A237E,color:#fff
 
   class Store {
-    +Long id
-    +Long tenantId
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
     +String name
     +String code
     +String address
@@ -28,108 +56,335 @@ classDiagram
     +String country
     +String phone
     +String email
-    +String imageUrl
-    +BigDecimal latitude
-    +BigDecimal longitude
     +boolean active
   }
+  style Store fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
 
   class User {
-    +Long id
-    +Long tenantId
-    +String email
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
+    +String email UNIQUE(tenant)
     +String passwordHash
     +String firstName
     +String lastName
     +String phone
     +String imageUrl
-    +LocalDateTime lastLogin
     +boolean enabled
+    +LocalDateTime lastLogin
   }
-
-  class Role {
-    +Long id
-    +Long tenantId
-    +String code
-    +String label
-    +boolean systemRole
-  }
-
-  class Permission {
-    +Long id
-    +String code
-    +String domain
-    +String description
-  }
-
-  class UserRoleAssignment {
-    +Long id
-    +Long tenantId
-    +Long userId
-    +Long roleId
-    +boolean active
-  }
-
-  class RolePermission {
-    +Long id
-    +Long tenantId
-    +Long roleId
-    +Long permissionId
-  }
+  style User fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
 
   class RefreshToken {
-    +Long id
-    +Long tenantId
-    +Long userId
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
+    +Long userId FK
     +String tokenHash
     +LocalDateTime expiresAt
     +LocalDateTime revokedAt
-    +String deviceInfo
   }
+  style RefreshToken fill:#3F51B5,stroke:#1A237E,color:#fff
+
+  class Role {
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
+    +String code UNIQUE(tenant)
+    +String label
+    +boolean systemRole
+  }
+  style Role fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+
+  class Permission {
+    <<entity>> [EXISTING]
+    +Long id PK
+    +String code UNIQUE
+    +String domain
+    +String description
+  }
+  style Permission fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+
+  class UserRoleAssignment {
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
+    +Long userId FK
+    +Long roleId FK
+  }
+  style UserRoleAssignment fill:#3F51B5,stroke:#1A237E,color:#fff
+
+  class RolePermission {
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
+    +Long roleId FK
+    +Long permissionId FK
+  }
+  style RolePermission fill:#3F51B5,stroke:#1A237E,color:#fff
 
   class AuditEvent {
-    +Long id
-    +Long tenantId
+    <<entity>> [EXISTING]
+    +Long id PK
+    +Long tenantId FK
     +String entityType
     +Long entityId
     +AuditAction action
     +String beforeJson
     +String afterJson
-    +Long actorUserId
-    +String ipAddress
-    +String userAgent
-    +String correlationId
+    +Long actorUserId FK
     +LocalDateTime occurredAt
   }
-
-  class Locale {
-    <<enum>>
-    FR
-    AR
-    EN
-  }
-
-  class TenantStatus {
-    <<enum>>
-    ACTIVE
-    SUSPENDED
-    TRIAL
-    EXPIRED
-  }
+  style AuditEvent fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
 
   class AuditAction {
-    <<enum>>
+    <<enum>> [EXISTING]
     CREATE
     UPDATE
     DELETE
     STATUS_CHANGE
   }
+  style AuditAction fill:#3F51B5,stroke:#1A237E,color:#fff
 
-  Tenant "1" --> "many" Store : owns
-  Tenant "1" --> "many" User : owns
-  User "1" --> "many" RefreshToken : tokens
-  User "1" --> "many" AuditEvent : actions
-  Role "1" --> "many" RolePermission : grants
-  Permission "1" --> "many" RolePermission : used by
-  User "1" --> "many" UserRoleAssignment : assigned
-  Role "1" --> "many" UserRoleAssignment : assigned
+  class Locale {
+    <<enum>> [EXISTING]
+    FR
+    AR
+    EN
+  }
+  style Locale fill:#9E9E9E,stroke:#424242,color:#fff
+
+  %% ========================================
+  %% NEW - Standalone Billing System
+  %% ========================================
+
+  class PlatformConfig {
+    <<entity>> [NEW]
+    +Long id PK
+    +String configKey UNIQUE
+    +String configValue
+    +String description
+    +LocalDateTime updatedAt
+    +Long updatedBy FK
+  }
+  style PlatformConfig fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+
+  class TenantWallet {
+    <<entity>> [NEW]
+    +Long id PK
+    +Long tenantId FK UNIQUE
+    +BigDecimal balance
+    +String currency
+    +WalletStatus status
+    +LocalDateTime lastTransactionAt
+    +LocalDateTime createdAt
+    +LocalDateTime updatedAt
+  }
+  style TenantWallet fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+
+  class WalletStatus {
+    <<enum>> [NEW]
+    ACTIVE
+    SUSPENDED
+    FROZEN
+  }
+  style WalletStatus fill:#FF6F00,stroke:#E65100,color:#fff
+
+  class WalletTransaction {
+    <<entity>> [NEW]
+    +Long id PK
+    +Long tenantId FK
+    +Long walletId FK
+    +WalletTxnType type
+    +BigDecimal amount
+    +BigDecimal balanceBefore
+    +BigDecimal balanceAfter
+    +String reason
+    +String reference
+    +Long processedBy FK
+    +LocalDateTime transactionDate
+    +LocalDateTime createdAt
+  }
+  style WalletTransaction fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:3px
+
+  class WalletTxnType {
+    <<enum>> [NEW]
+    INITIAL_CREDIT
+    MANUAL_CREDIT
+    MANUAL_DEBIT
+    ADJUSTMENT
+    REFUND
+  }
+  style WalletTxnType fill:#FF6F00,stroke:#E65100,color:#fff
+
+  class PremiumFeature {
+    <<entity>> [NEW - SEEDED]
+    +Long id PK
+    +String code UNIQUE
+    +String name
+    +String description
+    +String category
+    +boolean active
+    +Integer displayOrder
+    +LocalDateTime createdAt
+  }
+  style PremiumFeature fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+
+  class FeatureCategory {
+    <<enum>> [NEW]
+    ANALYTICS
+    SALES
+    MARKETING
+    TECHNICAL
+    SUPPORT
+  }
+  style FeatureCategory fill:#9C27B0,stroke:#4A148C,color:#fff
+
+  class SubscriptionPlan {
+    <<entity>> [NEW - ADMIN]
+    +Long id PK
+    +String code UNIQUE
+    +String name
+    +String description
+    +BigDecimal price
+    +String currency
+    +BillingCycle billingCycle
+    +BigDecimal discountPercentage
+    +boolean isStandard
+    +boolean isActive
+    +LocalDateTime startDate
+    +LocalDateTime endDate
+    +Long createdBy FK
+    +LocalDateTime createdAt
+    +LocalDateTime updatedAt
+  }
+  style SubscriptionPlan fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+
+  class BillingCycle {
+    <<enum>> [NEW]
+    MONTHLY
+    QUARTERLY
+    YEARLY
+    ONE_TIME
+  }
+  style BillingCycle fill:#9C27B0,stroke:#4A148C,color:#fff
+
+  class PlanFeature {
+    <<entity>> [NEW - JUNCTION]
+    +Long id PK
+    +Long planId FK
+    +Long featureId FK
+    +LocalDateTime createdAt
+  }
+  style PlanFeature fill:#9C27B0,stroke:#4A148C,color:#fff
+
+  class TenantSubscription {
+    <<entity>> [NEW]
+    +Long id PK
+    +Long tenantId FK
+    +Long planId FK
+    +SubscriptionStatus status
+    +LocalDateTime startDate
+    +LocalDateTime endDate
+    +LocalDateTime nextBillingDate
+    +BigDecimal pricePaid
+    +String paymentReference
+    +Long activatedBy FK
+    +LocalDateTime activatedAt
+    +LocalDateTime cancelledAt
+    +String cancellationReason
+    +LocalDateTime createdAt
+    +LocalDateTime updatedAt
+  }
+  style TenantSubscription fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+
+  class SubscriptionStatus {
+    <<enum>> [NEW]
+    ACTIVE
+    PENDING_ACTIVATION
+    EXPIRED
+    CANCELLED
+    SUSPENDED
+  }
+  style SubscriptionStatus fill:#9C27B0,stroke:#4A148C,color:#fff
+
+  class SubscriptionHistory {
+    <<entity>> [NEW - AUDIT]
+    +Long id PK
+    +Long tenantId FK
+    +Long subscriptionId FK
+    +Long oldPlanId FK
+    +Long newPlanId FK
+    +SubscriptionAction action
+    +String notes
+    +Long performedBy FK
+    +LocalDateTime performedAt
+  }
+  style SubscriptionHistory fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:3px
+
+  class SubscriptionAction {
+    <<enum>> [NEW]
+    CREATED
+    ACTIVATED
+    UPGRADED
+    DOWNGRADED
+    RENEWED
+    CANCELLED
+    SUSPENDED
+    EXPIRED
+  }
+  style SubscriptionAction fill:#9C27B0,stroke:#4A148C,color:#fff
+
+  %% ============================
+  %% EXISTING RELATIONS
+  %% ============================
+  Tenant "many" --> "1" ActivitySector : belongsTo
+  Tenant "1" --o "0..*" Store : owns
+  Tenant "1" --o "0..*" User : has
+  User "1" --o "0..*" RefreshToken : tokens
+  Tenant "1" --o "0..*" Role : roles
+  Tenant "1" --o "0..*" RolePermission : rolePermissions
+  Tenant "1" --o "0..*" UserRoleAssignment : assignments
+  User "1" --o "0..*" UserRoleAssignment : assigned
+  Role "1" --o "0..*" UserRoleAssignment : has
+  Role "1" --o "0..*" RolePermission : grants
+  Permission "1" --o "0..*" RolePermission : usedBy
+  User "1" --o "0..*" AuditEvent : actor
+  Tenant "1" --> "1" TenantStatus : status
+
+  %% ============================
+  %% NEW BILLING RELATIONS
+  %% ============================
+  %% Wallet System
+  Tenant "1" --o "1" TenantWallet : hasWallet
+  TenantWallet "1" --> "1" WalletStatus : status
+  TenantWallet "1" --o "0..*" WalletTransaction : transactions
+  WalletTransaction "1" --> "1" WalletTxnType : type
+  User "1" --o "0..*" WalletTransaction : processes
+  User "1" --o "0..*" PlatformConfig : manages
+
+  %% Plan & Feature System
+  PremiumFeature "1" --> "1" FeatureCategory : category
+  SubscriptionPlan "1" --o "0..*" PlanFeature : includes
+  PremiumFeature "1" --o "0..*" PlanFeature : usedIn
+  SubscriptionPlan "1" --> "1" BillingCycle : cycle
+  User "1" --o "0..*" SubscriptionPlan : creates
+
+  %% Subscription System
+  Tenant "1" --o "0..*" TenantSubscription : subscriptions
+  SubscriptionPlan "1" --o "0..*" TenantSubscription : subscribedBy
+  TenantSubscription "1" --> "1" SubscriptionStatus : status
+  User "1" --o "0..*" TenantSubscription : activates
+
+  %% Subscription History
+  TenantSubscription "1" --o "0..*" SubscriptionHistory : history
+  SubscriptionHistory "1" --> "1" SubscriptionAction : action
+  User "1" --o "0..*" SubscriptionHistory : performs
+
+  %% ============================
+  %% NOTES
+  %% ============================
+  note for TenantWallet "Created automatically when\nTenant is created\nInitial balance from PlatformConfig"
+  note for SubscriptionPlan "Standard plan is pre-seeded\nwith isStandard=true\nAll new tenants start here"
+  note for PremiumFeature "Seeded by developers\nAdmin cannot create features\nOnly assign to plans"
+  note for WalletTransaction "Manual credit/debit for now\nFuture: auto-deduction from orders"
