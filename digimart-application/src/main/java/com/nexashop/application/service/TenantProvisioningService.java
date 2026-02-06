@@ -6,6 +6,7 @@ import com.nexashop.application.port.out.SubscriptionPlanRepository;
 import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.port.out.TenantWalletRepository;
 import com.nexashop.application.port.out.WalletTransactionRepository;
+import com.nexashop.application.exception.NotFoundException;
 import com.nexashop.domain.billing.entity.PlatformConfig;
 import com.nexashop.domain.billing.entity.SubscriptionHistory;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -21,9 +22,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
 public class TenantProvisioningService {
@@ -99,7 +97,7 @@ public class TenantProvisioningService {
                 });
 
         SubscriptionPlan standard = planRepository.findByCode("STANDARD")
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Standard plan not found"));
+                .orElseThrow(() -> new NotFoundException("Standard plan not found"));
 
         TenantSubscription sub = new TenantSubscription();
         sub.setTenantId(tenantId);

@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.SubscriptionHistoryRepository;
 import com.nexashop.application.port.out.SubscriptionPlanRepository;
 import com.nexashop.application.port.out.TenantRepository;
@@ -13,13 +14,8 @@ import com.nexashop.domain.billing.enums.SubscriptionAction;
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@Service
 public class AdminTenantSubscriptionUseCase {
 
     public record SubscriptionDetails(TenantSubscription subscription, SubscriptionPlan plan) {}
@@ -55,7 +51,7 @@ public class AdminTenantSubscriptionUseCase {
                             .orElse(null));
         }
         if (sub == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Subscription not found");
+            throw new NotFoundException("Subscription not found");
         }
         SubscriptionPlan plan = planRepository.findById(sub.getPlanId()).orElse(null);
         return new SubscriptionDetails(sub, plan);
@@ -65,7 +61,6 @@ public class AdminTenantSubscriptionUseCase {
         return historyRepository.findByTenantIdOrderByPerformedAtDesc(tenantId);
     }
 
-    @Transactional
     public SubscriptionDetails activate(
             Long tenantId,
             Long planId,
@@ -74,11 +69,11 @@ public class AdminTenantSubscriptionUseCase {
             Long actorId
     ) {
         if (!tenantRepository.existsById(tenantId)) {
-            throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
+            throw new NotFoundException("Tenant not found");
         }
 
         SubscriptionPlan plan = planRepository.findById(planId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Plan not found"));
+                .orElseThrow(() -> new NotFoundException("Plan not found"));
 
         TenantSubscription active = subscriptionRepository
                 .findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
@@ -123,10 +118,9 @@ public class AdminTenantSubscriptionUseCase {
         return new SubscriptionDetails(saved, plan);
     }
 
-    @Transactional
     public SubscriptionDetails deactivate(Long tenantId, Long actorId) {
         TenantSubscription active = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "No active subscription"));
+                .orElseThrow(() -> new NotFoundException("No active subscription"));
         subscriptionRepository
                 .findByTenantIdAndStatus(tenantId, SubscriptionStatus.EXPIRED)
                 .filter(existingExpired -> !existingExpired.getId().equals(active.getId()))
@@ -174,3 +168,5 @@ public class AdminTenantSubscriptionUseCase {
         return h;
     }
 }
+
+

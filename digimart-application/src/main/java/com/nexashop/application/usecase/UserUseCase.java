@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.UserRepository;
@@ -10,15 +11,8 @@ import com.nexashop.domain.user.entity.UserRoleAssignment;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@Service
 public class UserUseCase {
 
     private final TenantRepository tenantRepository;
@@ -41,13 +35,13 @@ public class UserUseCase {
     public User createUser(User user, Long targetTenantId, Long requesterTenantId, boolean isSuperAdmin) {
         Long tenantId = targetTenantId == null ? requesterTenantId : targetTenantId;
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
         if (!tenantRepository.existsById(tenantId)) {
-            throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
+            throw new NotFoundException("Tenant not found");
         }
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new ResponseStatusException(CONFLICT, "Email already exists");
+            throw new ConflictException("Email already exists");
         }
 
         long existingUsers = userRepository.countByTenantId(tenantId);
@@ -67,16 +61,16 @@ public class UserUseCase {
 
     public List<User> listUsers(Long tenantId, Long requesterTenantId, boolean isSuperAdmin) {
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
         return userRepository.findByTenantId(tenantId);
     }
 
     public User getUser(Long id, Long requesterTenantId, boolean isSuperAdmin) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Cross-tenant access forbidden");
+            throw new ForbiddenException("Cross-tenant access forbidden");
         }
         return user;
     }
@@ -92,9 +86,9 @@ public class UserUseCase {
             boolean isSuperAdmin
     ) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
         user.setFirstName(firstName);
         user.setLastName(lastName);
@@ -108,9 +102,9 @@ public class UserUseCase {
 
     public User updateUserRoles(Long id, Set<String> roles, Long requesterTenantId, boolean isSuperAdmin) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
 
         Set<String> desired = roles == null
@@ -140,7 +134,7 @@ public class UserUseCase {
                 }
                 desiredRoles = roleRepository.findByTenantIdAndCodeIn(user.getTenantId(), desired);
             } else {
-                throw new ResponseStatusException(BAD_REQUEST, "One or more roles are invalid");
+                throw new BadRequestException("One or more roles are invalid");
             }
         }
 
@@ -179,14 +173,14 @@ public class UserUseCase {
 
     public User grantAdmin(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         assignRole(user, "ADMIN", "Tenant Admin");
         return user;
     }
 
     public User grantSuperAdmin(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         assignRole(user, "SUPER_ADMIN", "Platform Admin");
         return user;
     }
@@ -231,3 +225,5 @@ public class UserUseCase {
                 });
     }
 }
+
+

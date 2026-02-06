@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,7 @@ public class AdminTenantSubscriptionController {
     }
 
     @PostMapping("/activate")
+    @Transactional
     public TenantSubscriptionResponse activate(
             @PathVariable Long tenantId,
             @Valid @RequestBody ActivateSubscriptionRequest request
@@ -68,6 +70,7 @@ public class AdminTenantSubscriptionController {
     }
 
     @PostMapping("/deactivate")
+    @Transactional
     public TenantSubscriptionResponse deactivate(@PathVariable Long tenantId) {
         requirePlatformOrOwner();
         Long actorId = currentUserId();

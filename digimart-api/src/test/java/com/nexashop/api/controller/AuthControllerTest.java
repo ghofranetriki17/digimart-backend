@@ -4,14 +4,13 @@ import com.nexashop.api.controller.auth.AuthController;
 import com.nexashop.api.dto.request.auth.LoginRequest;
 import com.nexashop.api.dto.request.auth.RegisterTenantStep1Request;
 import com.nexashop.api.dto.response.auth.RegisterTenantStep1Response;
+import com.nexashop.application.exception.UnauthorizedException;
 import com.nexashop.application.usecase.AuthUseCase;
 import com.nexashop.domain.common.Locale;
 import com.nexashop.domain.tenant.entity.TenantStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,13 +31,13 @@ class AuthControllerTest {
                 request.getEmail(),
                 request.getPassword(),
                 null
-        )).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+        )).thenThrow(new UnauthorizedException("Invalid credentials"));
 
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
+        UnauthorizedException ex = assertThrows(
+                UnauthorizedException.class,
                 () -> controller.login(request, Mockito.mock(HttpServletRequest.class))
         );
-        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
+        assertEquals("Invalid credentials", ex.getMessage());
     }
 
     @Test

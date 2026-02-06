@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.RolePermissionRepository;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.PermissionRepository;
@@ -10,15 +11,8 @@ import com.nexashop.domain.user.entity.RolePermission;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@Service
 public class RoleUseCase {
 
     public record RoleDetails(Role role, Set<String> permissions) {}
@@ -44,7 +38,7 @@ public class RoleUseCase {
 
     public List<RoleDetails> listRoles(Long tenantId, Long requesterTenantId, boolean isSuperAdmin) {
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
         Set<Long> tenantIds = Set.of(TEMPLATE_TENANT_ID, tenantId);
         return roleRepository.findByTenantIdIn(tenantIds).stream()
@@ -66,13 +60,13 @@ public class RoleUseCase {
         }
 
         Role template = roleRepository.findById(templateRoleId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Template role not found"));
+                .orElseThrow(() -> new NotFoundException("Template role not found"));
         if (!template.isSystemRole() || !TEMPLATE_TENANT_ID.equals(template.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Role is not a template");
+            throw new ForbiddenException("Role is not a template");
         }
 
         if (roleRepository.findByTenantIdAndCode(tenantId, code).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
+            throw new ConflictException("Role code already exists");
         }
 
         Role role = new Role();
@@ -107,13 +101,13 @@ public class RoleUseCase {
             tenantId = targetTenantId;
         }
         if (TEMPLATE_TENANT_ID.equals(tenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Use /api/roles/templates for templates");
+            throw new ForbiddenException("Use /api/roles/templates for templates");
         }
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
+            throw new ForbiddenException("Tenant access required");
         }
         if (roleRepository.findByTenantIdAndCode(tenantId, code).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
+            throw new ConflictException("Role code already exists");
         }
 
         Role role = new Role();
@@ -128,10 +122,10 @@ public class RoleUseCase {
 
     public RoleDetails createTemplate(String code, String label, boolean hasPlatformAdmin) {
         if (!hasPlatformAdmin) {
-            throw new ResponseStatusException(FORBIDDEN, "Platform admin access required");
+            throw new ForbiddenException("Platform admin access required");
         }
         if (roleRepository.findByTenantIdAndCode(TEMPLATE_TENANT_ID, code).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
+            throw new ConflictException("Role code already exists");
         }
 
         Role role = new Role();
@@ -146,16 +140,15 @@ public class RoleUseCase {
 
     public RoleDetails updateRole(Long id, String label) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
+                .orElseThrow(() -> new NotFoundException("Role not found"));
         role.setLabel(label);
         Role saved = roleRepository.save(role);
         return toDetails(saved);
     }
 
-    @Transactional
     public RoleDetails updateRolePermissions(Long id, Set<String> permissionCodes) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
+                .orElseThrow(() -> new NotFoundException("Role not found"));
 
         Set<String> codes = permissionCodes == null
                 ? Set.of()
@@ -184,7 +177,7 @@ public class RoleUseCase {
 
     public Set<String> listRolePermissions(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
+                .orElseThrow(() -> new NotFoundException("Role not found"));
         return rolePermissionRepository.findByTenantIdAndRoleId(role.getTenantId(), role.getId()).stream()
                 .map(RolePermission::getPermissionId)
                 .map(permissionRepository::findById)
@@ -194,10 +187,9 @@ public class RoleUseCase {
                 .collect(Collectors.toSet());
     }
 
-    @Transactional
     public void deleteRole(Long id) {
         Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
+                .orElseThrow(() -> new NotFoundException("Role not found"));
         rolePermissionRepository.deleteByRoleId(role.getId());
         userRoleAssignmentRepository.deleteByRoleId(role.getId());
         roleRepository.delete(role);
@@ -215,3 +207,5 @@ public class RoleUseCase {
         return new RoleDetails(role, permissions);
     }
 }
+
+

@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.TenantWalletRepository;
@@ -12,13 +13,8 @@ import com.nexashop.domain.billing.enums.WalletTxnType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@Service
 public class WalletUseCase {
 
     private final TenantWalletRepository walletRepository;
@@ -45,7 +41,7 @@ public class WalletUseCase {
 
     public List<WalletTransaction> listTransactions(Long tenantId) {
         TenantWallet wallet = walletRepository.findByTenantId(tenantId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Wallet not found"));
+                .orElseThrow(() -> new NotFoundException("Wallet not found"));
         return transactionRepository.findByWalletIdOrderByTransactionDateDesc(wallet.getId());
     }
 
@@ -70,9 +66,9 @@ public class WalletUseCase {
             Long actorUserId
     ) {
         TenantWallet wallet = walletRepository.findByTenantId(tenantId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Wallet not found"));
+                .orElseThrow(() -> new NotFoundException("Wallet not found"));
         if (wallet.getBalance().compareTo(amount) < 0) {
-            throw new ResponseStatusException(BAD_REQUEST, "Insufficient balance");
+            throw new BadRequestException("Insufficient balance");
         }
         applyAdjustment(wallet, amount, reason, reference, WalletTxnType.MANUAL_DEBIT, actorUserId);
         return walletRepository.save(wallet);
@@ -80,7 +76,7 @@ public class WalletUseCase {
 
     private TenantWallet createWalletForTenant(Long tenantId, Long actorUserId) {
         if (!tenantRepository.existsById(tenantId)) {
-            throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
+            throw new NotFoundException("Tenant not found");
         }
         BigDecimal initialBalance = getDecimalConfig("INITIAL_WALLET_BALANCE", BigDecimal.ZERO);
         TenantWallet wallet = new TenantWallet();
@@ -147,3 +143,5 @@ public class WalletUseCase {
                 .orElse(defaultValue);
     }
 }
+
+

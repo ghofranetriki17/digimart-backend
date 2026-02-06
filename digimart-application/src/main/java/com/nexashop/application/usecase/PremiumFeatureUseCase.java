@@ -3,9 +3,7 @@ package com.nexashop.application.usecase;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import java.util.List;
-import org.springframework.stereotype.Service;
 
-@Service
 public class PremiumFeatureUseCase {
 
     private final PremiumFeatureRepository featureRepository;
@@ -20,3 +18,4 @@ public class PremiumFeatureUseCase {
                 : featureRepository.findByActiveTrueOrderByDisplayOrderAsc();
     }
 }
+

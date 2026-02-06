@@ -1,15 +1,12 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.PermissionRepository;
 import com.nexashop.domain.user.entity.Permission;
 import java.util.Comparator;
 import java.util.List;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.CONFLICT;
 
-@Service
 public class PermissionUseCase {
 
     private final PermissionRepository permissionRepository;
@@ -27,7 +24,7 @@ public class PermissionUseCase {
 
     public Permission createPermission(String code, String domain, String description) {
         if (permissionRepository.existsByCode(code)) {
-            throw new ResponseStatusException(CONFLICT, "Permission code already exists");
+            throw new ConflictException("Permission code already exists");
         }
         Permission permission = new Permission();
         permission.setCode(code);
@@ -36,3 +33,5 @@ public class PermissionUseCase {
         return permissionRepository.save(permission);
     }
 }
+
+

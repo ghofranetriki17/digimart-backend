@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.domain.tenant.entity.ActivitySector;
@@ -9,13 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-@Service
 public class ActivitySectorUseCase {
 
     public record ActivitySectorSummary(ActivitySector sector, long tenantCount) {}
@@ -47,7 +43,7 @@ public class ActivitySectorUseCase {
 
     public ActivitySector createSector(String label, String description, Boolean active) {
         if (sectorRepository.findByLabelIgnoreCase(label).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Sector label already exists");
+            throw new ConflictException("Sector label already exists");
         }
         ActivitySector sector = new ActivitySector();
         sector.setLabel(label);
@@ -58,11 +54,11 @@ public class ActivitySectorUseCase {
 
     public ActivitySector updateSector(Long id, String label, String description, Boolean active) {
         ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
+                .orElseThrow(() -> new NotFoundException("Sector not found"));
         sectorRepository.findByLabelIgnoreCase(label)
                 .filter(existing -> !existing.getId().equals(id))
                 .ifPresent(existing -> {
-                    throw new ResponseStatusException(CONFLICT, "Sector label already exists");
+                    throw new ConflictException("Sector label already exists");
                 });
         sector.setLabel(label);
         sector.setDescription(description);
@@ -74,7 +70,7 @@ public class ActivitySectorUseCase {
 
     public List<Tenant> listSectorTenants(Long id) {
         ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
+                .orElseThrow(() -> new NotFoundException("Sector not found"));
         return tenantRepository.findAll().stream()
                 .filter(tenant -> sector.getId().equals(tenant.getSectorId()))
                 .sorted(Comparator.comparing(Tenant::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
@@ -83,7 +79,7 @@ public class ActivitySectorUseCase {
 
     public void deleteSector(Long id) {
         ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
+                .orElseThrow(() -> new NotFoundException("Sector not found"));
         sectorRepository.delete(sector);
     }
 
@@ -110,3 +106,5 @@ public class ActivitySectorUseCase {
         return counts;
     }
 }
+
+

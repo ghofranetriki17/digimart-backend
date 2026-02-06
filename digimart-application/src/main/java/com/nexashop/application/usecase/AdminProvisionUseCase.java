@@ -3,9 +3,7 @@ package com.nexashop.application.usecase;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.service.TenantProvisioningService;
 import java.util.List;
-import org.springframework.stereotype.Service;
 
-@Service
 public class AdminProvisionUseCase {
 
     private final TenantRepository tenantRepository;
@@ -26,3 +24,4 @@ public class AdminProvisionUseCase {
         tenantIds.forEach(provisioningService::provisionTenant);
     }
 }
+

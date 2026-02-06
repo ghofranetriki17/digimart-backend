@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.TenantRepository;
@@ -15,13 +16,8 @@ import com.nexashop.domain.user.entity.UserRoleAssignment;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
-@Service
 public class AuthUseCase {
 
     public record LoginResult(
@@ -63,10 +59,10 @@ public class AuthUseCase {
 
     public LoginResult login(String email, String password, String userAgent) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Invalid credentials"));
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
         if (!user.isEnabled() || !password.equals(user.getPasswordHash())) {
-            throw new ResponseStatusException(UNAUTHORIZED, "Invalid credentials");
+            throw new UnauthorizedException("Invalid credentials");
         }
 
         user.setLastLogin(LocalDateTime.now());
@@ -116,7 +112,7 @@ public class AuthUseCase {
     ) {
         String normalizedSubdomain = normalizeSubdomain(tenantName);
         if (tenantRepository.existsBySubdomain(normalizedSubdomain)) {
-            throw new ResponseStatusException(CONFLICT, "Subdomain already exists");
+            throw new ConflictException("Subdomain already exists");
         }
 
         Tenant tenant = new Tenant();
@@ -143,9 +139,9 @@ public class AuthUseCase {
             String userAgent
     ) {
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new ResponseStatusException(CONFLICT, "Tenant not found"));
+                .orElseThrow(() -> new ConflictException("Tenant not found"));
         if (userRepository.existsByEmail(ownerEmail)) {
-            throw new ResponseStatusException(CONFLICT, "Email already exists");
+            throw new ConflictException("Email already exists");
         }
 
         User owner = new User();
@@ -190,9 +186,9 @@ public class AuthUseCase {
             return null;
         }
         ActivitySector sector = sectorRepository.findById(sectorId)
-                .orElseThrow(() -> new ResponseStatusException(CONFLICT, "Activity sector not found"));
+                .orElseThrow(() -> new ConflictException("Activity sector not found"));
         if (!sector.isActive()) {
-            throw new ResponseStatusException(CONFLICT, "Activity sector is inactive");
+            throw new ConflictException("Activity sector is inactive");
         }
         return sector.getId();
     }
@@ -280,3 +276,5 @@ public class AuthUseCase {
         return value;
     }
 }
+
+

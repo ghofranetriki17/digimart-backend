@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -99,6 +100,7 @@ public class RoleController {
     }
 
     @PutMapping("/{id}/permissions")
+    @Transactional
     public RoleResponse updateRolePermissions(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRolePermissionsRequest request
@@ -118,6 +120,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public void deleteRole(@PathVariable Long id) {
         AuthenticatedUser user = SecurityContextUtil.requireUser();
         roleUseCase.deleteRole(id);
