@@ -11,12 +11,12 @@ import com.nexashop.domain.billing.enums.SubscriptionAction;
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import com.nexashop.domain.billing.enums.WalletStatus;
 import com.nexashop.domain.billing.enums.WalletTxnType;
-import com.nexashop.infrastructure.persistence.jpa.PlatformConfigJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionHistoryJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionPlanJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantSubscriptionJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantWalletJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.WalletTransactionJpaRepository;
+import com.nexashop.application.port.out.PlatformConfigRepository;
+import com.nexashop.application.port.out.SubscriptionHistoryRepository;
+import com.nexashop.application.port.out.SubscriptionPlanRepository;
+import com.nexashop.application.port.out.TenantSubscriptionRepository;
+import com.nexashop.application.port.out.TenantWalletRepository;
+import com.nexashop.application.port.out.WalletTransactionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -28,20 +28,20 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Service
 public class TenantProvisioningService {
 
-    private final PlatformConfigJpaRepository configRepository;
-    private final SubscriptionPlanJpaRepository planRepository;
-    private final TenantWalletJpaRepository walletRepository;
-    private final WalletTransactionJpaRepository transactionRepository;
-    private final TenantSubscriptionJpaRepository subscriptionRepository;
-    private final SubscriptionHistoryJpaRepository historyRepository;
+    private final PlatformConfigRepository configRepository;
+    private final SubscriptionPlanRepository planRepository;
+    private final TenantWalletRepository walletRepository;
+    private final WalletTransactionRepository transactionRepository;
+    private final TenantSubscriptionRepository subscriptionRepository;
+    private final SubscriptionHistoryRepository historyRepository;
 
     public TenantProvisioningService(
-            PlatformConfigJpaRepository configRepository,
-            SubscriptionPlanJpaRepository planRepository,
-            TenantWalletJpaRepository walletRepository,
-            WalletTransactionJpaRepository transactionRepository,
-            TenantSubscriptionJpaRepository subscriptionRepository,
-            SubscriptionHistoryJpaRepository historyRepository
+            PlatformConfigRepository configRepository,
+            SubscriptionPlanRepository planRepository,
+            TenantWalletRepository walletRepository,
+            WalletTransactionRepository transactionRepository,
+            TenantSubscriptionRepository subscriptionRepository,
+            SubscriptionHistoryRepository historyRepository
     ) {
         this.configRepository = configRepository;
         this.planRepository = planRepository;
@@ -145,3 +145,5 @@ public class TenantProvisioningService {
                 .orElse(defaultValue);
     }
 }
+
+

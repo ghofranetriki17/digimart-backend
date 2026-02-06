@@ -3,9 +3,9 @@ package com.nexashop.api.security;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
-import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import com.nexashop.application.port.out.RoleRepository;
+import com.nexashop.application.port.out.UserRepository;
+import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,15 +24,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AuthTokenFilter extends OncePerRequestFilter {
 
     private final AuthTokenService authTokenService;
-    private final UserJpaRepository userRepository;
-    private final UserRoleAssignmentJpaRepository assignmentRepository;
-    private final RoleJpaRepository roleRepository;
+    private final UserRepository userRepository;
+    private final UserRoleAssignmentRepository assignmentRepository;
+    private final RoleRepository roleRepository;
 
     public AuthTokenFilter(
             AuthTokenService authTokenService,
-            UserJpaRepository userRepository,
-            UserRoleAssignmentJpaRepository assignmentRepository,
-            RoleJpaRepository roleRepository
+            UserRepository userRepository,
+            UserRoleAssignmentRepository assignmentRepository,
+            RoleRepository roleRepository
     ) {
         this.authTokenService = authTokenService;
         this.userRepository = userRepository;
@@ -120,3 +120,5 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         return new AuthenticatedUser(user.getId(), user.getTenantId(), roles);
     }
 }
+
+

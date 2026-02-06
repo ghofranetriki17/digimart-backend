@@ -1,7 +1,7 @@
 package com.nexashop.api.security;
 
 import com.nexashop.domain.user.entity.RefreshToken;
-import com.nexashop.infrastructure.persistence.jpa.RefreshTokenJpaRepository;
+import com.nexashop.application.port.out.RefreshTokenRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,9 +16,9 @@ public class AuthTokenService {
 
     private static final int TOKEN_DAYS_VALID = 7;
 
-    private final RefreshTokenJpaRepository refreshTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public AuthTokenService(RefreshTokenJpaRepository refreshTokenRepository) {
+    public AuthTokenService(RefreshTokenRepository refreshTokenRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
@@ -54,3 +54,5 @@ public class AuthTokenService {
         }
     }
 }
+
+

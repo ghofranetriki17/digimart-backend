@@ -6,8 +6,8 @@ import com.nexashop.api.dto.response.sector.ActivitySectorResponse;
 import com.nexashop.api.dto.response.sector.ActivitySectorTenantResponse;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
-import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.TenantRepository;
 import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,12 +32,12 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/activity-sectors")
 public class ActivitySectorController {
 
-    private final ActivitySectorJpaRepository sectorRepository;
-    private final TenantJpaRepository tenantRepository;
+    private final ActivitySectorRepository sectorRepository;
+    private final TenantRepository tenantRepository;
 
     public ActivitySectorController(
-            ActivitySectorJpaRepository sectorRepository,
-            TenantJpaRepository tenantRepository
+            ActivitySectorRepository sectorRepository,
+            TenantRepository tenantRepository
     ) {
         this.sectorRepository = sectorRepository;
         this.tenantRepository = tenantRepository;
@@ -152,3 +152,5 @@ public class ActivitySectorController {
         return counts;
     }
 }
+
+

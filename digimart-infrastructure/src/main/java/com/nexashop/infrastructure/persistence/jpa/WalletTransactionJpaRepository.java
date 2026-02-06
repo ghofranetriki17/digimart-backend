@@ -1,11 +1,12 @@
 package com.nexashop.infrastructure.persistence.jpa;
-
-import com.nexashop.domain.billing.entity.WalletTransaction;
+import com.nexashop.infrastructure.persistence.model.billing.WalletTransactionJpaEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface WalletTransactionJpaRepository extends JpaRepository<WalletTransaction, Long> {
-    List<WalletTransaction> findByWalletIdOrderByTransactionDateDesc(Long walletId);
 
-    List<WalletTransaction> findByTenantIdOrderByTransactionDateDesc(Long tenantId);
+public interface WalletTransactionJpaRepository extends JpaRepository<WalletTransactionJpaEntity, Long> {
+    List<WalletTransactionJpaEntity> findByWalletIdOrderByTransactionDateDesc(Long walletId);
+
+    List<WalletTransactionJpaEntity> findByTenantIdOrderByTransactionDateDesc(Long tenantId);
 }
+

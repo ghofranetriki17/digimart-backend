@@ -6,10 +6,10 @@ import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
 import com.nexashop.domain.billing.enums.BillingCycle;
 import com.nexashop.domain.billing.enums.FeatureCategory;
-import com.nexashop.infrastructure.persistence.jpa.PlanFeatureJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.PlatformConfigJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.PremiumFeatureJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionPlanJpaRepository;
+import com.nexashop.application.port.out.PlanFeatureRepository;
+import com.nexashop.application.port.out.PlatformConfigRepository;
+import com.nexashop.application.port.out.PremiumFeatureRepository;
+import com.nexashop.application.port.out.SubscriptionPlanRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,27 +29,27 @@ public class BillingSeedConfig {
 
     @Bean
     CommandLineRunner seedBillingData(
-            PlatformConfigJpaRepository configRepository,
-            PremiumFeatureJpaRepository featureRepository,
-            SubscriptionPlanJpaRepository planRepository,
-            PlanFeatureJpaRepository planFeatureRepository
+            PlatformConfigRepository configRepository,
+            PremiumFeatureRepository featureRepository,
+            SubscriptionPlanRepository planRepository,
+            PlanFeatureRepository planFeatureRepository
     ) {
         return args -> seed(configRepository, featureRepository, planRepository, planFeatureRepository);
     }
 
     @Transactional
     void seed(
-            PlatformConfigJpaRepository configRepository,
-            PremiumFeatureJpaRepository featureRepository,
-            SubscriptionPlanJpaRepository planRepository,
-            PlanFeatureJpaRepository planFeatureRepository
+            PlatformConfigRepository configRepository,
+            PremiumFeatureRepository featureRepository,
+            SubscriptionPlanRepository planRepository,
+            PlanFeatureRepository planFeatureRepository
     ) {
         seedPlatformConfigs(configRepository);
         seedPremiumFeatures(featureRepository);
         seedStandardPlan(planRepository, planFeatureRepository);
     }
 
-    private void seedPlatformConfigs(PlatformConfigJpaRepository configRepository) {
+    private void seedPlatformConfigs(PlatformConfigRepository configRepository) {
         Map<String, String> defaults = Map.of(
                 "COMMISSION_PERCENTAGE", "2.5",
                 "INITIAL_WALLET_BALANCE", "500",
@@ -67,7 +67,7 @@ public class BillingSeedConfig {
                 }));
     }
 
-    private void seedPremiumFeatures(PremiumFeatureJpaRepository featureRepository) {
+    private void seedPremiumFeatures(PremiumFeatureRepository featureRepository) {
         record FeatureSeed(String code, String name, String desc, FeatureCategory cat, int order) {}
         List<FeatureSeed> seeds = List.of(
                 new FeatureSeed("ADVANCED_ANALYTICS", "Advanced Analytics", "Detailed sales reports and insights", FeatureCategory.ANALYTICS, 1),
@@ -93,8 +93,8 @@ public class BillingSeedConfig {
     }
 
     private void seedStandardPlan(
-            SubscriptionPlanJpaRepository planRepository,
-            PlanFeatureJpaRepository planFeatureRepository
+            SubscriptionPlanRepository planRepository,
+            PlanFeatureRepository planFeatureRepository
     ) {
         SubscriptionPlan plan = planRepository.findByCode("STANDARD").orElseGet(() -> {
             SubscriptionPlan p = new SubscriptionPlan();
@@ -116,3 +116,5 @@ public class BillingSeedConfig {
         }
     }
 }
+
+

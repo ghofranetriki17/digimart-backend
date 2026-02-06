@@ -11,10 +11,10 @@ import com.nexashop.domain.billing.entity.TenantSubscription;
 import com.nexashop.domain.billing.enums.BillingCycle;
 import com.nexashop.domain.billing.enums.SubscriptionAction;
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionHistoryJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionPlanJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantSubscriptionJpaRepository;
+import com.nexashop.application.port.out.SubscriptionHistoryRepository;
+import com.nexashop.application.port.out.SubscriptionPlanRepository;
+import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,17 +36,17 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/admin/tenants/{tenantId}/subscriptions")
 public class AdminTenantSubscriptionController {
 
-    private final TenantSubscriptionJpaRepository subscriptionRepository;
-    private final SubscriptionPlanJpaRepository planRepository;
-    private final SubscriptionHistoryJpaRepository historyRepository;
-    private final TenantJpaRepository tenantRepository;
+    private final TenantSubscriptionRepository subscriptionRepository;
+    private final SubscriptionPlanRepository planRepository;
+    private final SubscriptionHistoryRepository historyRepository;
+    private final TenantRepository tenantRepository;
     private final TenantProvisioningService provisioningService;
 
     public AdminTenantSubscriptionController(
-            TenantSubscriptionJpaRepository subscriptionRepository,
-            SubscriptionPlanJpaRepository planRepository,
-            SubscriptionHistoryJpaRepository historyRepository,
-            TenantJpaRepository tenantRepository,
+            TenantSubscriptionRepository subscriptionRepository,
+            SubscriptionPlanRepository planRepository,
+            SubscriptionHistoryRepository historyRepository,
+            TenantRepository tenantRepository,
             TenantProvisioningService provisioningService
     ) {
         this.subscriptionRepository = subscriptionRepository;
@@ -245,3 +245,5 @@ public class AdminTenantSubscriptionController {
                 .build();
     }
 }
+
+

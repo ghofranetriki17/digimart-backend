@@ -6,8 +6,8 @@ import com.nexashop.api.dto.response.store.StoreResponse;
 import com.nexashop.api.security.AuthenticatedUser;
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.store.entity.Store;
-import com.nexashop.infrastructure.persistence.jpa.StoreJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.nexashop.application.port.out.StoreRepository;
+import com.nexashop.application.port.out.TenantRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
@@ -40,12 +40,12 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @RequestMapping("/api/stores")
 public class StoreController {
 
-    private final StoreJpaRepository storeRepository;
-    private final TenantJpaRepository tenantRepository;
+    private final StoreRepository storeRepository;
+    private final TenantRepository tenantRepository;
 
     public StoreController(
-            StoreJpaRepository storeRepository,
-            TenantJpaRepository tenantRepository
+            StoreRepository storeRepository,
+            TenantRepository tenantRepository
     ) {
         this.storeRepository = storeRepository;
         this.tenantRepository = tenantRepository;
@@ -245,3 +245,5 @@ public class StoreController {
                 .build();
     }
 }
+
+

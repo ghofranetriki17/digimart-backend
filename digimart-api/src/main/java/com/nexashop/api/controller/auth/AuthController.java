@@ -12,11 +12,11 @@ import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
-import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.RoleRepository;
+import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.UserRepository;
+import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Set;
@@ -35,20 +35,20 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final UserJpaRepository userRepository;
-    private final UserRoleAssignmentJpaRepository assignmentRepository;
-    private final RoleJpaRepository roleRepository;
-    private final TenantJpaRepository tenantRepository;
-    private final ActivitySectorJpaRepository sectorRepository;
+    private final UserRepository userRepository;
+    private final UserRoleAssignmentRepository assignmentRepository;
+    private final RoleRepository roleRepository;
+    private final TenantRepository tenantRepository;
+    private final ActivitySectorRepository sectorRepository;
     private final AuthTokenService tokenService;
     private final TenantProvisioningService provisioningService;
 
     public AuthController(
-            UserJpaRepository userRepository,
-            UserRoleAssignmentJpaRepository assignmentRepository,
-            RoleJpaRepository roleRepository,
-            TenantJpaRepository tenantRepository,
-            ActivitySectorJpaRepository sectorRepository,
+            UserRepository userRepository,
+            UserRoleAssignmentRepository assignmentRepository,
+            RoleRepository roleRepository,
+            TenantRepository tenantRepository,
+            ActivitySectorRepository sectorRepository,
             AuthTokenService tokenService,
             TenantProvisioningService provisioningService
     ) {
@@ -301,3 +301,5 @@ public class AuthController {
         return value;
     }
 }
+
+

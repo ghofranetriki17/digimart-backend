@@ -2,7 +2,7 @@ package com.nexashop.api.controller.admin;
 
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.api.service.TenantProvisioningService;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.nexashop.application.port.out.TenantRepository;
 import java.util.List;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,11 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/provision")
 public class AdminProvisionController {
 
-    private final TenantJpaRepository tenantRepository;
+    private final TenantRepository tenantRepository;
     private final TenantProvisioningService provisioningService;
 
     public AdminProvisionController(
-            TenantJpaRepository tenantRepository,
+            TenantRepository tenantRepository,
             TenantProvisioningService provisioningService
     ) {
         this.tenantRepository = tenantRepository;
@@ -32,3 +32,5 @@ public class AdminProvisionController {
         tenantIds.forEach(provisioningService::provisionTenant);
     }
 }
+
+

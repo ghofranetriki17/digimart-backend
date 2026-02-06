@@ -11,10 +11,10 @@ import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.user.entity.Permission;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.RolePermission;
-import com.nexashop.infrastructure.persistence.jpa.PermissionJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.RolePermissionJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import com.nexashop.application.port.out.PermissionRepository;
+import com.nexashop.application.port.out.RoleRepository;
+import com.nexashop.application.port.out.RolePermissionRepository;
+import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
@@ -41,16 +41,16 @@ public class RoleController {
 
     private static final Long TEMPLATE_TENANT_ID = 0L;
 
-    private final RoleJpaRepository roleRepository;
-    private final RolePermissionJpaRepository rolePermissionRepository;
-    private final PermissionJpaRepository permissionRepository;
-    private final UserRoleAssignmentJpaRepository userRoleAssignmentRepository;
+    private final RoleRepository roleRepository;
+    private final RolePermissionRepository rolePermissionRepository;
+    private final PermissionRepository permissionRepository;
+    private final UserRoleAssignmentRepository userRoleAssignmentRepository;
 
     public RoleController(
-            RoleJpaRepository roleRepository,
-            RolePermissionJpaRepository rolePermissionRepository,
-            PermissionJpaRepository permissionRepository,
-            UserRoleAssignmentJpaRepository userRoleAssignmentRepository
+            RoleRepository roleRepository,
+            RolePermissionRepository rolePermissionRepository,
+            PermissionRepository permissionRepository,
+            UserRoleAssignmentRepository userRoleAssignmentRepository
     ) {
         this.roleRepository = roleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
@@ -248,3 +248,5 @@ public class RoleController {
                 .build();
     }
 }
+
+

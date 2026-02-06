@@ -1,14 +1,15 @@
 package com.nexashop.infrastructure.persistence.jpa;
-
-import com.nexashop.domain.billing.entity.SubscriptionPlan;
+import com.nexashop.infrastructure.persistence.model.billing.SubscriptionPlanJpaEntity;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface SubscriptionPlanJpaRepository extends JpaRepository<SubscriptionPlan, Long> {
-    Optional<SubscriptionPlan> findByCode(String code);
 
-    List<SubscriptionPlan> findByActiveTrueOrderByNameAsc();
+public interface SubscriptionPlanJpaRepository extends JpaRepository<SubscriptionPlanJpaEntity, Long> {
+    Optional<SubscriptionPlanJpaEntity> findByCode(String code);
 
-    List<SubscriptionPlan> findByStandardTrue();
+    List<SubscriptionPlanJpaEntity> findByActiveTrueOrderByNameAsc();
+
+    List<SubscriptionPlanJpaEntity> findByStandardTrue();
 }
+

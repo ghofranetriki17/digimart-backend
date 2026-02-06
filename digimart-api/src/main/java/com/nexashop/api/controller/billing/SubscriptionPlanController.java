@@ -8,9 +8,9 @@ import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.billing.entity.PlanFeature;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
-import com.nexashop.infrastructure.persistence.jpa.PlanFeatureJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.PremiumFeatureJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.SubscriptionPlanJpaRepository;
+import com.nexashop.application.port.out.PlanFeatureRepository;
+import com.nexashop.application.port.out.PremiumFeatureRepository;
+import com.nexashop.application.port.out.SubscriptionPlanRepository;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,14 +34,14 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/plans")
 public class SubscriptionPlanController {
 
-    private final SubscriptionPlanJpaRepository planRepository;
-    private final PremiumFeatureJpaRepository featureRepository;
-    private final PlanFeatureJpaRepository planFeatureRepository;
+    private final SubscriptionPlanRepository planRepository;
+    private final PremiumFeatureRepository featureRepository;
+    private final PlanFeatureRepository planFeatureRepository;
 
     public SubscriptionPlanController(
-            SubscriptionPlanJpaRepository planRepository,
-            PremiumFeatureJpaRepository featureRepository,
-            PlanFeatureJpaRepository planFeatureRepository
+            SubscriptionPlanRepository planRepository,
+            PremiumFeatureRepository featureRepository,
+            PlanFeatureRepository planFeatureRepository
     ) {
         this.planRepository = planRepository;
         this.featureRepository = featureRepository;
@@ -197,3 +197,5 @@ public class SubscriptionPlanController {
                 .build();
     }
 }
+
+

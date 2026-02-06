@@ -3,7 +3,7 @@ package com.nexashop.api.controller.billing;
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.billing.entity.PremiumFeature;
-import com.nexashop.infrastructure.persistence.jpa.PremiumFeatureJpaRepository;
+import com.nexashop.application.port.out.PremiumFeatureRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,9 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/premium-features")
 public class PremiumFeatureController {
 
-    private final PremiumFeatureJpaRepository featureRepository;
+    private final PremiumFeatureRepository featureRepository;
 
-    public PremiumFeatureController(PremiumFeatureJpaRepository featureRepository) {
+    public PremiumFeatureController(PremiumFeatureRepository featureRepository) {
         this.featureRepository = featureRepository;
     }
 
@@ -45,3 +45,5 @@ public class PremiumFeatureController {
                 .build();
     }
 }
+
+

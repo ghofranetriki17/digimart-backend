@@ -8,10 +8,10 @@ import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
-import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
+import com.nexashop.application.port.out.RoleRepository;
+import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.UserRepository;
+import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -35,16 +35,16 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/users")
 public class UserController {
 
-    private final TenantJpaRepository tenantRepository;
-    private final UserJpaRepository userRepository;
-    private final RoleJpaRepository roleRepository;
-    private final UserRoleAssignmentJpaRepository assignmentRepository;
+    private final TenantRepository tenantRepository;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final UserRoleAssignmentRepository assignmentRepository;
 
     public UserController(
-            TenantJpaRepository tenantRepository,
-            UserJpaRepository userRepository,
-            RoleJpaRepository roleRepository,
-            UserRoleAssignmentJpaRepository assignmentRepository
+            TenantRepository tenantRepository,
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            UserRoleAssignmentRepository assignmentRepository
     ) {
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
@@ -299,3 +299,5 @@ public class UserController {
                 });
     }
 }
+
+

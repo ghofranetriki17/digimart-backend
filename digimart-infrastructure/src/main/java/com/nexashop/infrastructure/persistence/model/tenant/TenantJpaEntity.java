@@ -1,0 +1,48 @@
+package com.nexashop.infrastructure.persistence.model.tenant;
+
+import com.nexashop.domain.common.Locale;
+import com.nexashop.domain.tenant.entity.TenantStatus;
+import com.nexashop.infrastructure.persistence.model.common.AuditableJpaEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.Getter;
+import lombok.Setter;
+
+@Entity
+@Table(
+        name = "tenants",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"subdomain"})
+        }
+)
+@Getter
+@Setter
+public class TenantJpaEntity extends AuditableJpaEntity {
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private String subdomain;
+
+    private String contactEmail;
+
+    private String contactPhone;
+
+    private String logoUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TenantStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Locale defaultLocale;
+
+    @Column(name = "sector_id")
+    private Long sectorId;
+}

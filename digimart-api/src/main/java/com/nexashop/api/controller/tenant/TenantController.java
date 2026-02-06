@@ -7,8 +7,8 @@ import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.api.service.TenantProvisioningService;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
-import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
+import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.TenantRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
@@ -39,13 +39,13 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @RequestMapping("/api/tenants")
 public class TenantController {
 
-    private final TenantJpaRepository tenantRepository;
-    private final ActivitySectorJpaRepository sectorRepository;
+    private final TenantRepository tenantRepository;
+    private final ActivitySectorRepository sectorRepository;
     private final TenantProvisioningService provisioningService;
 
     public TenantController(
-            TenantJpaRepository tenantRepository,
-            ActivitySectorJpaRepository sectorRepository,
+            TenantRepository tenantRepository,
+            ActivitySectorRepository sectorRepository,
             TenantProvisioningService provisioningService
     ) {
         this.tenantRepository = tenantRepository;
@@ -175,3 +175,5 @@ public class TenantController {
         return sector.getId();
     }
 }
+
+

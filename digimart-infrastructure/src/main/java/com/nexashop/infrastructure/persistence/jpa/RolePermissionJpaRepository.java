@@ -1,14 +1,14 @@
 package com.nexashop.infrastructure.persistence.jpa;
-
-import com.nexashop.domain.user.entity.RolePermission;
+import com.nexashop.infrastructure.persistence.model.user.RolePermissionJpaEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface RolePermissionJpaRepository extends JpaRepository<RolePermission, Long> {
 
-    List<RolePermission> findByTenantIdAndRoleId(Long tenantId, Long roleId);
+public interface RolePermissionJpaRepository extends JpaRepository<RolePermissionJpaEntity, Long> {
+
+    List<RolePermissionJpaEntity> findByTenantIdAndRoleId(Long tenantId, Long roleId);
 
     @Transactional
     @Modifying
@@ -18,3 +18,4 @@ public interface RolePermissionJpaRepository extends JpaRepository<RolePermissio
     @Modifying
     void deleteByRoleId(Long roleId);
 }
+

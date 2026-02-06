@@ -1,13 +1,14 @@
 package com.nexashop.infrastructure.persistence.jpa;
-
-import com.nexashop.domain.tenant.entity.Tenant;
+import com.nexashop.infrastructure.persistence.model.tenant.TenantJpaEntity;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TenantJpaRepository extends JpaRepository<Tenant, Long> {
+
+public interface TenantJpaRepository extends JpaRepository<TenantJpaEntity, Long> {
     boolean existsBySubdomain(String subdomain);
 
-    List<Tenant> findBySectorId(Long sectorId);
+    List<TenantJpaEntity> findBySectorId(Long sectorId);
 
-    List<Tenant> findBySectorIdIn(List<Long> sectorIds);
+    List<TenantJpaEntity> findBySectorIdIn(List<Long> sectorIds);
 }
+

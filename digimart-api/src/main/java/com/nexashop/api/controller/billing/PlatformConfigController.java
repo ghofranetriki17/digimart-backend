@@ -4,7 +4,7 @@ import com.nexashop.api.dto.request.billing.UpdateConfigRequest;
 import com.nexashop.api.dto.response.billing.PlatformConfigResponse;
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.billing.entity.PlatformConfig;
-import com.nexashop.infrastructure.persistence.jpa.PlatformConfigJpaRepository;
+import com.nexashop.application.port.out.PlatformConfigRepository;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,9 +22,9 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/platform-config")
 public class PlatformConfigController {
 
-    private final PlatformConfigJpaRepository configRepository;
+    private final PlatformConfigRepository configRepository;
 
-    public PlatformConfigController(PlatformConfigJpaRepository configRepository) {
+    public PlatformConfigController(PlatformConfigRepository configRepository) {
         this.configRepository = configRepository;
     }
 
@@ -60,3 +60,5 @@ public class PlatformConfigController {
                 .build();
     }
 }
+
+

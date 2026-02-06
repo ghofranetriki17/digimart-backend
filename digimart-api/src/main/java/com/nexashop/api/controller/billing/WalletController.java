@@ -10,10 +10,10 @@ import com.nexashop.domain.billing.entity.TenantWallet;
 import com.nexashop.domain.billing.entity.WalletTransaction;
 import com.nexashop.domain.billing.enums.WalletStatus;
 import com.nexashop.domain.billing.enums.WalletTxnType;
-import com.nexashop.infrastructure.persistence.jpa.PlatformConfigJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantWalletJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.WalletTransactionJpaRepository;
+import com.nexashop.application.port.out.PlatformConfigRepository;
+import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.TenantWalletRepository;
+import com.nexashop.application.port.out.WalletTransactionRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -34,16 +34,16 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/tenants/{tenantId}/wallet")
 public class WalletController {
 
-    private final TenantWalletJpaRepository walletRepository;
-    private final WalletTransactionJpaRepository transactionRepository;
-    private final PlatformConfigJpaRepository configRepository;
-    private final TenantJpaRepository tenantRepository;
+    private final TenantWalletRepository walletRepository;
+    private final WalletTransactionRepository transactionRepository;
+    private final PlatformConfigRepository configRepository;
+    private final TenantRepository tenantRepository;
 
     public WalletController(
-            TenantWalletJpaRepository walletRepository,
-            WalletTransactionJpaRepository transactionRepository,
-            PlatformConfigJpaRepository configRepository,
-            TenantJpaRepository tenantRepository
+            TenantWalletRepository walletRepository,
+            WalletTransactionRepository transactionRepository,
+            PlatformConfigRepository configRepository,
+            TenantRepository tenantRepository
     ) {
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
@@ -190,3 +190,5 @@ public class WalletController {
                 .orElse(defaultValue);
     }
 }
+
+

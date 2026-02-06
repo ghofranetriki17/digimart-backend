@@ -4,7 +4,7 @@ import com.nexashop.api.dto.request.permission.CreatePermissionRequest;
 import com.nexashop.api.dto.response.permission.PermissionResponse;
 import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.domain.user.entity.Permission;
-import com.nexashop.infrastructure.persistence.jpa.PermissionJpaRepository;
+import com.nexashop.application.port.out.PermissionRepository;
 import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.List;
@@ -22,9 +22,9 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 @RequestMapping("/api/permissions")
 public class PermissionController {
 
-    private final PermissionJpaRepository permissionRepository;
+    private final PermissionRepository permissionRepository;
 
-    public PermissionController(PermissionJpaRepository permissionRepository) {
+    public PermissionController(PermissionRepository permissionRepository) {
         this.permissionRepository = permissionRepository;
     }
 
@@ -62,3 +62,5 @@ public class PermissionController {
                 .build();
     }
 }
+
+
