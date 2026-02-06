@@ -3,7 +3,6 @@ package com.nexashop.api.controller.billing;
 import com.nexashop.api.dto.request.billing.WalletAdjustmentRequest;
 import com.nexashop.api.dto.response.billing.TenantWalletResponse;
 import com.nexashop.api.dto.response.billing.WalletTransactionResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.WalletUseCase;
 import com.nexashop.domain.billing.entity.TenantWallet;
 import com.nexashop.domain.billing.entity.WalletTransaction;
@@ -29,15 +28,12 @@ public class WalletController {
 
     @GetMapping
     public TenantWalletResponse getWallet(@PathVariable Long tenantId) {
-        SecurityContextUtil.requireUser();
-        Long actorUserId = SecurityContextUtil.requireUser().getUserId();
-        TenantWallet wallet = walletUseCase.getWallet(tenantId, actorUserId);
+        TenantWallet wallet = walletUseCase.getWallet(tenantId);
         return toResponse(wallet);
     }
 
     @GetMapping("/transactions")
     public List<WalletTransactionResponse> listTransactions(@PathVariable Long tenantId) {
-        SecurityContextUtil.requireUser();
         return walletUseCase.listTransactions(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -48,14 +44,11 @@ public class WalletController {
             @PathVariable Long tenantId,
             @Valid @RequestBody WalletAdjustmentRequest request
     ) {
-        SecurityContextUtil.requireUser();
-        Long actorUserId = SecurityContextUtil.requireUser().getUserId();
         TenantWallet wallet = walletUseCase.credit(
                 tenantId,
                 request.getAmount(),
                 request.getReason(),
-                request.getReference(),
-                actorUserId
+                request.getReference()
         );
         return toResponse(wallet);
     }
@@ -65,14 +58,11 @@ public class WalletController {
             @PathVariable Long tenantId,
             @Valid @RequestBody WalletAdjustmentRequest request
     ) {
-        SecurityContextUtil.requireUser();
-        Long actorUserId = SecurityContextUtil.requireUser().getUserId();
         TenantWallet wallet = walletUseCase.debit(
                 tenantId,
                 request.getAmount(),
                 request.getReason(),
-                request.getReference(),
-                actorUserId
+                request.getReference()
         );
         return toResponse(wallet);
     }

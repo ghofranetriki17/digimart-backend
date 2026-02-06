@@ -1,10 +1,12 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.UserRepository;
 import com.nexashop.application.port.out.UserRoleAssignmentRepository;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
@@ -15,24 +17,30 @@ import java.util.stream.Collectors;
 
 public class UserUseCase {
 
+    private final CurrentUserProvider currentUserProvider;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleAssignmentRepository assignmentRepository;
 
     public UserUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantRepository tenantRepository,
             UserRepository userRepository,
             RoleRepository roleRepository,
             UserRoleAssignmentRepository assignmentRepository
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.assignmentRepository = assignmentRepository;
     }
 
-    public User createUser(User user, Long targetTenantId, Long requesterTenantId, boolean isSuperAdmin) {
+    public User createUser(User user, Long targetTenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Long tenantId = targetTenantId == null ? requesterTenantId : targetTenantId;
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
@@ -59,14 +67,20 @@ public class UserUseCase {
         return saved;
     }
 
-    public List<User> listUsers(Long tenantId, Long requesterTenantId, boolean isSuperAdmin) {
+    public List<User> listUsers(Long tenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
         }
         return userRepository.findByTenantId(tenantId);
     }
 
-    public User getUser(Long id, Long requesterTenantId, boolean isSuperAdmin) {
+    public User getUser(Long id) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
@@ -81,10 +95,11 @@ public class UserUseCase {
             String lastName,
             String phone,
             String imageUrl,
-            Boolean enabled,
-            Long requesterTenantId,
-            boolean isSuperAdmin
+            Boolean enabled
     ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
@@ -100,7 +115,10 @@ public class UserUseCase {
         return userRepository.save(user);
     }
 
-    public User updateUserRoles(Long id, Set<String> roles, Long requesterTenantId, boolean isSuperAdmin) {
+    public User updateUserRoles(Long id, Set<String> roles) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
@@ -172,8 +190,7 @@ public class UserUseCase {
     }
 
     public User grantAdmin(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+        User user = getUser(id);
         assignRole(user, "ADMIN", "Tenant Admin");
         return user;
     }

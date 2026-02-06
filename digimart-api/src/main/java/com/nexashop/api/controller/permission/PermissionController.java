@@ -2,7 +2,6 @@ package com.nexashop.api.controller.permission;
 
 import com.nexashop.api.dto.request.permission.CreatePermissionRequest;
 import com.nexashop.api.dto.response.permission.PermissionResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.PermissionUseCase;
 import com.nexashop.domain.user.entity.Permission;
 import jakarta.validation.Valid;
@@ -13,9 +12,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.CONFLICT;
 
 @RestController
 @RequestMapping("/api/permissions")
@@ -29,7 +25,6 @@ public class PermissionController {
 
     @GetMapping
     public List<PermissionResponse> listPermissions() {
-        SecurityContextUtil.requireUser();
         return permissionUseCase.listPermissions().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -39,7 +34,6 @@ public class PermissionController {
     public PermissionResponse createPermission(
             @Valid @RequestBody CreatePermissionRequest request
     ) {
-        SecurityContextUtil.requireSuperAdmin();
         Permission permission = permissionUseCase.createPermission(
                 request.getCode(),
                 request.getDomain(),

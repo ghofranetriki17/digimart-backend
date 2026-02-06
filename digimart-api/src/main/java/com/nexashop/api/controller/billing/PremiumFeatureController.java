@@ -1,7 +1,6 @@
 package com.nexashop.api.controller.billing;
 
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.PremiumFeatureUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import java.util.List;
@@ -23,7 +22,6 @@ public class PremiumFeatureController {
 
     @GetMapping
     public List<PremiumFeatureResponse> list(@RequestParam(defaultValue = "false") boolean includeInactive) {
-        SecurityContextUtil.requireAdminAny();
         return featureUseCase.list(includeInactive).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());

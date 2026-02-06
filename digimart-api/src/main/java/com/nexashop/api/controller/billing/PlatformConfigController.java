@@ -2,7 +2,6 @@ package com.nexashop.api.controller.billing;
 
 import com.nexashop.api.dto.request.billing.UpdateConfigRequest;
 import com.nexashop.api.dto.response.billing.PlatformConfigResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.PlatformConfigUseCase;
 import com.nexashop.domain.billing.entity.PlatformConfig;
 import jakarta.validation.Valid;
@@ -27,7 +26,6 @@ public class PlatformConfigController {
 
     @GetMapping
     public List<PlatformConfigResponse> listConfigs() {
-        SecurityContextUtil.requireSuperAdmin();
         return configUseCase.listConfigs().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -38,12 +36,10 @@ public class PlatformConfigController {
             @PathVariable String configKey,
             @Valid @RequestBody UpdateConfigRequest request
     ) {
-        SecurityContextUtil.requireSuperAdmin();
         PlatformConfig config = configUseCase.updateConfig(
                 configKey,
                 request.getConfigValue(),
-                request.getDescription(),
-                SecurityContextUtil.requireUser().getUserId()
+                request.getDescription()
         );
         return toResponse(config);
     }

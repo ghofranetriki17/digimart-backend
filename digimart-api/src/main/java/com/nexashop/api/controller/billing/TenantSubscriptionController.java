@@ -3,7 +3,6 @@ package com.nexashop.api.controller.billing;
 import com.nexashop.api.dto.request.billing.ActivateSubscriptionRequest;
 import com.nexashop.api.dto.response.billing.SubscriptionHistoryResponse;
 import com.nexashop.api.dto.response.billing.TenantSubscriptionResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.TenantSubscriptionUseCase;
 import com.nexashop.domain.billing.entity.SubscriptionHistory;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -32,14 +31,12 @@ public class TenantSubscriptionController {
     @GetMapping("/current")
     @Transactional
     public TenantSubscriptionResponse getCurrent(@PathVariable Long tenantId) {
-        SecurityContextUtil.requireUser();
         TenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.getCurrent(tenantId);
         return toResponse(details.subscription(), details.plan());
     }
 
     @GetMapping("/history")
     public List<SubscriptionHistoryResponse> history(@PathVariable Long tenantId) {
-        SecurityContextUtil.requireUser();
         return subscriptionUseCase.history(tenantId).stream()
                 .map(this::toHistoryResponse)
                 .collect(Collectors.toList());
@@ -51,14 +48,11 @@ public class TenantSubscriptionController {
             @PathVariable Long tenantId,
             @Valid @RequestBody ActivateSubscriptionRequest request
     ) {
-        SecurityContextUtil.requireOwnerOrAdmin(tenantId);
-        Long actorId = SecurityContextUtil.requireUser().getUserId();
         TenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.activate(
                 tenantId,
                 request.getPlanId(),
                 request.getPricePaid(),
-                request.getPaymentReference(),
-                actorId
+                request.getPaymentReference()
         );
         return toResponse(details.subscription(), details.plan());
     }

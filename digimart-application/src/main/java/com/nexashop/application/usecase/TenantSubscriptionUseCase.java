@@ -1,11 +1,13 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.SubscriptionHistoryRepository;
 import com.nexashop.application.port.out.SubscriptionPlanRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.service.TenantProvisioningService;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.billing.entity.SubscriptionHistory;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
 import com.nexashop.domain.billing.entity.TenantSubscription;
@@ -20,6 +22,7 @@ public class TenantSubscriptionUseCase {
 
     public record SubscriptionDetails(TenantSubscription subscription, SubscriptionPlan plan) {}
 
+    private final CurrentUserProvider currentUserProvider;
     private final TenantSubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanRepository planRepository;
     private final SubscriptionHistoryRepository historyRepository;
@@ -27,12 +30,14 @@ public class TenantSubscriptionUseCase {
     private final TenantProvisioningService provisioningService;
 
     public TenantSubscriptionUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantSubscriptionRepository subscriptionRepository,
             SubscriptionPlanRepository planRepository,
             SubscriptionHistoryRepository historyRepository,
             TenantRepository tenantRepository,
             TenantProvisioningService provisioningService
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.subscriptionRepository = subscriptionRepository;
         this.planRepository = planRepository;
         this.historyRepository = historyRepository;
@@ -41,6 +46,7 @@ public class TenantSubscriptionUseCase {
     }
 
     public SubscriptionDetails getCurrent(Long tenantId) {
+        currentUserProvider.requireUser();
         TenantSubscription sub = subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
                 .orElseGet(() -> subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.PENDING_ACTIVATION)
                         .orElse(null));
@@ -58,6 +64,7 @@ public class TenantSubscriptionUseCase {
     }
 
     public List<SubscriptionHistory> history(Long tenantId) {
+        currentUserProvider.requireUser();
         return historyRepository.findByTenantIdOrderByPerformedAtDesc(tenantId);
     }
 
@@ -65,9 +72,11 @@ public class TenantSubscriptionUseCase {
             Long tenantId,
             Long planId,
             java.math.BigDecimal pricePaid,
-            String paymentReference,
-            Long actorUserId
+            String paymentReference
     ) {
+        currentUserProvider.requireOwnerOrAdmin(tenantId);
+        CurrentUser actor = currentUserProvider.requireUser();
+        Long actorUserId = actor.userId();
         if (!tenantRepository.existsById(tenantId)) {
             throw new NotFoundException("Tenant not found");
         }

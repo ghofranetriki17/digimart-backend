@@ -1,10 +1,12 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.RolePermissionRepository;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.PermissionRepository;
 import com.nexashop.application.port.out.UserRoleAssignmentRepository;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.user.entity.Permission;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.RolePermission;
@@ -19,24 +21,30 @@ public class RoleUseCase {
 
     private static final Long TEMPLATE_TENANT_ID = 0L;
 
+    private final CurrentUserProvider currentUserProvider;
     private final RoleRepository roleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final PermissionRepository permissionRepository;
     private final UserRoleAssignmentRepository userRoleAssignmentRepository;
 
     public RoleUseCase(
+            CurrentUserProvider currentUserProvider,
             RoleRepository roleRepository,
             RolePermissionRepository rolePermissionRepository,
             PermissionRepository permissionRepository,
             UserRoleAssignmentRepository userRoleAssignmentRepository
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.roleRepository = roleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.permissionRepository = permissionRepository;
         this.userRoleAssignmentRepository = userRoleAssignmentRepository;
     }
 
-    public List<RoleDetails> listRoles(Long tenantId, Long requesterTenantId, boolean isSuperAdmin) {
+    public List<RoleDetails> listRoles(Long tenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
         }
@@ -50,10 +58,11 @@ public class RoleUseCase {
             Long templateRoleId,
             String code,
             String label,
-            Long targetTenantId,
-            Long requesterTenantId,
-            boolean isSuperAdmin
+            Long targetTenantId
     ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Long tenantId = requesterTenantId;
         if (isSuperAdmin && targetTenantId != null) {
             tenantId = targetTenantId;
@@ -92,10 +101,11 @@ public class RoleUseCase {
     public RoleDetails createRole(
             String code,
             String label,
-            Long targetTenantId,
-            Long requesterTenantId,
-            boolean isSuperAdmin
+            Long targetTenantId
     ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Long tenantId = requesterTenantId;
         if (isSuperAdmin && targetTenantId != null) {
             tenantId = targetTenantId;
@@ -120,7 +130,9 @@ public class RoleUseCase {
         return toDetails(saved);
     }
 
-    public RoleDetails createTemplate(String code, String label, boolean hasPlatformAdmin) {
+    public RoleDetails createTemplate(String code, String label) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        boolean hasPlatformAdmin = currentUser.hasRole("SUPER_ADMIN") || currentUser.tenantId() == 1L;
         if (!hasPlatformAdmin) {
             throw new ForbiddenException("Platform admin access required");
         }
@@ -139,6 +151,7 @@ public class RoleUseCase {
     }
 
     public RoleDetails updateRole(Long id, String label) {
+        currentUserProvider.requireUser();
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found"));
         role.setLabel(label);
@@ -147,6 +160,7 @@ public class RoleUseCase {
     }
 
     public RoleDetails updateRolePermissions(Long id, Set<String> permissionCodes) {
+        currentUserProvider.requireUser();
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found"));
 
@@ -176,6 +190,7 @@ public class RoleUseCase {
     }
 
     public Set<String> listRolePermissions(Long id) {
+        currentUserProvider.requireUser();
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found"));
         return rolePermissionRepository.findByTenantIdAndRoleId(role.getTenantId(), role.getId()).stream()
@@ -188,6 +203,7 @@ public class RoleUseCase {
     }
 
     public void deleteRole(Long id) {
+        currentUserProvider.requireUser();
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found"));
         rolePermissionRepository.deleteByRoleId(role.getId());

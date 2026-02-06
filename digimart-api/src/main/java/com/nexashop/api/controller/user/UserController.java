@@ -4,7 +4,6 @@ import com.nexashop.api.dto.request.user.CreateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
 import com.nexashop.api.dto.response.user.UserResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.UserUseCase;
 import com.nexashop.domain.user.entity.User;
 import jakarta.validation.Valid;
@@ -20,11 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/api/users")
@@ -42,8 +36,6 @@ public class UserController {
     public ResponseEntity<UserResponse> createUser(
             @Valid @RequestBody CreateUserRequest request
     ) {
-        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPasswordHash(request.getPassword());
@@ -57,9 +49,7 @@ public class UserController {
 
         User saved = userUseCase.createUser(
                 user,
-                request.getTenantId(),
-                requesterTenantId,
-                SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
+                request.getTenantId()
         );
         return ResponseEntity
                 .created(URI.create("/api/users/" + saved.getId()))
@@ -68,20 +58,14 @@ public class UserController {
 
     @GetMapping
     public List<UserResponse> listUsers(@RequestParam Long tenantId) {
-        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-        boolean isSuperAdmin = SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN");
-        return userUseCase.listUsers(tenantId, requesterTenantId, isSuperAdmin).stream()
+        return userUseCase.listUsers(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     public UserResponse getUser(@PathVariable Long id) {
-        User user = userUseCase.getUser(
-                id,
-                SecurityContextUtil.requireUser().getTenantId(),
-                SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
-        );
+        User user = userUseCase.getUser(id);
         return toResponse(user);
     }
 
@@ -90,17 +74,13 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request
     ) {
-        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-        boolean isSuperAdmin = SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN");
         User saved = userUseCase.updateUser(
                 id,
                 request.getFirstName(),
                 request.getLastName(),
                 request.getPhone(),
                 request.getImageUrl(),
-                request.getEnabled(),
-                requesterTenantId,
-                isSuperAdmin
+                request.getEnabled()
         );
         return toResponse(saved);
     }
@@ -110,32 +90,21 @@ public class UserController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRolesRequest request
     ) {
-        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-        boolean isSuperAdmin = SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN");
         User updated = userUseCase.updateUserRoles(
                 id,
-                request.getRoles(),
-                requesterTenantId,
-                isSuperAdmin
+                request.getRoles()
         );
         return toResponse(updated);
     }
 
     @PostMapping("/{id}/roles/admin")
     public UserResponse grantAdmin(@PathVariable Long id) {
-        User target = userUseCase.getUser(
-                id,
-                SecurityContextUtil.requireUser().getTenantId(),
-                SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
-        );
-        SecurityContextUtil.requireOwnerOrAdmin(target.getTenantId());
         User user = userUseCase.grantAdmin(id);
         return toResponse(user);
     }
 
     @PostMapping("/{id}/roles/super-admin")
     public UserResponse grantSuperAdmin(@PathVariable Long id) {
-        SecurityContextUtil.requireSuperAdmin();
         User user = userUseCase.grantSuperAdmin(id);
         return toResponse(user);
     }

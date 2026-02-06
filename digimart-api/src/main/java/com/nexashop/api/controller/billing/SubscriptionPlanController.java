@@ -4,7 +4,6 @@ import com.nexashop.api.dto.request.billing.CreatePlanRequest;
 import com.nexashop.api.dto.request.billing.UpdatePlanRequest;
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
 import com.nexashop.api.dto.response.billing.SubscriptionPlanResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.SubscriptionPlanUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -44,7 +43,6 @@ public class SubscriptionPlanController {
 
     @PostMapping
     public SubscriptionPlanResponse createPlan(@Valid @RequestBody CreatePlanRequest request) {
-        SecurityContextUtil.requireAdminAny();
         SubscriptionPlan plan = new SubscriptionPlan();
         plan.setCode(request.getCode());
         plan.setName(request.getName());
@@ -57,7 +55,6 @@ public class SubscriptionPlanController {
         plan.setActive(request.isActive());
         plan.setStartDate(request.getStartDate());
         plan.setEndDate(request.getEndDate());
-        plan.setCreatedBy(SecurityContextUtil.requireUser().getUserId());
 
         SubscriptionPlanUseCase.PlanDetails details = planUseCase.createPlan(plan, request.getFeatureIds());
         return toResponse(details);
@@ -68,7 +65,6 @@ public class SubscriptionPlanController {
             @PathVariable Long id,
             @Valid @RequestBody UpdatePlanRequest request
     ) {
-        SecurityContextUtil.requireAdminAny();
         SubscriptionPlanUseCase.PlanUpdate update = new SubscriptionPlanUseCase.PlanUpdate(
                 request.getName(),
                 request.getDescription(),
@@ -87,13 +83,11 @@ public class SubscriptionPlanController {
 
     @PostMapping("/{id}/activate")
     public SubscriptionPlanResponse activate(@PathVariable Long id) {
-        SecurityContextUtil.requireAdminAny();
         return toResponse(planUseCase.setPlanActive(id, true));
     }
 
     @PostMapping("/{id}/deactivate")
     public SubscriptionPlanResponse deactivate(@PathVariable Long id) {
-        SecurityContextUtil.requireAdminAny();
         return toResponse(planUseCase.setPlanActive(id, false));
     }
 

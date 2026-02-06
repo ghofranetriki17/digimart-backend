@@ -1,9 +1,11 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PlanFeatureRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.SubscriptionPlanRepository;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.billing.entity.PlanFeature;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -31,15 +33,18 @@ public class SubscriptionPlanUseCase {
             List<Long> featureIds
     ) {}
 
+    private final CurrentUserProvider currentUserProvider;
     private final SubscriptionPlanRepository planRepository;
     private final PremiumFeatureRepository featureRepository;
     private final PlanFeatureRepository planFeatureRepository;
 
     public SubscriptionPlanUseCase(
+            CurrentUserProvider currentUserProvider,
             SubscriptionPlanRepository planRepository,
             PremiumFeatureRepository featureRepository,
             PlanFeatureRepository planFeatureRepository
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.planRepository = planRepository;
         this.featureRepository = featureRepository;
         this.planFeatureRepository = planFeatureRepository;
@@ -61,6 +66,11 @@ public class SubscriptionPlanUseCase {
     }
 
     public PlanDetails createPlan(SubscriptionPlan plan, List<Long> featureIds) {
+        currentUserProvider.requireAdminAny();
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        if (plan.getCreatedBy() == null) {
+            plan.setCreatedBy(currentUser.userId());
+        }
         if (planRepository.findByCode(plan.getCode()).isPresent()) {
             throw new ConflictException("Plan code already exists");
         }
@@ -70,6 +80,7 @@ public class SubscriptionPlanUseCase {
     }
 
     public PlanDetails updatePlan(Long id, PlanUpdate update) {
+        currentUserProvider.requireAdminAny();
         SubscriptionPlan plan = planRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Plan not found"));
 
@@ -91,6 +102,7 @@ public class SubscriptionPlanUseCase {
     }
 
     public PlanDetails setPlanActive(Long id, boolean active) {
+        currentUserProvider.requireAdminAny();
         SubscriptionPlan plan = planRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Plan not found"));
         plan.setActive(active);

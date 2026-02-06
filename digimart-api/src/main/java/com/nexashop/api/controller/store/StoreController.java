@@ -3,8 +3,6 @@ package com.nexashop.api.controller.store;
 import com.nexashop.api.dto.request.store.CreateStoreRequest;
 import com.nexashop.api.dto.request.store.UpdateStoreRequest;
 import com.nexashop.api.dto.response.store.StoreResponse;
-import com.nexashop.api.security.AuthenticatedUser;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
 import jakarta.validation.Valid;
@@ -46,8 +44,6 @@ public class StoreController {
     public ResponseEntity<StoreResponse> createStore(
             @Valid @RequestBody CreateStoreRequest request
     ) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-
         Store store = new Store();
         store.setName(request.getName());
         store.setCode(request.getCode());
@@ -65,9 +61,7 @@ public class StoreController {
 
         Store saved = storeUseCase.createStore(
                 store,
-                request.getTenantId(),
-                user.getTenantId(),
-                user.hasRole("SUPER_ADMIN")
+                request.getTenantId()
         );
 
         return ResponseEntity
@@ -77,15 +71,13 @@ public class StoreController {
 
     @GetMapping("/{id}")
     public StoreResponse getStore(@PathVariable Long id) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Store store = storeUseCase.getStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        Store store = storeUseCase.getStore(id);
         return toResponse(store);
     }
 
     @GetMapping
     public List<StoreResponse> listStores(@RequestParam Long tenantId) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        return storeUseCase.listStores(tenantId, user.getTenantId(), user.hasRole("SUPER_ADMIN")).stream()
+        return storeUseCase.listStores(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -95,7 +87,6 @@ public class StoreController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateStoreRequest request
     ) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
         Store updates = new Store();
         updates.setName(request.getName());
         updates.setAddress(request.getAddress());
@@ -112,9 +103,7 @@ public class StoreController {
                 id,
                 request.getCode(),
                 updates,
-                request.getActive(),
-                user.getTenantId(),
-                user.hasRole("SUPER_ADMIN")
+                request.getActive()
         );
         return toResponse(saved);
     }
@@ -127,9 +116,7 @@ public class StoreController {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
         }
-
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        storeUseCase.getStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        storeUseCase.getStore(id);
 
         Path uploadDir = Paths.get("uploads", "stores");
         Files.createDirectories(uploadDir);
@@ -146,31 +133,26 @@ public class StoreController {
 
         Store saved = storeUseCase.updateStoreImage(
                 id,
-                "/uploads/stores/" + filename,
-                user.getTenantId(),
-                user.hasRole("SUPER_ADMIN")
+                "/uploads/stores/" + filename
         );
         return toResponse(saved);
     }
 
     @PostMapping("/{id}/activate")
     public StoreResponse activateStore(@PathVariable Long id) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Store saved = storeUseCase.setStoreActive(id, true, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        Store saved = storeUseCase.setStoreActive(id, true);
         return toResponse(saved);
     }
 
     @PostMapping("/{id}/deactivate")
     public StoreResponse deactivateStore(@PathVariable Long id) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Store saved = storeUseCase.setStoreActive(id, false, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        Store saved = storeUseCase.setStoreActive(id, false);
         return toResponse(saved);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStore(@PathVariable Long id) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        storeUseCase.deleteStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        storeUseCase.deleteStore(id);
         return ResponseEntity.noContent().build();
     }
 

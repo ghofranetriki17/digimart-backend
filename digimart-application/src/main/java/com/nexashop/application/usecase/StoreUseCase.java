@@ -1,26 +1,34 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.StoreRepository;
 import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.store.entity.Store;
 import java.util.List;
 
 
 public class StoreUseCase {
 
+    private final CurrentUserProvider currentUserProvider;
     private final StoreRepository storeRepository;
     private final TenantRepository tenantRepository;
 
     public StoreUseCase(
+            CurrentUserProvider currentUserProvider,
             StoreRepository storeRepository,
             TenantRepository tenantRepository
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.storeRepository = storeRepository;
         this.tenantRepository = tenantRepository;
     }
 
-    public Store createStore(Store store, Long targetTenantId, Long requesterTenantId, boolean isSuperAdmin) {
+    public Store createStore(Store store, Long targetTenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Long tenantId = targetTenantId == null ? requesterTenantId : targetTenantId;
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
@@ -35,7 +43,10 @@ public class StoreUseCase {
         return storeRepository.save(store);
     }
 
-    public Store getStore(Long id, Long requesterTenantId, boolean isSuperAdmin) {
+    public Store getStore(Long id) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Store not found"));
         if (!isSuperAdmin && !store.getTenantId().equals(requesterTenantId)) {
@@ -44,7 +55,10 @@ public class StoreUseCase {
         return store;
     }
 
-    public List<Store> listStores(Long tenantId, Long requesterTenantId, boolean isSuperAdmin) {
+    public List<Store> listStores(Long tenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
         }
@@ -55,10 +69,11 @@ public class StoreUseCase {
             Long id,
             String code,
             Store updates,
-            Boolean active,
-            Long requesterTenantId,
-            boolean isSuperAdmin
+            Boolean active
     ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Store not found"));
         if (!isSuperAdmin && !store.getTenantId().equals(requesterTenantId)) {
@@ -87,7 +102,10 @@ public class StoreUseCase {
         return storeRepository.save(store);
     }
 
-    public Store updateStoreImage(Long id, String imageUrl, Long requesterTenantId, boolean isSuperAdmin) {
+    public Store updateStoreImage(Long id, String imageUrl) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Store not found"));
         if (!isSuperAdmin && !store.getTenantId().equals(requesterTenantId)) {
@@ -97,7 +115,10 @@ public class StoreUseCase {
         return storeRepository.save(store);
     }
 
-    public Store setStoreActive(Long id, boolean active, Long requesterTenantId, boolean isSuperAdmin) {
+    public Store setStoreActive(Long id, boolean active) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Store not found"));
         if (!isSuperAdmin && !store.getTenantId().equals(requesterTenantId)) {
@@ -107,7 +128,10 @@ public class StoreUseCase {
         return storeRepository.save(store);
     }
 
-    public void deleteStore(Long id, Long requesterTenantId, boolean isSuperAdmin) {
+    public void deleteStore(Long id) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         Store store = storeRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Store not found"));
         if (!isSuperAdmin && !store.getTenantId().equals(requesterTenantId)) {

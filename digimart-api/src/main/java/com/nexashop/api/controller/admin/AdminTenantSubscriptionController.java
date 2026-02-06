@@ -3,7 +3,6 @@ package com.nexashop.api.controller.admin;
 import com.nexashop.api.dto.request.billing.ActivateSubscriptionRequest;
 import com.nexashop.api.dto.response.billing.SubscriptionHistoryResponse;
 import com.nexashop.api.dto.response.billing.TenantSubscriptionResponse;
-import com.nexashop.api.security.AuthenticatedUser;
 import com.nexashop.application.usecase.AdminTenantSubscriptionUseCase;
 import com.nexashop.domain.billing.entity.SubscriptionHistory;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -11,8 +10,6 @@ import com.nexashop.domain.billing.entity.TenantSubscription;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,13 +56,11 @@ public class AdminTenantSubscriptionController {
             @Valid @RequestBody ActivateSubscriptionRequest request
     ) {
         requirePlatformOrOwner();
-        Long actorId = currentUserId();
         AdminTenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.activate(
                 tenantId,
                 request.getPlanId(),
                 request.getPricePaid(),
-                request.getPaymentReference(),
-                actorId
+                request.getPaymentReference()
         );
         return toResponse(details.subscription(), details.plan());
     }
@@ -74,17 +69,8 @@ public class AdminTenantSubscriptionController {
     @Transactional
     public TenantSubscriptionResponse deactivate(@PathVariable Long tenantId) {
         requirePlatformOrOwner();
-        Long actorId = currentUserId();
-        AdminTenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.deactivate(tenantId, actorId);
+        AdminTenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.deactivate(tenantId);
         return toResponse(details.subscription(), details.plan());
-    }
-
-    private Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user) {
-            return user.getUserId();
-        }
-        return null;
     }
 
     private TenantSubscriptionResponse toResponse(TenantSubscription sub, SubscriptionPlan plan) {

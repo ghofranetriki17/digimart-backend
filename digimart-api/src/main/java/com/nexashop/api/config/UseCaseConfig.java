@@ -1,6 +1,7 @@
 package com.nexashop.api.config;
 
 import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PermissionRepository;
 import com.nexashop.application.port.out.PlanFeatureRepository;
 import com.nexashop.application.port.out.PlatformConfigRepository;
@@ -73,14 +74,16 @@ public class UseCaseConfig {
 
     @Bean
     public AdminProvisionUseCase adminProvisionUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantRepository tenantRepository,
             TenantProvisioningService provisioningService
     ) {
-        return new AdminProvisionUseCase(tenantRepository, provisioningService);
+        return new AdminProvisionUseCase(currentUserProvider, tenantRepository, provisioningService);
     }
 
     @Bean
     public AdminTenantSubscriptionUseCase adminTenantSubscriptionUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantSubscriptionRepository subscriptionRepository,
             SubscriptionPlanRepository planRepository,
             SubscriptionHistoryRepository historyRepository,
@@ -88,6 +91,7 @@ public class UseCaseConfig {
             TenantProvisioningService provisioningService
     ) {
         return new AdminTenantSubscriptionUseCase(
+                currentUserProvider,
                 subscriptionRepository,
                 planRepository,
                 historyRepository,
@@ -118,28 +122,39 @@ public class UseCaseConfig {
     }
 
     @Bean
-    public PermissionUseCase permissionUseCase(PermissionRepository permissionRepository) {
-        return new PermissionUseCase(permissionRepository);
+    public PermissionUseCase permissionUseCase(
+            CurrentUserProvider currentUserProvider,
+            PermissionRepository permissionRepository
+    ) {
+        return new PermissionUseCase(currentUserProvider, permissionRepository);
     }
 
     @Bean
-    public PlatformConfigUseCase platformConfigUseCase(PlatformConfigRepository configRepository) {
-        return new PlatformConfigUseCase(configRepository);
+    public PlatformConfigUseCase platformConfigUseCase(
+            CurrentUserProvider currentUserProvider,
+            PlatformConfigRepository configRepository
+    ) {
+        return new PlatformConfigUseCase(currentUserProvider, configRepository);
     }
 
     @Bean
-    public PremiumFeatureUseCase premiumFeatureUseCase(PremiumFeatureRepository featureRepository) {
-        return new PremiumFeatureUseCase(featureRepository);
+    public PremiumFeatureUseCase premiumFeatureUseCase(
+            CurrentUserProvider currentUserProvider,
+            PremiumFeatureRepository featureRepository
+    ) {
+        return new PremiumFeatureUseCase(currentUserProvider, featureRepository);
     }
 
     @Bean
     public RoleUseCase roleUseCase(
+            CurrentUserProvider currentUserProvider,
             RoleRepository roleRepository,
             RolePermissionRepository rolePermissionRepository,
             PermissionRepository permissionRepository,
             UserRoleAssignmentRepository userRoleAssignmentRepository
     ) {
         return new RoleUseCase(
+                currentUserProvider,
                 roleRepository,
                 rolePermissionRepository,
                 permissionRepository,
@@ -149,23 +164,26 @@ public class UseCaseConfig {
 
     @Bean
     public StoreUseCase storeUseCase(
+            CurrentUserProvider currentUserProvider,
             StoreRepository storeRepository,
             TenantRepository tenantRepository
     ) {
-        return new StoreUseCase(storeRepository, tenantRepository);
+        return new StoreUseCase(currentUserProvider, storeRepository, tenantRepository);
     }
 
     @Bean
     public SubscriptionPlanUseCase subscriptionPlanUseCase(
+            CurrentUserProvider currentUserProvider,
             SubscriptionPlanRepository planRepository,
             PremiumFeatureRepository featureRepository,
             PlanFeatureRepository planFeatureRepository
     ) {
-        return new SubscriptionPlanUseCase(planRepository, featureRepository, planFeatureRepository);
+        return new SubscriptionPlanUseCase(currentUserProvider, planRepository, featureRepository, planFeatureRepository);
     }
 
     @Bean
     public TenantSubscriptionUseCase tenantSubscriptionUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantSubscriptionRepository subscriptionRepository,
             SubscriptionPlanRepository planRepository,
             SubscriptionHistoryRepository historyRepository,
@@ -173,6 +191,7 @@ public class UseCaseConfig {
             TenantProvisioningService provisioningService
     ) {
         return new TenantSubscriptionUseCase(
+                currentUserProvider,
                 subscriptionRepository,
                 planRepository,
                 historyRepository,
@@ -183,30 +202,33 @@ public class UseCaseConfig {
 
     @Bean
     public TenantUseCase tenantUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantRepository tenantRepository,
             ActivitySectorRepository sectorRepository,
             TenantProvisioningService provisioningService
     ) {
-        return new TenantUseCase(tenantRepository, sectorRepository, provisioningService);
+        return new TenantUseCase(currentUserProvider, tenantRepository, sectorRepository, provisioningService);
     }
 
     @Bean
     public UserUseCase userUseCase(
+            CurrentUserProvider currentUserProvider,
             UserRepository userRepository,
             RoleRepository roleRepository,
             TenantRepository tenantRepository,
             UserRoleAssignmentRepository assignmentRepository
     ) {
-        return new UserUseCase(tenantRepository, userRepository, roleRepository, assignmentRepository);
+        return new UserUseCase(currentUserProvider, tenantRepository, userRepository, roleRepository, assignmentRepository);
     }
 
     @Bean
     public WalletUseCase walletUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantWalletRepository walletRepository,
             WalletTransactionRepository transactionRepository,
             PlatformConfigRepository configRepository,
             TenantRepository tenantRepository
     ) {
-        return new WalletUseCase(walletRepository, transactionRepository, configRepository, tenantRepository);
+        return new WalletUseCase(currentUserProvider, walletRepository, transactionRepository, configRepository, tenantRepository);
     }
 }

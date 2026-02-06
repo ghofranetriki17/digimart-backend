@@ -3,7 +3,6 @@ package com.nexashop.api.controller.tenant;
 import com.nexashop.api.dto.request.tenant.CreateTenantRequest;
 import com.nexashop.api.dto.request.tenant.UpdateTenantRequest;
 import com.nexashop.api.dto.response.tenant.TenantResponse;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.TenantUseCase;
 import com.nexashop.domain.tenant.entity.Tenant;
 import jakarta.validation.Valid;
@@ -64,13 +63,11 @@ public class TenantController {
     @GetMapping("/{id}")
     public TenantResponse getTenant(@PathVariable Long id) {
         Tenant tenant = tenantUseCase.getTenant(id);
-        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
         return toResponse(tenant);
     }
 
     @GetMapping
     public List<TenantResponse> listTenants() {
-        SecurityContextUtil.requireAdminAny();
         return tenantUseCase.listTenants().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -81,9 +78,6 @@ public class TenantController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateTenantRequest request
     ) {
-        Tenant tenant = tenantUseCase.getTenant(id);
-        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
-
         Tenant updates = new Tenant();
         updates.setName(request.getName());
         updates.setContactEmail(request.getContactEmail());
@@ -105,9 +99,6 @@ public class TenantController {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Logo file is required");
         }
-
-        Tenant tenant = tenantUseCase.getTenant(id);
-        SecurityContextUtil.requireOwnerOrAdmin(tenant.getId());
 
         Path uploadDir = Paths.get("uploads", "tenants");
         Files.createDirectories(uploadDir);

@@ -1,6 +1,5 @@
 package com.nexashop.api.controller.admin;
 
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.AdminProvisionUseCase;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +19,6 @@ public class AdminProvisionController {
     @PostMapping("/tenants")
     @Transactional
     public void provisionAllTenants() {
-        SecurityContextUtil.requireSuperAdmin();
         provisionUseCase.provisionAllTenants();
     }
 }

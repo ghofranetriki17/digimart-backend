@@ -1,10 +1,12 @@
 package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.TenantWalletRepository;
 import com.nexashop.application.port.out.WalletTransactionRepository;
+import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.billing.entity.PlatformConfig;
 import com.nexashop.domain.billing.entity.TenantWallet;
 import com.nexashop.domain.billing.entity.WalletTransaction;
@@ -17,29 +19,34 @@ import java.util.List;
 
 public class WalletUseCase {
 
+    private final CurrentUserProvider currentUserProvider;
     private final TenantWalletRepository walletRepository;
     private final WalletTransactionRepository transactionRepository;
     private final PlatformConfigRepository configRepository;
     private final TenantRepository tenantRepository;
 
     public WalletUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantWalletRepository walletRepository,
             WalletTransactionRepository transactionRepository,
             PlatformConfigRepository configRepository,
             TenantRepository tenantRepository
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.walletRepository = walletRepository;
         this.transactionRepository = transactionRepository;
         this.configRepository = configRepository;
         this.tenantRepository = tenantRepository;
     }
 
-    public TenantWallet getWallet(Long tenantId, Long actorUserId) {
+    public TenantWallet getWallet(Long tenantId) {
+        CurrentUser actor = currentUserProvider.requireUser();
         return walletRepository.findByTenantId(tenantId)
-                .orElseGet(() -> createWalletForTenant(tenantId, actorUserId));
+                .orElseGet(() -> createWalletForTenant(tenantId, actor.userId()));
     }
 
     public List<WalletTransaction> listTransactions(Long tenantId) {
+        currentUserProvider.requireUser();
         TenantWallet wallet = walletRepository.findByTenantId(tenantId)
                 .orElseThrow(() -> new NotFoundException("Wallet not found"));
         return transactionRepository.findByWalletIdOrderByTransactionDateDesc(wallet.getId());
@@ -49,12 +56,12 @@ public class WalletUseCase {
             Long tenantId,
             BigDecimal amount,
             String reason,
-            String reference,
-            Long actorUserId
+            String reference
     ) {
+        CurrentUser actor = currentUserProvider.requireUser();
         TenantWallet wallet = walletRepository.findByTenantId(tenantId)
-                .orElseGet(() -> createWalletForTenant(tenantId, actorUserId));
-        applyAdjustment(wallet, amount, reason, reference, WalletTxnType.MANUAL_CREDIT, actorUserId);
+                .orElseGet(() -> createWalletForTenant(tenantId, actor.userId()));
+        applyAdjustment(wallet, amount, reason, reference, WalletTxnType.MANUAL_CREDIT, actor.userId());
         return walletRepository.save(wallet);
     }
 
@@ -62,15 +69,15 @@ public class WalletUseCase {
             Long tenantId,
             BigDecimal amount,
             String reason,
-            String reference,
-            Long actorUserId
+            String reference
     ) {
+        CurrentUser actor = currentUserProvider.requireUser();
         TenantWallet wallet = walletRepository.findByTenantId(tenantId)
                 .orElseThrow(() -> new NotFoundException("Wallet not found"));
         if (wallet.getBalance().compareTo(amount) < 0) {
             throw new BadRequestException("Insufficient balance");
         }
-        applyAdjustment(wallet, amount, reason, reference, WalletTxnType.MANUAL_DEBIT, actorUserId);
+        applyAdjustment(wallet, amount, reason, reference, WalletTxnType.MANUAL_DEBIT, actor.userId());
         return walletRepository.save(wallet);
     }
 

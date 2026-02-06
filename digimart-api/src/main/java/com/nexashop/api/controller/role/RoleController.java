@@ -6,8 +6,6 @@ import com.nexashop.api.dto.request.role.CreateRoleTemplateRequest;
 import com.nexashop.api.dto.request.role.UpdateRolePermissionsRequest;
 import com.nexashop.api.dto.request.role.UpdateRoleRequest;
 import com.nexashop.api.dto.response.role.RoleResponse;
-import com.nexashop.api.security.AuthenticatedUser;
-import com.nexashop.api.security.SecurityContextUtil;
 import com.nexashop.application.usecase.RoleUseCase;
 import com.nexashop.domain.user.entity.Role;
 import jakarta.validation.Valid;
@@ -24,8 +22,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 @RestController
 @RequestMapping("/api/roles")
@@ -41,50 +37,37 @@ public class RoleController {
 
     @GetMapping
     public List<RoleResponse> listRoles(@RequestParam Long tenantId) {
-        Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-        boolean isSuperAdmin = SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN");
-        return roleUseCase.listRoles(tenantId, requesterTenantId, isSuperAdmin).stream()
+        return roleUseCase.listRoles(tenantId).stream()
                 .map(this::toResponseWithPermissions)
                 .collect(Collectors.toList());
     }
 
     @PostMapping("/clone")
     public RoleResponse cloneRole(@Valid @RequestBody CloneRoleRequest request) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
         RoleUseCase.RoleDetails details = roleUseCase.cloneRole(
                 request.getTemplateRoleId(),
                 request.getCode(),
                 request.getLabel(),
-                request.getTargetTenantId(),
-                user.getTenantId(),
-                user.hasRole("SUPER_ADMIN")
+                request.getTargetTenantId()
         );
         return toResponseWithPermissions(details);
     }
 
     @PostMapping
     public RoleResponse createRole(@Valid @RequestBody CreateRoleRequest request) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
         RoleUseCase.RoleDetails details = roleUseCase.createRole(
                 request.getCode(),
                 request.getLabel(),
-                request.getTargetTenantId(),
-                user.getTenantId(),
-                user.hasRole("SUPER_ADMIN")
+                request.getTargetTenantId()
         );
         return toResponseWithPermissions(details);
     }
 
     @PostMapping("/templates")
     public RoleResponse createTemplate(@Valid @RequestBody CreateRoleTemplateRequest request) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && user.getTenantId() != 1L) {
-            throw new ResponseStatusException(FORBIDDEN, "Platform admin access required");
-        }
         RoleUseCase.RoleDetails details = roleUseCase.createTemplate(
                 request.getCode(),
-                request.getLabel(),
-                true
+                request.getLabel()
         );
         return toResponseWithPermissions(details);
     }
@@ -94,7 +77,6 @@ public class RoleController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
     ) {
-        SecurityContextUtil.requireUser();
         RoleUseCase.RoleDetails details = roleUseCase.updateRole(id, request.getLabel());
         return toResponseWithPermissions(details);
     }
@@ -105,7 +87,6 @@ public class RoleController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateRolePermissionsRequest request
     ) {
-        SecurityContextUtil.requireUser();
         RoleUseCase.RoleDetails details = roleUseCase.updateRolePermissions(
                 id,
                 request.getPermissionCodes()
@@ -115,14 +96,12 @@ public class RoleController {
 
     @GetMapping("/{id}/permissions")
     public Set<String> listRolePermissions(@PathVariable Long id) {
-        SecurityContextUtil.requireUser();
         return roleUseCase.listRolePermissions(id);
     }
 
     @DeleteMapping("/{id}")
     @Transactional
     public void deleteRole(@PathVariable Long id) {
-        AuthenticatedUser user = SecurityContextUtil.requireUser();
         roleUseCase.deleteRole(id);
     }
 

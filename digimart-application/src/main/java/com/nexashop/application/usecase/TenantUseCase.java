@@ -2,6 +2,7 @@ package com.nexashop.application.usecase;
 
 import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.service.TenantProvisioningService;
 import com.nexashop.domain.tenant.entity.ActivitySector;
@@ -11,15 +12,18 @@ import java.util.List;
 
 public class TenantUseCase {
 
+    private final CurrentUserProvider currentUserProvider;
     private final TenantRepository tenantRepository;
     private final ActivitySectorRepository sectorRepository;
     private final TenantProvisioningService provisioningService;
 
     public TenantUseCase(
+            CurrentUserProvider currentUserProvider,
             TenantRepository tenantRepository,
             ActivitySectorRepository sectorRepository,
             TenantProvisioningService provisioningService
     ) {
+        this.currentUserProvider = currentUserProvider;
         this.tenantRepository = tenantRepository;
         this.sectorRepository = sectorRepository;
         this.provisioningService = provisioningService;
@@ -36,15 +40,18 @@ public class TenantUseCase {
     }
 
     public Tenant getTenant(Long id) {
+        currentUserProvider.requireOwnerOrAdmin(id);
         return tenantRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Tenant not found"));
     }
 
     public List<Tenant> listTenants() {
+        currentUserProvider.requireAdminAny();
         return tenantRepository.findAll();
     }
 
     public Tenant updateTenant(Long id, Tenant updates) {
+        currentUserProvider.requireOwnerOrAdmin(id);
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Tenant not found"));
         tenant.setName(updates.getName());
@@ -58,6 +65,7 @@ public class TenantUseCase {
     }
 
     public Tenant updateLogo(Long id, String logoUrl) {
+        currentUserProvider.requireOwnerOrAdmin(id);
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Tenant not found"));
         tenant.setLogoUrl(logoUrl);
