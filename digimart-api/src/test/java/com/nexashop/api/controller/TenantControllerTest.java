@@ -2,13 +2,10 @@ package com.nexashop.api.controller;
 
 import com.nexashop.api.controller.tenant.TenantController;
 import com.nexashop.api.security.AuthenticatedUser;
-import com.nexashop.api.service.TenantProvisioningService;
+import com.nexashop.application.usecase.TenantUseCase;
 import com.nexashop.domain.common.Locale;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.domain.tenant.entity.TenantStatus;
-import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -31,13 +28,8 @@ class TenantControllerTest {
 
     @Test
     void getTenantForbiddenWithoutOwnerOrAdmin() {
-        TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
-        TenantProvisioningService provisioningService = Mockito.mock(TenantProvisioningService.class);
-        TenantController controller = new TenantController(
-                tenantRepo,
-                Mockito.mock(ActivitySectorJpaRepository.class),
-                provisioningService
-        );
+        TenantUseCase tenantUseCase = Mockito.mock(TenantUseCase.class);
+        TenantController controller = new TenantController(tenantUseCase);
 
         Tenant tenant = new Tenant();
         tenant.setId(3L);
@@ -45,7 +37,7 @@ class TenantControllerTest {
         tenant.setSubdomain("t1");
         tenant.setStatus(TenantStatus.ACTIVE);
         tenant.setDefaultLocale(Locale.FR);
-        when(tenantRepo.findById(3L)).thenReturn(Optional.of(tenant));
+        when(tenantUseCase.getTenant(3L)).thenReturn(tenant);
 
         setAuth(3L, "USER");
 
@@ -58,13 +50,8 @@ class TenantControllerTest {
 
     @Test
     void listTenantsRequiresAdminAny() {
-        TenantJpaRepository tenantRepo = Mockito.mock(TenantJpaRepository.class);
-        TenantProvisioningService provisioningService = Mockito.mock(TenantProvisioningService.class);
-        TenantController controller = new TenantController(
-                tenantRepo,
-                Mockito.mock(ActivitySectorJpaRepository.class),
-                provisioningService
-        );
+        TenantUseCase tenantUseCase = Mockito.mock(TenantUseCase.class);
+        TenantController controller = new TenantController(tenantUseCase);
 
         setAuth(1L, "USER");
         ResponseStatusException ex = assertThrows(

@@ -5,50 +5,41 @@ import com.nexashop.api.dto.request.store.UpdateStoreRequest;
 import com.nexashop.api.dto.response.store.StoreResponse;
 import com.nexashop.api.security.AuthenticatedUser;
 import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
-import com.nexashop.application.port.out.StoreRepository;
-import com.nexashop.application.port.out.TenantRepository;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/stores")
 public class StoreController {
 
-    private final StoreRepository storeRepository;
-    private final TenantRepository tenantRepository;
+    private final StoreUseCase storeUseCase;
 
-    public StoreController(
-            StoreRepository storeRepository,
-            TenantRepository tenantRepository
-    ) {
-        this.storeRepository = storeRepository;
-        this.tenantRepository = tenantRepository;
+    public StoreController(StoreUseCase storeUseCase) {
+        this.storeUseCase = storeUseCase;
     }
 
     @PostMapping
@@ -56,22 +47,8 @@ public class StoreController {
             @Valid @RequestBody CreateStoreRequest request
     ) {
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Long tenantId = request.getTenantId();
-        if (tenantId == null) {
-            tenantId = user.getTenantId();
-        }
-        if (!user.hasRole("SUPER_ADMIN") && !tenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        if (!tenantRepository.existsById(tenantId)) {
-            throw new ResponseStatusException(NOT_FOUND, "Tenant not found");
-        }
-        if (storeRepository.existsByTenantIdAndCode(tenantId, request.getCode())) {
-            throw new ResponseStatusException(CONFLICT, "Store code already exists");
-        }
 
         Store store = new Store();
-        store.setTenantId(tenantId);
         store.setName(request.getName());
         store.setCode(request.getCode());
         store.setAddress(request.getAddress());
@@ -86,7 +63,13 @@ public class StoreController {
         store.setLatitude(request.getLatitude());
         store.setLongitude(request.getLongitude());
 
-        Store saved = storeRepository.save(store);
+        Store saved = storeUseCase.createStore(
+                store,
+                request.getTenantId(),
+                user.getTenantId(),
+                user.hasRole("SUPER_ADMIN")
+        );
+
         return ResponseEntity
                 .created(URI.create("/api/stores/" + saved.getId()))
                 .body(toResponse(saved));
@@ -94,22 +77,15 @@ public class StoreController {
 
     @GetMapping("/{id}")
     public StoreResponse getStore(@PathVariable Long id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
+        Store store = storeUseCase.getStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
         return toResponse(store);
     }
 
     @GetMapping
     public List<StoreResponse> listStores(@RequestParam Long tenantId) {
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !tenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        return storeRepository.findByTenantId(tenantId).stream()
+        return storeUseCase.listStores(tenantId, user.getTenantId(), user.hasRole("SUPER_ADMIN")).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -119,38 +95,27 @@ public class StoreController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateStoreRequest request
     ) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
+        Store updates = new Store();
+        updates.setName(request.getName());
+        updates.setAddress(request.getAddress());
+        updates.setCity(request.getCity());
+        updates.setPostalCode(request.getPostalCode());
+        updates.setCountry(request.getCountry());
+        updates.setPhone(request.getPhone());
+        updates.setEmail(request.getEmail());
+        updates.setImageUrl(request.getImageUrl());
+        updates.setLatitude(request.getLatitude());
+        updates.setLongitude(request.getLongitude());
 
-        if (request.getCode() != null && !request.getCode().isBlank()) {
-            if (!request.getCode().equals(store.getCode())
-                    && storeRepository.existsByTenantIdAndCode(
-                            store.getTenantId(),
-                            request.getCode()
-                    )) {
-                throw new ResponseStatusException(CONFLICT, "Store code already exists");
-            }
-            store.setCode(request.getCode());
-        }
-        store.setName(request.getName());
-        store.setAddress(request.getAddress());
-        store.setCity(request.getCity());
-        store.setPostalCode(request.getPostalCode());
-        store.setCountry(request.getCountry());
-        store.setPhone(request.getPhone());
-        store.setEmail(request.getEmail());
-        store.setImageUrl(request.getImageUrl());
-        store.setLatitude(request.getLatitude());
-        store.setLongitude(request.getLongitude());
-        if (request.getActive() != null) {
-            store.setActive(request.getActive());
-        }
-
-        Store saved = storeRepository.save(store);
+        Store saved = storeUseCase.updateStore(
+                id,
+                request.getCode(),
+                updates,
+                request.getActive(),
+                user.getTenantId(),
+                user.hasRole("SUPER_ADMIN")
+        );
         return toResponse(saved);
     }
 
@@ -163,12 +128,8 @@ public class StoreController {
             throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
         }
 
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
+        storeUseCase.getStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
 
         Path uploadDir = Paths.get("uploads", "stores");
         Files.createDirectories(uploadDir);
@@ -183,46 +144,35 @@ public class StoreController {
         Path target = uploadDir.resolve(filename);
         file.transferTo(target.toFile());
 
-        store.setImageUrl("/uploads/stores/" + filename);
-        return toResponse(storeRepository.save(store));
+        Store saved = storeUseCase.updateStoreImage(
+                id,
+                "/uploads/stores/" + filename,
+                user.getTenantId(),
+                user.hasRole("SUPER_ADMIN")
+        );
+        return toResponse(saved);
     }
 
     @PostMapping("/{id}/activate")
     public StoreResponse activateStore(@PathVariable Long id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        store.setActive(true);
-        return toResponse(storeRepository.save(store));
+        Store saved = storeUseCase.setStoreActive(id, true, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        return toResponse(saved);
     }
 
     @PostMapping("/{id}/deactivate")
     public StoreResponse deactivateStore(@PathVariable Long id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        store.setActive(false);
-        return toResponse(storeRepository.save(store));
+        Store saved = storeUseCase.setStoreActive(id, false, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
+        return toResponse(saved);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStore(@PathVariable Long id) {
-        Store store = storeRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Store not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        if (!user.hasRole("SUPER_ADMIN") && !store.getTenantId().equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        storeRepository.delete(store);
+        storeUseCase.deleteStore(id, user.getTenantId(), user.hasRole("SUPER_ADMIN"));
         return ResponseEntity.noContent().build();
     }
-
 
     private StoreResponse toResponse(Store store) {
         return StoreResponse.builder()
@@ -245,5 +195,3 @@ public class StoreController {
                 .build();
     }
 }
-
-

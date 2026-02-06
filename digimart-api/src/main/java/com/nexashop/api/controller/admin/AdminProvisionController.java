@@ -1,9 +1,7 @@
 package com.nexashop.api.controller.admin;
 
 import com.nexashop.api.security.SecurityContextUtil;
-import com.nexashop.api.service.TenantProvisioningService;
-import com.nexashop.application.port.out.TenantRepository;
-import java.util.List;
+import com.nexashop.application.usecase.AdminProvisionUseCase;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,25 +10,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/admin/provision")
 public class AdminProvisionController {
 
-    private final TenantRepository tenantRepository;
-    private final TenantProvisioningService provisioningService;
+    private final AdminProvisionUseCase provisionUseCase;
 
-    public AdminProvisionController(
-            TenantRepository tenantRepository,
-            TenantProvisioningService provisioningService
-    ) {
-        this.tenantRepository = tenantRepository;
-        this.provisioningService = provisioningService;
+    public AdminProvisionController(AdminProvisionUseCase provisionUseCase) {
+        this.provisionUseCase = provisionUseCase;
     }
 
     @PostMapping("/tenants")
     public void provisionAllTenants() {
         SecurityContextUtil.requireSuperAdmin();
-        List<Long> tenantIds = tenantRepository.findAll().stream()
-                .map(t -> t.getId())
-                .toList();
-        tenantIds.forEach(provisioningService::provisionTenant);
+        provisionUseCase.provisionAllTenants();
     }
 }
-
-

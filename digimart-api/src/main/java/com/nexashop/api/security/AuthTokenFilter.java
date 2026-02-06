@@ -1,11 +1,12 @@
 package com.nexashop.api.security;
 
-import com.nexashop.domain.user.entity.User;
-import com.nexashop.domain.user.entity.Role;
-import com.nexashop.domain.user.entity.UserRoleAssignment;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.UserRepository;
 import com.nexashop.application.port.out.UserRoleAssignmentRepository;
+import com.nexashop.application.service.AuthTokenService;
+import com.nexashop.domain.user.entity.Role;
+import com.nexashop.domain.user.entity.User;
+import com.nexashop.domain.user.entity.UserRoleAssignment;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -1,5 +1,11 @@
-package com.nexashop.api.service;
+package com.nexashop.application.service;
 
+import com.nexashop.application.port.out.PlatformConfigRepository;
+import com.nexashop.application.port.out.SubscriptionHistoryRepository;
+import com.nexashop.application.port.out.SubscriptionPlanRepository;
+import com.nexashop.application.port.out.TenantSubscriptionRepository;
+import com.nexashop.application.port.out.TenantWalletRepository;
+import com.nexashop.application.port.out.WalletTransactionRepository;
 import com.nexashop.domain.billing.entity.PlatformConfig;
 import com.nexashop.domain.billing.entity.SubscriptionHistory;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -11,12 +17,6 @@ import com.nexashop.domain.billing.enums.SubscriptionAction;
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import com.nexashop.domain.billing.enums.WalletStatus;
 import com.nexashop.domain.billing.enums.WalletTxnType;
-import com.nexashop.application.port.out.PlatformConfigRepository;
-import com.nexashop.application.port.out.SubscriptionHistoryRepository;
-import com.nexashop.application.port.out.SubscriptionPlanRepository;
-import com.nexashop.application.port.out.TenantSubscriptionRepository;
-import com.nexashop.application.port.out.TenantWalletRepository;
-import com.nexashop.application.port.out.WalletTransactionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -145,5 +145,3 @@ public class TenantProvisioningService {
                 .orElse(defaultValue);
     }
 }
-
-

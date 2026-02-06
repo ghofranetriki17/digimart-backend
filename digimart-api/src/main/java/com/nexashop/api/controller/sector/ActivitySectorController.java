@@ -4,15 +4,11 @@ import com.nexashop.api.dto.request.sector.CreateActivitySectorRequest;
 import com.nexashop.api.dto.request.sector.UpdateActivitySectorRequest;
 import com.nexashop.api.dto.response.sector.ActivitySectorResponse;
 import com.nexashop.api.dto.response.sector.ActivitySectorTenantResponse;
+import com.nexashop.application.usecase.ActivitySectorUseCase;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
-import com.nexashop.application.port.out.ActivitySectorRepository;
-import com.nexashop.application.port.out.TenantRepository;
 import jakarta.validation.Valid;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,37 +19,23 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.CONFLICT;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/api/activity-sectors")
 public class ActivitySectorController {
 
-    private final ActivitySectorRepository sectorRepository;
-    private final TenantRepository tenantRepository;
+    private final ActivitySectorUseCase sectorUseCase;
 
-    public ActivitySectorController(
-            ActivitySectorRepository sectorRepository,
-            TenantRepository tenantRepository
-    ) {
-        this.sectorRepository = sectorRepository;
-        this.tenantRepository = tenantRepository;
+    public ActivitySectorController(ActivitySectorUseCase sectorUseCase) {
+        this.sectorUseCase = sectorUseCase;
     }
 
     @GetMapping
     public List<ActivitySectorResponse> listSectors(
             @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive
     ) {
-        List<ActivitySector> sectors = includeInactive
-                ? sectorRepository.findAll()
-                : sectorRepository.findByActiveTrue();
-        Map<Long, Long> tenantCounts = buildTenantCounts(sectors);
-        return sectors.stream()
-                .sorted(Comparator.comparing(ActivitySector::getLabel))
-                .map(sector -> toResponse(sector, tenantCounts.getOrDefault(sector.getId(), 0L)))
+        return sectorUseCase.listSectors(includeInactive).stream()
+                .map(summary -> toResponse(summary.sector(), summary.tenantCount()))
                 .collect(Collectors.toList());
     }
 
@@ -61,14 +43,12 @@ public class ActivitySectorController {
     public ActivitySectorResponse createSector(
             @Valid @RequestBody CreateActivitySectorRequest request
     ) {
-        if (sectorRepository.findByLabelIgnoreCase(request.getLabel()).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Sector label already exists");
-        }
-        ActivitySector sector = new ActivitySector();
-        sector.setLabel(request.getLabel());
-        sector.setDescription(request.getDescription());
-        sector.setActive(request.getActive() == null || request.getActive());
-        return toResponse(sectorRepository.save(sector), 0L);
+        ActivitySector sector = sectorUseCase.createSector(
+                request.getLabel(),
+                request.getDescription(),
+                request.getActive()
+        );
+        return toResponse(sector, 0L);
     }
 
     @PutMapping("/{id}")
@@ -76,28 +56,18 @@ public class ActivitySectorController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateActivitySectorRequest request
     ) {
-        ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
-        sectorRepository.findByLabelIgnoreCase(request.getLabel())
-                .filter(existing -> !existing.getId().equals(id))
-                .ifPresent(existing -> {
-                    throw new ResponseStatusException(CONFLICT, "Sector label already exists");
-                });
-        sector.setLabel(request.getLabel());
-        sector.setDescription(request.getDescription());
-        if (request.getActive() != null) {
-            sector.setActive(request.getActive());
-        }
-        return toResponse(sectorRepository.save(sector), 0L);
+        ActivitySector sector = sectorUseCase.updateSector(
+                id,
+                request.getLabel(),
+                request.getDescription(),
+                request.getActive()
+        );
+        return toResponse(sector, 0L);
     }
 
     @GetMapping("/{id}/tenants")
     public List<ActivitySectorTenantResponse> listSectorTenants(@PathVariable Long id) {
-        ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
-        return tenantRepository.findAll().stream()
-                .filter(tenant -> sector.getId().equals(tenant.getSectorId()))
-                .sorted(Comparator.comparing(Tenant::getName, Comparator.nullsLast(String::compareToIgnoreCase)))
+        return sectorUseCase.listSectorTenants(id).stream()
                 .map(tenant -> ActivitySectorTenantResponse.builder()
                         .id(tenant.getId())
                         .name(tenant.getName())
@@ -112,9 +82,7 @@ public class ActivitySectorController {
 
     @DeleteMapping("/{id}")
     public void deleteSector(@PathVariable Long id) {
-        ActivitySector sector = sectorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Sector not found"));
-        sectorRepository.delete(sector);
+        sectorUseCase.deleteSector(id);
     }
 
     private ActivitySectorResponse toResponse(ActivitySector sector, long tenantCount) {
@@ -128,29 +96,4 @@ public class ActivitySectorController {
                 .updatedAt(sector.getUpdatedAt())
                 .build();
     }
-
-    private Map<Long, Long> buildTenantCounts(List<ActivitySector> sectors) {
-        if (sectors == null || sectors.isEmpty()) {
-            return Map.of();
-        }
-        List<Long> sectorIds = sectors.stream()
-                .map(ActivitySector::getId)
-                .collect(Collectors.toList());
-        List<Tenant> tenants = tenantRepository.findAll().stream()
-                .filter(tenant -> tenant.getSectorId() != null && sectorIds.contains(tenant.getSectorId()))
-                .collect(Collectors.toList());
-        if (tenants.isEmpty()) {
-            return Map.of();
-        }
-        Map<Long, Long> counts = new HashMap<>();
-        for (Tenant tenant : tenants) {
-            Long sectorId = tenant.getSectorId();
-            if (sectorId != null) {
-                counts.merge(sectorId, 1L, Long::sum);
-            }
-        }
-        return counts;
-    }
 }
-
-

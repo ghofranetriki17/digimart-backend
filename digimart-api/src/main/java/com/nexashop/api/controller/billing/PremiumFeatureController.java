@@ -2,8 +2,8 @@ package com.nexashop.api.controller.billing;
 
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
 import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.application.usecase.PremiumFeatureUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
-import com.nexashop.application.port.out.PremiumFeatureRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,19 +15,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/premium-features")
 public class PremiumFeatureController {
 
-    private final PremiumFeatureRepository featureRepository;
+    private final PremiumFeatureUseCase featureUseCase;
 
-    public PremiumFeatureController(PremiumFeatureRepository featureRepository) {
-        this.featureRepository = featureRepository;
+    public PremiumFeatureController(PremiumFeatureUseCase featureUseCase) {
+        this.featureUseCase = featureUseCase;
     }
 
     @GetMapping
     public List<PremiumFeatureResponse> list(@RequestParam(defaultValue = "false") boolean includeInactive) {
         SecurityContextUtil.requireAdminAny();
-        List<PremiumFeature> features = includeInactive
-                ? featureRepository.findAll()
-                : featureRepository.findByActiveTrueOrderByDisplayOrderAsc();
-        return features.stream()
+        return featureUseCase.list(includeInactive).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -45,5 +42,3 @@ public class PremiumFeatureController {
                 .build();
     }
 }
-
-

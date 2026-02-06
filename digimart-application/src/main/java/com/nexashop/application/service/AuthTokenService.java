@@ -1,7 +1,7 @@
-package com.nexashop.api.security;
+package com.nexashop.application.service;
 
-import com.nexashop.domain.user.entity.RefreshToken;
 import com.nexashop.application.port.out.RefreshTokenRepository;
+import com.nexashop.domain.user.entity.RefreshToken;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -54,5 +54,3 @@ public class AuthTokenService {
         }
     }
 }
-
-
