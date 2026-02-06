@@ -8,13 +8,8 @@ import com.nexashop.api.dto.request.role.UpdateRoleRequest;
 import com.nexashop.api.dto.response.role.RoleResponse;
 import com.nexashop.api.security.AuthenticatedUser;
 import com.nexashop.api.security.SecurityContextUtil;
-import com.nexashop.domain.user.entity.Permission;
+import com.nexashop.application.usecase.RoleUseCase;
 import com.nexashop.domain.user.entity.Role;
-import com.nexashop.domain.user.entity.RolePermission;
-import com.nexashop.application.port.out.PermissionRepository;
-import com.nexashop.application.port.out.RoleRepository;
-import com.nexashop.application.port.out.RolePermissionRepository;
-import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
@@ -29,44 +24,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.transaction.annotation.Transactional;
-
-import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/api/roles")
 public class RoleController {
 
-    private static final Long TEMPLATE_TENANT_ID = 0L;
-
-    private final RoleRepository roleRepository;
-    private final RolePermissionRepository rolePermissionRepository;
-    private final PermissionRepository permissionRepository;
-    private final UserRoleAssignmentRepository userRoleAssignmentRepository;
+    private final RoleUseCase roleUseCase;
 
     public RoleController(
-            RoleRepository roleRepository,
-            RolePermissionRepository rolePermissionRepository,
-            PermissionRepository permissionRepository,
-            UserRoleAssignmentRepository userRoleAssignmentRepository
+            RoleUseCase roleUseCase
     ) {
-        this.roleRepository = roleRepository;
-        this.rolePermissionRepository = rolePermissionRepository;
-        this.permissionRepository = permissionRepository;
-        this.userRoleAssignmentRepository = userRoleAssignmentRepository;
+        this.roleUseCase = roleUseCase;
     }
 
     @GetMapping
     public List<RoleResponse> listRoles(@RequestParam Long tenantId) {
         Long requesterTenantId = SecurityContextUtil.requireUser().getTenantId();
-        if (!SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN")
-                && !tenantId.equals(requesterTenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        Set<Long> tenantIds = Set.of(TEMPLATE_TENANT_ID, tenantId);
-        return roleRepository.findByTenantIdIn(tenantIds).stream()
+        boolean isSuperAdmin = SecurityContextUtil.requireUser().hasRole("SUPER_ADMIN");
+        return roleUseCase.listRoles(tenantId, requesterTenantId, isSuperAdmin).stream()
                 .map(this::toResponseWithPermissions)
                 .collect(Collectors.toList());
     }
@@ -74,66 +50,28 @@ public class RoleController {
     @PostMapping("/clone")
     public RoleResponse cloneRole(@Valid @RequestBody CloneRoleRequest request) {
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Long tenantId = user.getTenantId();
-        if (user.hasRole("SUPER_ADMIN") && request.getTargetTenantId() != null) {
-            tenantId = request.getTargetTenantId();
-        }
-
-        Role template = roleRepository.findById(request.getTemplateRoleId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Template role not found"));
-        if (!template.isSystemRole() || !TEMPLATE_TENANT_ID.equals(template.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Role is not a template");
-        }
-
-        if (roleRepository.findByTenantIdAndCode(tenantId, request.getCode()).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
-        }
-
-        Role role = new Role();
-        role.setTenantId(tenantId);
-        role.setCode(request.getCode());
-        role.setLabel(request.getLabel());
-        role.setSystemRole(false);
-        Role saved = roleRepository.save(role);
-
-        List<RolePermission> templatePerms =
-                rolePermissionRepository.findByTenantIdAndRoleId(TEMPLATE_TENANT_ID, template.getId());
-        for (RolePermission templatePerm : templatePerms) {
-            RolePermission rolePermission = new RolePermission();
-            rolePermission.setTenantId(tenantId);
-            rolePermission.setRoleId(saved.getId());
-            rolePermission.setPermissionId(templatePerm.getPermissionId());
-            rolePermissionRepository.save(rolePermission);
-        }
-
-        return toResponseWithPermissions(saved);
+        RoleUseCase.RoleDetails details = roleUseCase.cloneRole(
+                request.getTemplateRoleId(),
+                request.getCode(),
+                request.getLabel(),
+                request.getTargetTenantId(),
+                user.getTenantId(),
+                user.hasRole("SUPER_ADMIN")
+        );
+        return toResponseWithPermissions(details);
     }
 
     @PostMapping
     public RoleResponse createRole(@Valid @RequestBody CreateRoleRequest request) {
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        Long tenantId = user.getTenantId();
-        if (user.hasRole("SUPER_ADMIN") && request.getTargetTenantId() != null) {
-            tenantId = request.getTargetTenantId();
-        }
-        if (TEMPLATE_TENANT_ID.equals(tenantId)) {
-            throw new ResponseStatusException(FORBIDDEN, "Use /api/roles/templates for templates");
-        }
-        if (!user.hasRole("SUPER_ADMIN") && !tenantId.equals(user.getTenantId())) {
-            throw new ResponseStatusException(FORBIDDEN, "Tenant access required");
-        }
-        if (roleRepository.findByTenantIdAndCode(tenantId, request.getCode()).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
-        }
-
-        Role role = new Role();
-        role.setTenantId(tenantId);
-        role.setCode(request.getCode());
-        role.setLabel(request.getLabel());
-        role.setSystemRole(false);
-        Role saved = roleRepository.save(role);
-
-        return toResponseWithPermissions(saved);
+        RoleUseCase.RoleDetails details = roleUseCase.createRole(
+                request.getCode(),
+                request.getLabel(),
+                request.getTargetTenantId(),
+                user.getTenantId(),
+                user.hasRole("SUPER_ADMIN")
+        );
+        return toResponseWithPermissions(details);
     }
 
     @PostMapping("/templates")
@@ -142,18 +80,12 @@ public class RoleController {
         if (!user.hasRole("SUPER_ADMIN") && user.getTenantId() != 1L) {
             throw new ResponseStatusException(FORBIDDEN, "Platform admin access required");
         }
-        if (roleRepository.findByTenantIdAndCode(TEMPLATE_TENANT_ID, request.getCode()).isPresent()) {
-            throw new ResponseStatusException(CONFLICT, "Role code already exists");
-        }
-
-        Role role = new Role();
-        role.setTenantId(TEMPLATE_TENANT_ID);
-        role.setCode(request.getCode());
-        role.setLabel(request.getLabel());
-        role.setSystemRole(true);
-        Role saved = roleRepository.save(role);
-
-        return toResponseWithPermissions(saved);
+        RoleUseCase.RoleDetails details = roleUseCase.createTemplate(
+                request.getCode(),
+                request.getLabel(),
+                true
+        );
+        return toResponseWithPermissions(details);
     }
 
     @PutMapping("/{id}")
@@ -161,83 +93,39 @@ public class RoleController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
     ) {
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
         SecurityContextUtil.requireUser();
-        role.setLabel(request.getLabel());
-        return toResponseWithPermissions(roleRepository.save(role));
+        RoleUseCase.RoleDetails details = roleUseCase.updateRole(id, request.getLabel());
+        return toResponseWithPermissions(details);
     }
 
     @PutMapping("/{id}/permissions")
-    @Transactional
     public RoleResponse updateRolePermissions(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRolePermissionsRequest request
     ) {
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
         SecurityContextUtil.requireUser();
-
-        Set<String> codes = request.getPermissionCodes() == null
-                ? Set.of()
-                : request.getPermissionCodes().stream()
-                        .filter(code -> code != null && !code.isBlank())
-                        .collect(Collectors.toSet());
-
-        List<Permission> permissions = codes.isEmpty()
-                ? List.of()
-                : permissionRepository.findByCodeIn(codes);
-
-        rolePermissionRepository.deleteByTenantIdAndRoleId(role.getTenantId(), role.getId());
-        rolePermissionRepository.flush();
-
-        for (Permission permission : permissions) {
-            RolePermission rolePermission = new RolePermission();
-            rolePermission.setTenantId(role.getTenantId());
-            rolePermission.setRoleId(role.getId());
-            rolePermission.setPermissionId(permission.getId());
-            rolePermissionRepository.save(rolePermission);
-        }
-        rolePermissionRepository.flush();
-
-        return toResponseWithPermissions(role);
+        RoleUseCase.RoleDetails details = roleUseCase.updateRolePermissions(
+                id,
+                request.getPermissionCodes()
+        );
+        return toResponseWithPermissions(details);
     }
 
     @GetMapping("/{id}/permissions")
     public Set<String> listRolePermissions(@PathVariable Long id) {
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
         SecurityContextUtil.requireUser();
-        return rolePermissionRepository.findByTenantIdAndRoleId(role.getTenantId(), role.getId()).stream()
-                .map(RolePermission::getPermissionId)
-                .map(permissionId -> permissionRepository.findById(permissionId))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
-                .map(Permission::getCode)
-                .collect(Collectors.toSet());
+        return roleUseCase.listRolePermissions(id);
     }
 
     @DeleteMapping("/{id}")
-    @Transactional
     public void deleteRole(@PathVariable Long id) {
-        Role role = roleRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Role not found"));
         AuthenticatedUser user = SecurityContextUtil.requireUser();
-        rolePermissionRepository.deleteByRoleId(role.getId());
-        userRoleAssignmentRepository.deleteByRoleId(role.getId());
-        roleRepository.delete(role);
+        roleUseCase.deleteRole(id);
     }
 
-    private RoleResponse toResponseWithPermissions(Role role) {
-        Set<String> permissions = rolePermissionRepository
-                .findByTenantIdAndRoleId(role.getTenantId(), role.getId()).stream()
-                .map(RolePermission::getPermissionId)
-                .map(permissionId -> permissionRepository.findById(permissionId))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
-                .map(Permission::getCode)
-                .collect(Collectors.toSet());
-
+    private RoleResponse toResponseWithPermissions(RoleUseCase.RoleDetails details) {
+        Role role = details.role();
+        Set<String> permissions = details.permissions();
         return RoleResponse.builder()
                 .id(role.getId())
                 .tenantId(role.getTenantId())

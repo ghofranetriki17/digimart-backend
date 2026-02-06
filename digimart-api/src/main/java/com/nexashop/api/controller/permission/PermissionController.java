@@ -3,10 +3,9 @@ package com.nexashop.api.controller.permission;
 import com.nexashop.api.dto.request.permission.CreatePermissionRequest;
 import com.nexashop.api.dto.response.permission.PermissionResponse;
 import com.nexashop.api.security.SecurityContextUtil;
+import com.nexashop.application.usecase.PermissionUseCase;
 import com.nexashop.domain.user.entity.Permission;
-import com.nexashop.application.port.out.PermissionRepository;
 import jakarta.validation.Valid;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,17 +21,16 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 @RequestMapping("/api/permissions")
 public class PermissionController {
 
-    private final PermissionRepository permissionRepository;
+    private final PermissionUseCase permissionUseCase;
 
-    public PermissionController(PermissionRepository permissionRepository) {
-        this.permissionRepository = permissionRepository;
+    public PermissionController(PermissionUseCase permissionUseCase) {
+        this.permissionUseCase = permissionUseCase;
     }
 
     @GetMapping
     public List<PermissionResponse> listPermissions() {
         SecurityContextUtil.requireUser();
-        return permissionRepository.findAll().stream()
-                .sorted(Comparator.comparing(Permission::getDomain).thenComparing(Permission::getCode))
+        return permissionUseCase.listPermissions().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -42,15 +40,12 @@ public class PermissionController {
             @Valid @RequestBody CreatePermissionRequest request
     ) {
         SecurityContextUtil.requireSuperAdmin();
-        if (permissionRepository.existsByCode(request.getCode())) {
-            throw new ResponseStatusException(CONFLICT, "Permission code already exists");
-        }
-
-        Permission permission = new Permission();
-        permission.setCode(request.getCode());
-        permission.setDomain(request.getDomain());
-        permission.setDescription(request.getDescription());
-        return toResponse(permissionRepository.save(permission));
+        Permission permission = permissionUseCase.createPermission(
+                request.getCode(),
+                request.getDomain(),
+                request.getDescription()
+        );
+        return toResponse(permission);
     }
 
     private PermissionResponse toResponse(Permission permission) {
