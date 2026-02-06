@@ -20,10 +20,6 @@ import com.nexashop.domain.billing.enums.WalletStatus;
 import com.nexashop.domain.billing.enums.WalletTxnType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-@Service
 public class TenantProvisioningService {
 
     private final PlatformConfigRepository configRepository;
@@ -49,13 +45,11 @@ public class TenantProvisioningService {
         this.historyRepository = historyRepository;
     }
 
-    @Transactional
     public void provisionTenant(Long tenantId) {
         createWalletIfNeeded(tenantId);
         activateStandardSubscription(tenantId);
     }
 
-    @Transactional
     public void ensureSubscription(Long tenantId) {
         if (subscriptionRepository.findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE).isPresent()) {
             return;

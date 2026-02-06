@@ -9,9 +9,6 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
-
-@Service
 public class AuthTokenService {
 
     private static final int TOKEN_DAYS_VALID = 7;

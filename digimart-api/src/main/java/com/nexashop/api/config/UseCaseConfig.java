@@ -5,6 +5,7 @@ import com.nexashop.application.port.out.PermissionRepository;
 import com.nexashop.application.port.out.PlanFeatureRepository;
 import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
+import com.nexashop.application.port.out.RefreshTokenRepository;
 import com.nexashop.application.port.out.RolePermissionRepository;
 import com.nexashop.application.port.out.RoleRepository;
 import com.nexashop.application.port.out.StoreRepository;
@@ -37,6 +38,30 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class UseCaseConfig {
+
+    @Bean
+    public AuthTokenService authTokenService(RefreshTokenRepository refreshTokenRepository) {
+        return new AuthTokenService(refreshTokenRepository);
+    }
+
+    @Bean
+    public TenantProvisioningService tenantProvisioningService(
+            PlatformConfigRepository configRepository,
+            SubscriptionPlanRepository planRepository,
+            TenantWalletRepository walletRepository,
+            WalletTransactionRepository transactionRepository,
+            TenantSubscriptionRepository subscriptionRepository,
+            SubscriptionHistoryRepository historyRepository
+    ) {
+        return new TenantProvisioningService(
+                configRepository,
+                planRepository,
+                walletRepository,
+                transactionRepository,
+                subscriptionRepository,
+                historyRepository
+        );
+    }
 
     @Bean
     public ActivitySectorUseCase activitySectorUseCase(

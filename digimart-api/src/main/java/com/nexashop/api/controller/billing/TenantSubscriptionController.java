@@ -11,6 +11,7 @@ import com.nexashop.domain.billing.entity.TenantSubscription;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ public class TenantSubscriptionController {
     }
 
     @GetMapping("/current")
+    @Transactional
     public TenantSubscriptionResponse getCurrent(@PathVariable Long tenantId) {
         SecurityContextUtil.requireUser();
         TenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.getCurrent(tenantId);
@@ -44,6 +46,7 @@ public class TenantSubscriptionController {
     }
 
     @PostMapping("/activate")
+    @Transactional
     public TenantSubscriptionResponse activate(
             @PathVariable Long tenantId,
             @Valid @RequestBody ActivateSubscriptionRequest request

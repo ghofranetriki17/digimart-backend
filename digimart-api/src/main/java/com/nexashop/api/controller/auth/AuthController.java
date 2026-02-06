@@ -8,6 +8,7 @@ import com.nexashop.api.dto.response.auth.RegisterTenantStep1Response;
 import com.nexashop.application.usecase.AuthUseCase;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,6 +55,7 @@ public class AuthController {
     }
 
     @PostMapping("/register-tenant/step1")
+    @Transactional
     public RegisterTenantStep1Response registerTenantStep1(
             @Valid @RequestBody RegisterTenantStep1Request request
     ) {
@@ -74,6 +76,7 @@ public class AuthController {
     }
 
     @PostMapping("/register-tenant/step2")
+    @Transactional
     public LoginResponse registerTenantStep2(
             @Valid @RequestBody RegisterTenantStep2Request request,
             HttpServletRequest httpRequest

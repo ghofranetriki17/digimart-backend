@@ -37,6 +37,7 @@ public class AdminTenantSubscriptionController {
     }
 
     @GetMapping("/current")
+    @Transactional
     public TenantSubscriptionResponse getCurrent(@PathVariable Long tenantId) {
         requirePlatformOrOwner();
         AdminTenantSubscriptionUseCase.SubscriptionDetails details = subscriptionUseCase.getCurrent(tenantId);
