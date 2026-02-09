@@ -1,5 +1,6 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.exception.BadRequestException;
 import com.nexashop.application.exception.ConflictException;
 import com.nexashop.application.exception.ForbiddenException;
 import com.nexashop.application.exception.NotFoundException;
@@ -9,6 +10,7 @@ import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.catalog.entity.Category;
 import java.util.List;
+import java.text.Normalizer;
 
 public class CategoryUseCase {
 
@@ -38,9 +40,16 @@ public class CategoryUseCase {
         if (!tenantRepository.existsById(tenantId)) {
             throw new NotFoundException("Tenant not found");
         }
-        if (categoryRepository.existsByTenantIdAndSlug(tenantId, category.getSlug())) {
-            throw new ConflictException("Category slug already exists");
+        String slugInput = category.getSlug();
+        if (slugInput == null || slugInput.isBlank()) {
+            slugInput = category.getName();
         }
+        String baseSlug = slugify(slugInput);
+        if (baseSlug.isBlank()) {
+            throw new BadRequestException("Category slug cannot be empty");
+        }
+        String resolvedSlug = resolveUniqueSlug(tenantId, baseSlug, null);
+        category.setSlug(resolvedSlug);
         if (category.getParentCategoryId() != null) {
             Category parent = categoryRepository.findById(category.getParentCategoryId())
                     .orElseThrow(() -> new NotFoundException("Parent category not found"));
@@ -100,12 +109,14 @@ public class CategoryUseCase {
             throw new ForbiddenException("Tenant access required");
         }
         if (slug != null && !slug.isBlank()) {
-            categoryRepository.findByTenantIdAndSlug(category.getTenantId(), slug)
-                    .filter(existing -> !existing.getId().equals(id))
-                    .ifPresent(existing -> {
-                        throw new ConflictException("Category slug already exists");
-                    });
-            category.setSlug(slug);
+            String baseSlug = slugify(slug);
+            if (baseSlug.isBlank()) {
+                throw new BadRequestException("Category slug cannot be empty");
+            }
+            if (!baseSlug.equals(category.getSlug())) {
+                String resolvedSlug = resolveUniqueSlug(category.getTenantId(), baseSlug, id);
+                category.setSlug(resolvedSlug);
+            }
         }
         if (updates.getParentCategoryId() != null) {
             if (updates.getParentCategoryId().equals(id)) {
@@ -155,5 +166,36 @@ public class CategoryUseCase {
             throw new ForbiddenException("Tenant access required");
         }
         categoryRepository.delete(category);
+    }
+
+    private String resolveUniqueSlug(Long tenantId, String baseSlug, Long currentId) {
+        String candidate = baseSlug;
+        int suffix = 2;
+        while (true) {
+            Category existing = categoryRepository.findByTenantIdAndSlug(tenantId, candidate).orElse(null);
+            if (existing == null || (currentId != null && existing.getId().equals(currentId))) {
+                return candidate;
+            }
+            candidate = baseSlug + "-" + suffix;
+            suffix += 1;
+            if (suffix > 9999) {
+                throw new ConflictException("Unable to generate unique slug");
+            }
+        }
+    }
+
+    private String slugify(String input) {
+        if (input == null) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        String slug = normalized
+                .toLowerCase()
+                .trim()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "")
+                .replaceAll("-{2,}", "-");
+        return slug;
     }
 }
