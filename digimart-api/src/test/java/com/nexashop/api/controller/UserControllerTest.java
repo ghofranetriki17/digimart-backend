@@ -1,147 +1,121 @@
 package com.nexashop.api.controller;
 
 import com.nexashop.api.controller.user.UserController;
+import com.nexashop.api.dto.request.user.CreateUserRequest;
+import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
-import com.nexashop.api.security.AuthenticatedUser;
+import com.nexashop.api.dto.response.user.UserResponse;
+import com.nexashop.application.usecase.UserUseCase;
 import com.nexashop.domain.user.entity.User;
-import com.nexashop.infrastructure.persistence.jpa.RoleJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.UserRoleAssignmentJpaRepository;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UserControllerTest {
 
-    @AfterEach
-    void cleanup() {
-        SecurityContextHolder.clearContext();
+    @Test
+    void createUserReturnsResponse() {
+        UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
+        UserController controller = new UserController(userUseCase);
+
+        CreateUserRequest request = new CreateUserRequest();
+        request.setEmail("test@example.com");
+        request.setPassword("Password123!");
+        request.setFirstName("Test");
+        request.setLastName("User");
+        request.setTenantId(2L);
+
+        User saved = new User();
+        saved.setId(10L);
+        saved.setTenantId(2L);
+        saved.setEmail("test@example.com");
+
+        when(userUseCase.createUser(Mockito.any(User.class), Mockito.eq(2L))).thenReturn(saved);
+        when(userUseCase.resolveUserRoleCodes(saved)).thenReturn(Set.of("USER"));
+
+        UserResponse response = controller.createUser(request).getBody();
+        assertEquals(10L, response.getId());
+        assertEquals("test@example.com", response.getEmail());
+        assertEquals(Set.of("USER"), response.getRoles());
     }
 
     @Test
-    void listUsersForbiddenWhenTenantMismatch() {
-        UserController controller = new UserController(
-                Mockito.mock(TenantJpaRepository.class),
-                Mockito.mock(UserJpaRepository.class),
-                Mockito.mock(RoleJpaRepository.class),
-                Mockito.mock(UserRoleAssignmentJpaRepository.class)
-        );
-        setAuth(1L, "USER");
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.listUsers(2L)
-        );
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-    }
+    void listUsersReturnsResponses() {
+        UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
+        UserController controller = new UserController(userUseCase);
 
-    @Test
-    void updateUserRolesRejectsInvalidRoleCodes() {
-        UserJpaRepository userRepo = Mockito.mock(UserJpaRepository.class);
-        RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
-        UserRoleAssignmentJpaRepository assignmentRepo = Mockito.mock(UserRoleAssignmentJpaRepository.class);
-        UserController controller = new UserController(
-                Mockito.mock(TenantJpaRepository.class),
-                userRepo,
-                roleRepo,
-                assignmentRepo
-        );
-
-        setAuth(5L, "ADMIN");
         User user = new User();
         user.setId(1L);
-        user.setTenantId(5L);
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
-        when(roleRepo.findByTenantIdAndCodeIn(5L, Set.of("ADMIN", "OWNER")))
-                .thenReturn(java.util.List.of());
-
-        UpdateUserRolesRequest request = new UpdateUserRolesRequest();
-        request.setRoles(Set.of("ADMIN", "OWNER"));
-
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.updateUserRoles(1L, request)
-        );
-        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-    }
-
-    @Test
-    void getUserForbiddenAcrossTenants() {
-        UserJpaRepository userRepo = Mockito.mock(UserJpaRepository.class);
-        UserController controller = new UserController(
-                Mockito.mock(TenantJpaRepository.class),
-                userRepo,
-                Mockito.mock(RoleJpaRepository.class),
-                Mockito.mock(UserRoleAssignmentJpaRepository.class)
-        );
-        setAuth(1L, "USER");
-        User user = new User();
-        user.setId(10L);
         user.setTenantId(2L);
-        when(userRepo.findById(10L)).thenReturn(Optional.of(user));
+        user.setEmail("a@b.com");
 
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.getUser(10L)
-        );
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        when(userUseCase.listUsers(2L)).thenReturn(List.of(user));
+        when(userUseCase.resolveUserRoleCodes(user)).thenReturn(Set.of("OWNER"));
+
+        List<UserResponse> responses = controller.listUsers(2L);
+        assertEquals(1, responses.size());
+        assertEquals("a@b.com", responses.get(0).getEmail());
     }
 
     @Test
-    void updateUserRolesCreatesMissingForPlatformTenant() {
-        UserJpaRepository userRepo = Mockito.mock(UserJpaRepository.class);
-        RoleJpaRepository roleRepo = Mockito.mock(RoleJpaRepository.class);
-        UserRoleAssignmentJpaRepository assignmentRepo = Mockito.mock(UserRoleAssignmentJpaRepository.class);
-        UserController controller = new UserController(
-                Mockito.mock(TenantJpaRepository.class),
-                userRepo,
-                roleRepo,
-                assignmentRepo
-        );
+    void getUserReturnsResponse() {
+        UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
+        UserController controller = new UserController(userUseCase);
 
-        setAuth(1L, "SUPER_ADMIN");
         User user = new User();
-        user.setId(1L);
-        user.setTenantId(1L);
-        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        user.setId(7L);
+        user.setTenantId(3L);
+        user.setEmail("z@x.com");
 
-        com.nexashop.domain.user.entity.Role role = new com.nexashop.domain.user.entity.Role();
-        role.setId(9L);
-        role.setTenantId(0L);
-        role.setCode("PLATFORM_SUPPORT");
-        role.setLabel("PLATFORM_SUPPORT");
+        when(userUseCase.getUser(7L)).thenReturn(user);
+        when(userUseCase.resolveUserRoleCodes(user)).thenReturn(Set.of("ADMIN"));
 
-        when(roleRepo.findByTenantIdAndCodeIn(1L, Set.of("PLATFORM_SUPPORT")))
-                .thenReturn(List.of())
-                .thenReturn(List.of(role));
-        when(roleRepo.save(Mockito.any(com.nexashop.domain.user.entity.Role.class))).thenReturn(role);
-        when(assignmentRepo.findByTenantIdAndUserIdAndActiveTrue(1L, 1L)).thenReturn(List.of());
-        when(assignmentRepo.findByTenantIdAndUserIdAndRoleId(1L, 1L, 9L)).thenReturn(Optional.empty());
-
-        UpdateUserRolesRequest request = new UpdateUserRolesRequest();
-        request.setRoles(Set.of("PLATFORM_SUPPORT"));
-
-        assertDoesNotThrow(() -> controller.updateUserRoles(1L, request));
-        verify(roleRepo).save(Mockito.any(com.nexashop.domain.user.entity.Role.class));
+        UserResponse response = controller.getUser(7L);
+        assertEquals(7L, response.getId());
+        assertEquals(Set.of("ADMIN"), response.getRoles());
     }
 
-    private void setAuth(Long tenantId, String... roles) {
-        AuthenticatedUser user = new AuthenticatedUser(1L, tenantId, Set.of(roles));
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(user, null)
-        );
+    @Test
+    void updateUserReturnsResponse() {
+        UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
+        UserController controller = new UserController(userUseCase);
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setFirstName("New");
+        request.setLastName("Name");
+
+        User updated = new User();
+        updated.setId(5L);
+        updated.setTenantId(1L);
+        updated.setFirstName("New");
+
+        when(userUseCase.updateUser(5L, "New", "Name", null, null, null)).thenReturn(updated);
+        when(userUseCase.resolveUserRoleCodes(updated)).thenReturn(Set.of("USER"));
+
+        UserResponse response = controller.updateUser(5L, request);
+        assertEquals("New", response.getFirstName());
+    }
+
+    @Test
+    void updateUserRolesReturnsResponse() {
+        UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
+        UserController controller = new UserController(userUseCase);
+
+        UpdateUserRolesRequest request = new UpdateUserRolesRequest();
+        request.setRoles(Set.of("ADMIN"));
+
+        User updated = new User();
+        updated.setId(9L);
+        updated.setTenantId(1L);
+
+        when(userUseCase.updateUserRoles(9L, Set.of("ADMIN"))).thenReturn(updated);
+        when(userUseCase.resolveUserRoleCodes(updated)).thenReturn(Set.of("ADMIN"));
+
+        UserResponse response = controller.updateUserRoles(9L, request);
+        assertEquals(Set.of("ADMIN"), response.getRoles());
     }
 }

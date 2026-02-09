@@ -1,69 +1,56 @@
 package com.nexashop.api.controller;
 
 import com.nexashop.api.controller.store.StoreController;
-import com.nexashop.api.security.AuthenticatedUser;
+import com.nexashop.api.dto.request.store.CreateStoreRequest;
+import com.nexashop.api.dto.response.store.StoreResponse;
+import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
-import com.nexashop.infrastructure.persistence.jpa.StoreJpaRepository;
-import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
-import java.util.Optional;
-import java.util.Set;
-import org.junit.jupiter.api.AfterEach;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 class StoreControllerTest {
 
-    @AfterEach
-    void cleanup() {
-        SecurityContextHolder.clearContext();
-    }
-
     @Test
-    void listStoresForbiddenWhenTenantMismatch() {
-        StoreController controller = new StoreController(
-                Mockito.mock(StoreJpaRepository.class),
-                Mockito.mock(TenantJpaRepository.class)
-        );
-        setAuth(1L, "USER");
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.listStores(2L)
-        );
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-    }
+    void listStoresReturnsResponses() {
+        StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
+        StoreController controller = new StoreController(useCase);
 
-    @Test
-    void getStoreForbiddenAcrossTenants() {
-        StoreJpaRepository storeRepo = Mockito.mock(StoreJpaRepository.class);
-        StoreController controller = new StoreController(
-                storeRepo,
-                Mockito.mock(TenantJpaRepository.class)
-        );
-        setAuth(1L, "USER");
         Store store = new Store();
-        store.setId(9L);
+        store.setId(1L);
         store.setTenantId(2L);
-        when(storeRepo.findById(9L)).thenReturn(Optional.of(store));
+        store.setName("Alpha");
 
-        ResponseStatusException ex = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.getStore(9L)
-        );
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        when(useCase.listStores(2L)).thenReturn(List.of(store));
+
+        List<StoreResponse> responses = controller.listStores(2L);
+        assertEquals(1, responses.size());
+        assertEquals("Alpha", responses.get(0).getName());
     }
 
-    private void setAuth(Long tenantId, String... roles) {
-        AuthenticatedUser user = new AuthenticatedUser(1L, tenantId, Set.of(roles));
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(user, null)
-        );
+    @Test
+    void createStoreReturnsResponse() {
+        StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
+        StoreController controller = new StoreController(useCase);
+
+        CreateStoreRequest request = new CreateStoreRequest();
+        request.setTenantId(2L);
+        request.setName("Alpha");
+        request.setCode("ALP-01");
+
+        Store saved = new Store();
+        saved.setId(10L);
+        saved.setTenantId(2L);
+        saved.setName("Alpha");
+        saved.setCode("ALP-01");
+
+        when(useCase.createStore(Mockito.any(Store.class), Mockito.eq(2L))).thenReturn(saved);
+
+        StoreResponse response = controller.createStore(request).getBody();
+        assertEquals(10L, response.getId());
+        assertEquals("ALP-01", response.getCode());
     }
 }
