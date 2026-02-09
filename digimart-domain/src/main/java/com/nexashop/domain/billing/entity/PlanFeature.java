@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.billing.entity;
+package com.nexashop.domain.billing.entity;
 
 import com.nexashop.domain.common.AuditableEntity;
 import lombok.Getter;

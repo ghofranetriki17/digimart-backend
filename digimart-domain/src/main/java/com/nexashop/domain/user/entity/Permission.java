@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.user.entity;
+package com.nexashop.domain.user.entity;
 
 import com.nexashop.domain.common.BaseEntity;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.common;
+package com.nexashop.domain.common;
 
 import lombok.Getter;
 import lombok.Setter;

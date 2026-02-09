@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.billing.entity;
+package com.nexashop.domain.billing.entity;
 
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import com.nexashop.domain.common.TenantEntity;

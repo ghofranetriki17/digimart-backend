@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.tenant.entity;
+package com.nexashop.domain.tenant.entity;
 
 import com.nexashop.domain.common.AuditableEntity;
 import com.nexashop.domain.common.Locale;

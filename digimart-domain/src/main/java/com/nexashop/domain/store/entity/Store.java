@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.store.entity;
+package com.nexashop.domain.store.entity;
 
 import com.nexashop.domain.common.TenantEntity;
 import java.math.BigDecimal;

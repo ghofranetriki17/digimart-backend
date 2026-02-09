@@ -1,0 +1,354 @@
+classDiagram
+direction TB
+
+%% ============================
+%% BASE ENTITIES
+%% ============================
+
+class BaseEntity {
+  <<base>>
+  +Long id PK
+}
+
+class AuditableEntity {
+  <<base>>
+  +LocalDateTime createdAt
+  +LocalDateTime updatedAt
+}
+
+class TenantEntity {
+  <<base>>
+  +Long tenantId FK
+}
+
+BaseEntity <|-- AuditableEntity
+AuditableEntity <|-- TenantEntity
+
+%% ============================
+%% EXISTING - CORE MULTI-TENANT
+%% ============================
+
+class ActivitySector {
+  <<entity>>
+  +String label UNIQUE
+  +String description
+  +boolean active
+}
+
+class Tenant {
+  <<entity>>
+  +String name
+  +String subdomain UNIQUE
+  +String contactEmail
+  +String contactPhone
+  +String logoUrl
+  +TenantStatus status
+  +Locale defaultLocale
+  +Long sectorId FK
+}
+
+class TenantStatus {
+  <<enum>>
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  EXPIRED
+}
+
+class Store {
+  <<entity>>
+  +String name
+  +String code
+  +String address
+  +String city
+  +String postalCode
+  +String country
+  +String phone
+  +String email
+  +String imageUrl
+  +BigDecimal latitude
+  +BigDecimal longitude
+  +boolean active
+}
+
+class User {
+  <<entity>>
+  +String email UNIQUE(tenant)
+  +String passwordHash
+  +String firstName
+  +String lastName
+  +String phone
+  +String imageUrl
+  +boolean enabled
+  +LocalDateTime lastLogin
+}
+
+class RefreshToken {
+  <<entity>>
+  +Long userId FK
+  +String tokenHash
+  +LocalDateTime expiresAt
+  +LocalDateTime revokedAt
+  +String deviceInfo
+}
+
+class Role {
+  <<entity>>
+  +String code UNIQUE(tenant)
+  +String label
+  +boolean systemRole
+}
+
+class Permission {
+  <<entity>>
+  +String code UNIQUE
+  +String domain
+  +String description
+}
+
+class UserRoleAssignment {
+  <<entity>>
+  +Long userId FK
+  +Long roleId FK
+  +boolean active
+}
+
+class RolePermission {
+  <<entity>>
+  +Long roleId FK
+  +Long permissionId FK
+}
+
+class AuditEvent {
+  <<entity>>
+  +String entityType
+  +Long entityId
+  +AuditAction action
+  +String beforeJson
+  +String afterJson
+  +Long actorUserId FK
+  +String ipAddress
+  +String userAgent
+  +String correlationId
+  +LocalDateTime occurredAt
+}
+
+class AuditAction {
+  <<enum>>
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+}
+
+class Locale {
+  <<enum>>
+  FR
+  AR
+  EN
+}
+
+ActivitySector --|> AuditableEntity
+Tenant --|> AuditableEntity
+Store --|> TenantEntity
+User --|> TenantEntity
+RefreshToken --|> TenantEntity
+Role --|> TenantEntity
+Permission --|> BaseEntity
+UserRoleAssignment --|> TenantEntity
+RolePermission --|> TenantEntity
+AuditEvent --|> TenantEntity
+
+%% ============================
+%% NEW - BILLING
+%% ============================
+
+class PlatformConfig {
+  <<entity>>
+  +String configKey UNIQUE
+  +String configValue
+  +String description
+  +Long updatedBy FK
+}
+
+class TenantWallet {
+  <<entity>>
+  +BigDecimal balance
+  +String currency
+  +WalletStatus status
+  +LocalDateTime lastTransactionAt
+}
+
+class WalletStatus {
+  <<enum>>
+  ACTIVE
+  SUSPENDED
+  FROZEN
+}
+
+class WalletTransaction {
+  <<entity>>
+  +Long walletId FK
+  +WalletTxnType type
+  +BigDecimal amount
+  +BigDecimal balanceBefore
+  +BigDecimal balanceAfter
+  +String reason
+  +String reference
+  +Long processedBy FK
+  +LocalDateTime transactionDate
+}
+
+class WalletTxnType {
+  <<enum>>
+  INITIAL_CREDIT
+  MANUAL_CREDIT
+  MANUAL_DEBIT
+  ADJUSTMENT
+  REFUND
+}
+
+class PremiumFeature {
+  <<entity>>
+  +String code UNIQUE
+  +String name
+  +String description
+  +FeatureCategory category
+  +boolean active
+  +Integer displayOrder
+}
+
+class FeatureCategory {
+  <<enum>>
+  ANALYTICS
+  SALES
+  MARKETING
+  TECHNICAL
+  SUPPORT
+}
+
+class SubscriptionPlan {
+  <<entity>>
+  +String code UNIQUE
+  +String name
+  +String description
+  +BigDecimal price
+  +String currency
+  +BillingCycle billingCycle
+  +BigDecimal discountPercentage
+  +boolean standard
+  +boolean active
+  +LocalDateTime startDate
+  +LocalDateTime endDate
+  +Long createdBy FK
+}
+
+class BillingCycle {
+  <<enum>>
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ONE_TIME
+}
+
+class PlanFeature {
+  <<entity>>
+  +Long planId FK
+  +Long featureId FK
+}
+
+class TenantSubscription {
+  <<entity>>
+  +Long planId FK
+  +SubscriptionStatus status
+  +LocalDateTime startDate
+  +LocalDateTime endDate
+  +LocalDateTime nextBillingDate
+  +BigDecimal pricePaid
+  +String paymentReference
+  +Long activatedBy FK
+  +LocalDateTime activatedAt
+  +LocalDateTime cancelledAt
+  +String cancellationReason
+}
+
+class SubscriptionStatus {
+  <<enum>>
+  ACTIVE
+  PENDING_ACTIVATION
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+class SubscriptionHistory {
+  <<entity>>
+  +Long subscriptionId FK
+  +Long oldPlanId FK
+  +Long newPlanId FK
+  +SubscriptionAction action
+  +String notes
+  +Long performedBy FK
+  +LocalDateTime performedAt
+}
+
+class SubscriptionAction {
+  <<enum>>
+  CREATED
+  ACTIVATED
+  UPGRADED
+  DOWNGRADED
+  RENEWED
+  CANCELLED
+  SUSPENDED
+  EXPIRED
+}
+
+PlatformConfig --|> AuditableEntity
+TenantWallet --|> TenantEntity
+WalletTransaction --|> TenantEntity
+PremiumFeature --|> AuditableEntity
+SubscriptionPlan --|> AuditableEntity
+PlanFeature --|> AuditableEntity
+TenantSubscription --|> TenantEntity
+SubscriptionHistory --|> TenantEntity
+
+%% ============================
+%% RELATIONS
+%% ============================
+
+Tenant "many" --> "1" ActivitySector : belongsTo
+Tenant "1" --o "0..*" Store : owns
+Tenant "1" --o "0..*" User : has
+User "1" --o "0..*" RefreshToken : tokens
+Tenant "1" --o "0..*" Role : roles
+Tenant "1" --o "0..*" RolePermission : rolePermissions
+Tenant "1" --o "0..*" UserRoleAssignment : assignments
+User "1" --o "0..*" UserRoleAssignment : assigned
+Role "1" --o "0..*" UserRoleAssignment : has
+Role "1" --o "0..*" RolePermission : grants
+Permission "1" --o "0..*" RolePermission : usedBy
+User "1" --o "0..*" AuditEvent : actor
+Tenant "1" --> "1" TenantStatus : status
+
+Tenant "1" --o "1" TenantWallet : hasWallet
+TenantWallet "1" --> "1" WalletStatus : status
+TenantWallet "1" --o "0..*" WalletTransaction : transactions
+WalletTransaction "1" --> "1" WalletTxnType : type
+User "1" --o "0..*" WalletTransaction : processes
+User "1" --o "0..*" PlatformConfig : manages
+
+PremiumFeature "1" --> "1" FeatureCategory : category
+SubscriptionPlan "1" --o "0..*" PlanFeature : includes
+PremiumFeature "1" --o "0..*" PlanFeature : usedIn
+SubscriptionPlan "1" --> "1" BillingCycle : cycle
+User "1" --o "0..*" SubscriptionPlan : creates
+
+Tenant "1" --o "0..*" TenantSubscription : subscriptions
+SubscriptionPlan "1" --o "0..*" TenantSubscription : subscribedBy
+TenantSubscription "1" --> "1" SubscriptionStatus : status
+User "1" --o "0..*" TenantSubscription : activates
+
+TenantSubscription "1" --o "0..*" SubscriptionHistory : history
+SubscriptionHistory "1" --> "1" SubscriptionAction : action
+User "1" --o "0..*" SubscriptionHistory : performs

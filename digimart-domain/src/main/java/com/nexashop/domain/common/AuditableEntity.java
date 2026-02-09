@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.common;
+package com.nexashop.domain.common;
 
 import java.time.LocalDateTime;
 import lombok.Getter;

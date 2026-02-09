@@ -1,4 +1,4 @@
-﻿package com.nexashop.domain.audit.entity;
+package com.nexashop.domain.audit.entity;
 
 import com.nexashop.domain.common.TenantEntity;
 import java.time.LocalDateTime;
