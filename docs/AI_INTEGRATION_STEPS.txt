@@ -1,0 +1,96 @@
+DIGIMART — AI INTEGRATION STEPS (GEMINI)
+=======================================
+
+Purpose
+-------
+Reusable AI text generation for many features (categories, products, stores, marketing).
+
+What we implemented
+-------------------
+1) Application port (clean arch):
+   - AiTextProvider (application port/out)
+     File: digimart-application/src/main/java/com/nexashop/application/port/out/AiTextProvider.java
+
+2) Infrastructure adapter (Gemini):
+   - GeminiAiTextProvider uses HTTP + JSON to call Gemini
+     File: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/ai/GeminiAiTextProvider.java
+   - DisabledAiTextProvider returns a clean error when no key is set
+     File: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/ai/DisabledAiTextProvider.java
+
+3) API config:
+   - AiConfig wires AiTextProvider and loads GEMINI_API_KEY
+     File: digimart-api/src/main/java/com/nexashop/api/config/AiConfig.java
+   - app properties:
+     File: digimart-api/src/main/resources/application.properties
+       ai.provider=gemini
+       ai.gemini.api-key=${GEMINI_API_KEY}
+
+4) Exception mapping:
+   - ExternalServiceException -> 502 Bad Gateway
+     File: digimart-api/src/main/java/com/nexashop/api/exception/GlobalExceptionHandler.java
+
+5) Category integration:
+   - CategoryUseCase builds the prompt and calls AiTextProvider
+     File: digimart-application/src/main/java/com/nexashop/application/usecase/CategoryUseCase.java
+     Method: buildCategoryDescriptionPrompt(...)
+   - API endpoint:
+     POST /api/categories/{id}/ai-description
+     File: digimart-api/src/main/java/com/nexashop/api/controller/catalog/CategoryController.java
+   - Frontend button:
+     Categories modal -> "Generer avec IA"
+     File: C:/Dev/nexashop-frontend/src/pages/catalog/CategoriesPage.jsx
+
+6) Generic AI endpoint (for reuse):
+   - Use case:
+     AiTextUseCase (requires authenticated user)
+     File: digimart-application/src/main/java/com/nexashop/application/usecase/AiTextUseCase.java
+   - API endpoint:
+     POST /api/ai/text
+     Request: { "prompt": "..." }
+     Response: { "text": "..." }
+     File: digimart-api/src/main/java/com/nexashop/api/controller/ai/AiController.java
+
+How to configure the API key
+----------------------------
+Option A (PowerShell):
+  $env:GEMINI_API_KEY="YOUR_KEY"
+  ./mvnw -pl digimart-api -am spring-boot:run
+
+Option B (VS Code launch.json):
+  File: .vscode/launch.json
+  Set:
+    "env": { "GEMINI_API_KEY": "YOUR_KEY" }
+
+Test endpoints
+--------------
+1) Category AI:
+  POST /api/categories/{id}/ai-description
+  Body:
+  {
+    "language": "FR",
+    "maxSentences": 2,
+    "tone": "neutre"
+  }
+
+2) Generic AI:
+  POST /api/ai/text
+  Body:
+  {
+    "prompt": "Ameliore cette description en FR: ..."
+  }
+
+How to reuse for other features
+-------------------------------
+Example: Product description
+1) Build a prompt in your ProductUseCase or API controller:
+   "Ameliore la description du produit: <name> ..."
+2) Call AiTextUseCase.generateText(prompt) or /api/ai/text.
+3) Return the suggestion to the UI and let the user apply it.
+
+Notes for jury/encadreur
+------------------------
+- Clean architecture respected:
+  Application defines the port; Infrastructure provides the adapter.
+- AI calls are centralized in AiTextProvider and AiTextUseCase.
+- External API errors return 502 with a clear message.
+- The API key never lives in code; it is injected via environment variable.

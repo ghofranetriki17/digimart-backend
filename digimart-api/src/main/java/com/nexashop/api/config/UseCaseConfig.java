@@ -23,6 +23,7 @@ import com.nexashop.application.port.out.WalletTransactionRepository;
 import com.nexashop.application.service.AuthTokenService;
 import com.nexashop.application.service.TenantProvisioningService;
 import com.nexashop.application.usecase.ActivitySectorUseCase;
+import com.nexashop.application.usecase.AiTextUseCase;
 import com.nexashop.application.usecase.CategoryUseCase;
 import com.nexashop.application.usecase.AdminProvisionUseCase;
 import com.nexashop.application.usecase.AdminTenantSubscriptionUseCase;
@@ -73,6 +74,14 @@ public class UseCaseConfig {
             TenantRepository tenantRepository
     ) {
         return new ActivitySectorUseCase(sectorRepository, tenantRepository);
+    }
+
+    @Bean
+    public AiTextUseCase aiTextUseCase(
+            CurrentUserProvider currentUserProvider,
+            AiTextProvider aiTextProvider
+    ) {
+        return new AiTextUseCase(currentUserProvider, aiTextProvider);
     }
 
     @Bean

@@ -182,7 +182,7 @@ public class CategoryUseCase {
         if (category.getName() == null || category.getName().isBlank()) {
             throw new BadRequestException("Category name is required");
         }
-        String resolvedLanguage = language == null || language.isBlank() ? "AR" : language.trim();
+        String resolvedLanguage = language == null || language.isBlank() ? "FR" : language.trim();
         int resolvedMaxSentences = maxSentences == null || maxSentences < 1 ? 2 : Math.min(maxSentences, 4);
         String resolvedTone = tone == null || tone.isBlank() ? "neutre" : tone.trim();
         String prompt = buildCategoryDescriptionPrompt(
