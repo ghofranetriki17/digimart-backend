@@ -4,6 +4,7 @@ import com.nexashop.application.exception.BadRequestException;
 import com.nexashop.application.exception.ConflictException;
 import com.nexashop.application.exception.ForbiddenException;
 import com.nexashop.application.exception.NotFoundException;
+import com.nexashop.application.port.out.AiTextProvider;
 import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.TenantRepository;
@@ -17,15 +18,18 @@ public class CategoryUseCase {
     private final CurrentUserProvider currentUserProvider;
     private final CategoryRepository categoryRepository;
     private final TenantRepository tenantRepository;
+    private final AiTextProvider aiTextProvider;
 
     public CategoryUseCase(
             CurrentUserProvider currentUserProvider,
             CategoryRepository categoryRepository,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            AiTextProvider aiTextProvider
     ) {
         this.currentUserProvider = currentUserProvider;
         this.categoryRepository = categoryRepository;
         this.tenantRepository = tenantRepository;
+        this.aiTextProvider = aiTextProvider;
     }
 
     public Category createCategory(Category category, Long targetTenantId) {
@@ -168,6 +172,29 @@ public class CategoryUseCase {
         categoryRepository.delete(category);
     }
 
+    public String suggestCategoryDescription(
+            Long id,
+            String language,
+            Integer maxSentences,
+            String tone
+    ) {
+        Category category = getCategory(id);
+        if (category.getName() == null || category.getName().isBlank()) {
+            throw new BadRequestException("Category name is required");
+        }
+        String resolvedLanguage = language == null || language.isBlank() ? "AR" : language.trim();
+        int resolvedMaxSentences = maxSentences == null || maxSentences < 1 ? 2 : Math.min(maxSentences, 4);
+        String resolvedTone = tone == null || tone.isBlank() ? "neutre" : tone.trim();
+        String prompt = buildCategoryDescriptionPrompt(
+                category.getName(),
+                category.getDescription(),
+                resolvedLanguage,
+                resolvedMaxSentences,
+                resolvedTone
+        );
+        return aiTextProvider.generateText(prompt);
+    }
+
     private String resolveUniqueSlug(Long tenantId, String baseSlug, Long currentId) {
         String candidate = baseSlug;
         int suffix = 2;
@@ -197,5 +224,25 @@ public class CategoryUseCase {
                 .replaceAll("^-+|-+$", "")
                 .replaceAll("-{2,}", "-");
         return slug;
+    }
+
+    private String buildCategoryDescriptionPrompt(
+            String name,
+            String description,
+            String language,
+            int maxSentences,
+            String tone
+    ) {
+        String current = description == null || description.isBlank() ? "(vide)" : description.trim();
+        return String.format(
+                "Ameliore cette description de categorie en %s, %d phrase(s), ton %s. " +
+                        "Ne renvoie que le texte final, sans liste ni titre. " +
+                        "Categorie: %s. Description actuelle: %s.",
+                language,
+                maxSentences,
+                tone,
+                name,
+                current
+        );
     }
 }

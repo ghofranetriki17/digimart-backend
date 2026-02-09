@@ -1,7 +1,9 @@
 package com.nexashop.api.controller.catalog;
 
+import com.nexashop.api.dto.request.category.CategoryDescriptionAiRequest;
 import com.nexashop.api.dto.request.category.CreateCategoryRequest;
 import com.nexashop.api.dto.request.category.UpdateCategoryRequest;
+import com.nexashop.api.dto.response.category.CategoryDescriptionAiResponse;
 import com.nexashop.api.dto.response.category.CategoryResponse;
 import com.nexashop.application.usecase.CategoryUseCase;
 import com.nexashop.domain.catalog.entity.Category;
@@ -106,6 +108,26 @@ public class CategoryController {
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         categoryUseCase.deleteCategory(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/ai-description")
+    public CategoryDescriptionAiResponse suggestCategoryDescription(
+            @PathVariable Long id,
+            @RequestBody(required = false) CategoryDescriptionAiRequest request
+    ) {
+        CategoryDescriptionAiRequest resolvedRequest = request == null
+                ? new CategoryDescriptionAiRequest()
+                : request;
+        String suggestion = categoryUseCase.suggestCategoryDescription(
+                id,
+                resolvedRequest.getLanguage(),
+                resolvedRequest.getMaxSentences(),
+                resolvedRequest.getTone()
+        );
+        return CategoryDescriptionAiResponse.builder()
+                .categoryId(id)
+                .suggestion(suggestion)
+                .build();
     }
 
     private CategoryResponse toResponse(Category category) {

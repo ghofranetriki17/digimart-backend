@@ -1,6 +1,7 @@
 package com.nexashop.api.config;
 
 import com.nexashop.application.port.out.ActivitySectorRepository;
+import com.nexashop.application.port.out.AiTextProvider;
 import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PermissionRepository;
@@ -78,9 +79,10 @@ public class UseCaseConfig {
     public CategoryUseCase categoryUseCase(
             CurrentUserProvider currentUserProvider,
             CategoryRepository categoryRepository,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            AiTextProvider aiTextProvider
     ) {
-        return new CategoryUseCase(currentUserProvider, categoryRepository, tenantRepository);
+        return new CategoryUseCase(currentUserProvider, categoryRepository, tenantRepository, aiTextProvider);
     }
 
     @Bean

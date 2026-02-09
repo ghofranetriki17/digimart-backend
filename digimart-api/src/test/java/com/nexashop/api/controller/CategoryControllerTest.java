@@ -1,8 +1,10 @@
 package com.nexashop.api.controller;
 
 import com.nexashop.api.controller.catalog.CategoryController;
+import com.nexashop.api.dto.request.category.CategoryDescriptionAiRequest;
 import com.nexashop.api.dto.request.category.CreateCategoryRequest;
 import com.nexashop.api.dto.request.category.UpdateCategoryRequest;
+import com.nexashop.api.dto.response.category.CategoryDescriptionAiResponse;
 import com.nexashop.api.dto.response.category.CategoryResponse;
 import com.nexashop.application.usecase.CategoryUseCase;
 import com.nexashop.domain.catalog.entity.Category;
@@ -83,5 +85,23 @@ class CategoryControllerTest {
         CategoryResponse response = controller.updateCategory(5L, request);
         assertEquals("Men Shoes", response.getName());
         assertEquals("men-shoes", response.getSlug());
+    }
+
+    @Test
+    void suggestCategoryDescriptionDelegates() {
+        CategoryUseCase useCase = Mockito.mock(CategoryUseCase.class);
+        CategoryController controller = new CategoryController(useCase);
+
+        CategoryDescriptionAiRequest request = new CategoryDescriptionAiRequest();
+        request.setLanguage("FR");
+        request.setMaxSentences(2);
+        request.setTone("neutre");
+
+        when(useCase.suggestCategoryDescription(7L, "FR", 2, "neutre"))
+                .thenReturn("Description amelioree.");
+
+        CategoryDescriptionAiResponse response = controller.suggestCategoryDescription(7L, request);
+        assertEquals(7L, response.getCategoryId());
+        assertEquals("Description amelioree.", response.getSuggestion());
     }
 }

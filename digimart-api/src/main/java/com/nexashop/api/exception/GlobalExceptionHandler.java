@@ -2,6 +2,7 @@ package com.nexashop.api.exception;
 
 import com.nexashop.application.exception.BadRequestException;
 import com.nexashop.application.exception.ConflictException;
+import com.nexashop.application.exception.ExternalServiceException;
 import com.nexashop.application.exception.ForbiddenException;
 import com.nexashop.application.exception.NotFoundException;
 import com.nexashop.application.exception.UnauthorizedException;
@@ -53,6 +54,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(buildBody(ex.getMessage(), HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @ExceptionHandler(ExternalServiceException.class)
+    public ResponseEntity<Map<String, Object>> handleExternalService(ExternalServiceException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(buildBody(ex.getMessage(), HttpStatus.BAD_GATEWAY.value()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
