@@ -25,4 +25,6 @@ public class RegisterTenantStep2Request {
 
     @NotBlank
     private String ownerLastName;
+
+    private String ownerPhone;
 }

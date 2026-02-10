@@ -20,7 +20,7 @@ class UserControllerTest {
     @Test
     void createUserReturnsResponse() {
         UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
-        UserController controller = new UserController(userUseCase);
+        UserController controller = new UserController(userUseCase, "");
 
         CreateUserRequest request = new CreateUserRequest();
         request.setEmail("test@example.com");
@@ -46,7 +46,7 @@ class UserControllerTest {
     @Test
     void listUsersReturnsResponses() {
         UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
-        UserController controller = new UserController(userUseCase);
+        UserController controller = new UserController(userUseCase, "");
 
         User user = new User();
         user.setId(1L);
@@ -64,7 +64,7 @@ class UserControllerTest {
     @Test
     void getUserReturnsResponse() {
         UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
-        UserController controller = new UserController(userUseCase);
+        UserController controller = new UserController(userUseCase, "");
 
         User user = new User();
         user.setId(7L);
@@ -82,7 +82,7 @@ class UserControllerTest {
     @Test
     void updateUserReturnsResponse() {
         UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
-        UserController controller = new UserController(userUseCase);
+        UserController controller = new UserController(userUseCase, "");
 
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("New");
@@ -103,7 +103,7 @@ class UserControllerTest {
     @Test
     void updateUserRolesReturnsResponse() {
         UserUseCase userUseCase = Mockito.mock(UserUseCase.class);
-        UserController controller = new UserController(userUseCase);
+        UserController controller = new UserController(userUseCase, "");
 
         UpdateUserRolesRequest request = new UpdateUserRolesRequest();
         request.setRoles(Set.of("ADMIN"));

@@ -27,6 +27,8 @@ public class BillingSeedConfig {
 
     private static final Logger log = LoggerFactory.getLogger(BillingSeedConfig.class);
 
+    private static record FeatureSeed(String code, String name, String desc, FeatureCategory cat, int order) {}
+
     @Bean
     CommandLineRunner seedBillingData(
             PlatformConfigRepository configRepository,
@@ -68,7 +70,6 @@ public class BillingSeedConfig {
     }
 
     private void seedPremiumFeatures(PremiumFeatureRepository featureRepository) {
-        record FeatureSeed(String code, String name, String desc, FeatureCategory cat, int order) {}
         List<FeatureSeed> seeds = List.of(
                 new FeatureSeed("ADVANCED_ANALYTICS", "Advanced Analytics", "Detailed sales reports and insights", FeatureCategory.ANALYTICS, 1),
                 new FeatureSeed("MULTI_STORE", "Multi-Store Management", "Manage multiple store locations", FeatureCategory.SALES, 2),

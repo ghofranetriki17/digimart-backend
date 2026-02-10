@@ -19,7 +19,7 @@ class TenantControllerTest {
     @Test
     void getTenantReturnsResponse() {
         TenantUseCase tenantUseCase = Mockito.mock(TenantUseCase.class);
-        TenantController controller = new TenantController(tenantUseCase);
+        TenantController controller = new TenantController(tenantUseCase, "");
 
         Tenant tenant = new Tenant();
         tenant.setId(3L);
@@ -37,7 +37,7 @@ class TenantControllerTest {
     @Test
     void listTenantsReturnsResponses() {
         TenantUseCase tenantUseCase = Mockito.mock(TenantUseCase.class);
-        TenantController controller = new TenantController(tenantUseCase);
+        TenantController controller = new TenantController(tenantUseCase, "");
 
         Tenant tenant = new Tenant();
         tenant.setId(1L);
@@ -51,7 +51,7 @@ class TenantControllerTest {
     @Test
     void updateTenantReturnsResponse() {
         TenantUseCase tenantUseCase = Mockito.mock(TenantUseCase.class);
-        TenantController controller = new TenantController(tenantUseCase);
+        TenantController controller = new TenantController(tenantUseCase, "");
 
         UpdateTenantRequest request = new UpdateTenantRequest();
         request.setName("New Name");

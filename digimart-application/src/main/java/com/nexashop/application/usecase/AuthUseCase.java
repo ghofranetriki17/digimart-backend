@@ -136,6 +136,7 @@ public class AuthUseCase {
             String ownerPassword,
             String ownerFirstName,
             String ownerLastName,
+            String ownerPhone,
             String userAgent
     ) {
         Tenant tenant = tenantRepository.findById(tenantId)
@@ -150,6 +151,7 @@ public class AuthUseCase {
         owner.setPasswordHash(ownerPassword);
         owner.setFirstName(ownerFirstName);
         owner.setLastName(ownerLastName);
+        owner.setPhone(ownerPhone);
         User savedOwner = userRepository.save(owner);
 
         assignRole(savedOwner, "OWNER", "Tenant Owner");

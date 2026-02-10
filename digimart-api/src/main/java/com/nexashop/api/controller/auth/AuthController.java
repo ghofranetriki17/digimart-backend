@@ -87,6 +87,7 @@ public class AuthController {
                 request.getOwnerPassword(),
                 request.getOwnerFirstName(),
                 request.getOwnerLastName(),
+                request.getOwnerPhone(),
                 httpRequest.getHeader("User-Agent")
         );
 

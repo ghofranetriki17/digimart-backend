@@ -17,7 +17,7 @@ class StoreControllerTest {
     @Test
     void listStoresReturnsResponses() {
         StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
-        StoreController controller = new StoreController(useCase);
+        StoreController controller = new StoreController(useCase, "");
 
         Store store = new Store();
         store.setId(1L);
@@ -34,7 +34,7 @@ class StoreControllerTest {
     @Test
     void createStoreReturnsResponse() {
         StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
-        StoreController controller = new StoreController(useCase);
+        StoreController controller = new StoreController(useCase, "");
 
         CreateStoreRequest request = new CreateStoreRequest();
         request.setTenantId(2L);
