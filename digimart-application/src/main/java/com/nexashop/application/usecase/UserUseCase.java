@@ -130,6 +130,52 @@ public class UserUseCase {
         return userRepository.save(user);
     }
 
+    public User getCurrentUser() {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        return userRepository.findById(currentUser.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    public User updateCurrentUserProfile(
+            String firstName,
+            String lastName,
+            String phone,
+            String imageUrl
+    ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        User user = userRepository.findById(currentUser.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setPhone(phone);
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            user.setImageUrl(imageUrl);
+        }
+        return userRepository.save(user);
+    }
+
+    public User updateCurrentUserImage(String imageUrl) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        User user = userRepository.findById(currentUser.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setImageUrl(imageUrl);
+        return userRepository.save(user);
+    }
+
+    public void changePassword(String currentPassword, String newPassword) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        User user = userRepository.findById(currentUser.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (currentPassword == null || !currentPassword.equals(user.getPasswordHash())) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new BadRequestException("New password is required");
+        }
+        user.setPasswordHash(newPassword);
+        userRepository.save(user);
+    }
+
     public User updateUserRoles(Long id, Set<String> roles) {
         CurrentUser currentUser = currentUserProvider.requireUser();
         Long requesterTenantId = currentUser.tenantId();

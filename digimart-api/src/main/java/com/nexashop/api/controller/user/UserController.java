@@ -1,6 +1,8 @@
 package com.nexashop.api.controller.user;
 
+import com.nexashop.api.dto.request.user.ChangePasswordRequest;
 import com.nexashop.api.dto.request.user.CreateUserRequest;
+import com.nexashop.api.dto.request.user.UpdateProfileRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
 import com.nexashop.api.dto.response.user.UserResponse;
@@ -77,6 +79,12 @@ public class UserController {
         return toResponse(user);
     }
 
+    @GetMapping("/me")
+    public UserResponse getCurrentUser() {
+        User user = userUseCase.getCurrentUser();
+        return toResponse(user);
+    }
+
     @PutMapping("/{id}")
     public UserResponse updateUser(
             @PathVariable Long id,
@@ -125,6 +133,36 @@ public class UserController {
         UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "users");
         User saved = userUseCase.updateUserImage(id, stored.relativeUrl());
         return toResponse(saved);
+    }
+
+    @PostMapping(value = "/me/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserResponse uploadCurrentUserImage(
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "users");
+        User saved = userUseCase.updateCurrentUserImage(stored.relativeUrl());
+        return toResponse(saved);
+    }
+
+    @PutMapping("/me")
+    public UserResponse updateCurrentUser(
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        User saved = userUseCase.updateCurrentUserProfile(
+                request.getFirstName(),
+                request.getLastName(),
+                request.getPhone(),
+                request.getImageUrl()
+        );
+        return toResponse(saved);
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        userUseCase.changePassword(request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.noContent().build();
     }
 
     private UserResponse toResponse(User user) {
