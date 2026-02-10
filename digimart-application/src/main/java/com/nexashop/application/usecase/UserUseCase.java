@@ -108,10 +108,25 @@ public class UserUseCase {
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setPhone(phone);
-        user.setImageUrl(imageUrl);
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            user.setImageUrl(imageUrl);
+        }
         if (enabled != null) {
             user.setEnabled(enabled);
         }
+        return userRepository.save(user);
+    }
+
+    public User updateUserImage(Long id, String imageUrl) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        if (!isSuperAdmin && !requesterTenantId.equals(user.getTenantId())) {
+            throw new ForbiddenException("Tenant access required");
+        }
+        user.setImageUrl(imageUrl);
         return userRepository.save(user);
     }
 
@@ -169,13 +184,18 @@ public class UserUseCase {
                             user.getId(),
                             role.getId()
                     )
-                    .orElseGet(() -> {
+                    .ifPresentOrElse(existingAssignment -> {
+                        if (!existingAssignment.isActive()) {
+                            existingAssignment.setActive(true);
+                            assignmentRepository.save(existingAssignment);
+                        }
+                    }, () -> {
                         UserRoleAssignment assignment = new UserRoleAssignment();
                         assignment.setTenantId(user.getTenantId());
                         assignment.setUserId(user.getId());
                         assignment.setRoleId(role.getId());
                         assignment.setActive(true);
-                        return assignmentRepository.save(assignment);
+                        assignmentRepository.save(assignment);
                     });
         }
 

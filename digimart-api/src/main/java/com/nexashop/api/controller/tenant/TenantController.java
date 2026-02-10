@@ -6,14 +6,12 @@ import com.nexashop.api.dto.response.tenant.TenantResponse;
 import com.nexashop.application.usecase.TenantUseCase;
 import com.nexashop.domain.tenant.entity.Tenant;
 import jakarta.validation.Valid;
+import com.nexashop.api.util.UploadUtil;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,18 +23,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/tenants")
 public class TenantController {
 
     private final TenantUseCase tenantUseCase;
+    private final String uploadBaseDir;
 
-    public TenantController(TenantUseCase tenantUseCase) {
+    public TenantController(
+            TenantUseCase tenantUseCase,
+            @Value("${app.upload.dir:}") String uploadBaseDir
+    ) {
         this.tenantUseCase = tenantUseCase;
+        this.uploadBaseDir = uploadBaseDir;
     }
 
     @PostMapping
@@ -96,24 +96,8 @@ public class TenantController {
             @PathVariable Long id,
             @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file
     ) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Logo file is required");
-        }
-
-        Path uploadDir = Paths.get("uploads", "tenants");
-        Files.createDirectories(uploadDir);
-
-        String originalName = file.getOriginalFilename() == null ? "logo" : file.getOriginalFilename();
-        String ext = "";
-        int dotIndex = originalName.lastIndexOf('.');
-        if (dotIndex > -1) {
-            ext = originalName.substring(dotIndex);
-        }
-        String filename = UUID.randomUUID() + ext;
-        Path target = uploadDir.resolve(filename);
-        file.transferTo(target.toFile());
-
-        Tenant saved = tenantUseCase.updateLogo(id, "/uploads/tenants/" + filename);
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "tenants");
+        Tenant saved = tenantUseCase.updateLogo(id, stored.relativeUrl());
         return toResponse(saved);
     }
 

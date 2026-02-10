@@ -3,17 +3,15 @@ package com.nexashop.api.controller.store;
 import com.nexashop.api.dto.request.store.CreateStoreRequest;
 import com.nexashop.api.dto.request.store.UpdateStoreRequest;
 import com.nexashop.api.dto.response.store.StoreResponse;
+import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,19 +23,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
-
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/stores")
 public class StoreController {
 
     private final StoreUseCase storeUseCase;
+    private final String uploadBaseDir;
 
-    public StoreController(StoreUseCase storeUseCase) {
+    public StoreController(
+            StoreUseCase storeUseCase,
+            @Value("${app.upload.dir:}") String uploadBaseDir
+    ) {
         this.storeUseCase = storeUseCase;
+        this.uploadBaseDir = uploadBaseDir;
     }
 
     @PostMapping
@@ -113,27 +113,11 @@ public class StoreController {
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
-        }
         storeUseCase.getStore(id);
-
-        Path uploadDir = Paths.get("uploads", "stores");
-        Files.createDirectories(uploadDir);
-
-        String originalName = file.getOriginalFilename() == null ? "image" : file.getOriginalFilename();
-        String ext = "";
-        int dotIndex = originalName.lastIndexOf('.');
-        if (dotIndex > -1) {
-            ext = originalName.substring(dotIndex);
-        }
-        String filename = UUID.randomUUID() + ext;
-        Path target = uploadDir.resolve(filename);
-        file.transferTo(target.toFile());
-
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "stores");
         Store saved = storeUseCase.updateStoreImage(
                 id,
-                "/uploads/stores/" + filename
+                stored.relativeUrl()
         );
         return toResponse(saved);
     }

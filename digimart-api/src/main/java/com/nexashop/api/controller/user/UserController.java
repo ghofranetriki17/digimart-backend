@@ -4,12 +4,16 @@ import com.nexashop.api.dto.request.user.CreateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
 import com.nexashop.api.dto.response.user.UserResponse;
+import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.usecase.UserUseCase;
 import com.nexashop.domain.user.entity.User;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,17 +23,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
     private final UserUseCase userUseCase;
+    private final String uploadBaseDir;
 
     public UserController(
-            UserUseCase userUseCase
+            UserUseCase userUseCase,
+            @Value("${app.upload.dir:}") String uploadBaseDir
     ) {
         this.userUseCase = userUseCase;
+        this.uploadBaseDir = uploadBaseDir;
     }
 
     @PostMapping
@@ -107,6 +115,16 @@ public class UserController {
     public UserResponse grantSuperAdmin(@PathVariable Long id) {
         User user = userUseCase.grantSuperAdmin(id);
         return toResponse(user);
+    }
+
+    @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserResponse uploadUserImage(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "users");
+        User saved = userUseCase.updateUserImage(id, stored.relativeUrl());
+        return toResponse(saved);
     }
 
     private UserResponse toResponse(User user) {

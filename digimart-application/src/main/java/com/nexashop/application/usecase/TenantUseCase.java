@@ -57,7 +57,9 @@ public class TenantUseCase {
         tenant.setName(updates.getName());
         tenant.setContactEmail(updates.getContactEmail());
         tenant.setContactPhone(updates.getContactPhone());
-        tenant.setLogoUrl(updates.getLogoUrl());
+        if (updates.getLogoUrl() != null && !updates.getLogoUrl().isBlank()) {
+            tenant.setLogoUrl(updates.getLogoUrl());
+        }
         tenant.setStatus(updates.getStatus());
         tenant.setDefaultLocale(updates.getDefaultLocale());
         tenant.setSectorId(resolveSectorId(updates.getSectorId()));

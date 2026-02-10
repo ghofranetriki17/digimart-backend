@@ -93,7 +93,9 @@ public class StoreUseCase {
         store.setCountry(updates.getCountry());
         store.setPhone(updates.getPhone());
         store.setEmail(updates.getEmail());
-        store.setImageUrl(updates.getImageUrl());
+        if (updates.getImageUrl() != null && !updates.getImageUrl().isBlank()) {
+            store.setImageUrl(updates.getImageUrl());
+        }
         store.setLatitude(updates.getLatitude());
         store.setLongitude(updates.getLongitude());
         if (active != null) {

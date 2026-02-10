@@ -1,0 +1,77 @@
+DIGIMART — SECURITY STATUS REPORT (CURRENT STATE)
+=================================================
+Date: 2026-02-10
+
+1) ARE WE USING SPRING SECURITY?
+-------------------------------
+YES.
+- Spring Security is enabled in the API module.
+- Authentication is done via a custom filter (AuthTokenFilter) that reads the
+  Bearer token and loads the user into Spring SecurityContext.
+- Controllers do NOT hold security logic; use cases call CurrentUserProvider.
+
+Key files:
+- Filter: digimart-api/src/main/java/com/nexashop/api/security/AuthTokenFilter.java
+- Config: digimart-api/src/main/java/com/nexashop/api/config/SecurityConfig.java
+- Current user adapter: digimart-api/src/main/java/com/nexashop/api/security/CurrentUserProviderAdapter.java
+
+
+2) WHAT SECURITY IS IMPLEMENTED NOW (FACTS)
+-------------------------------------------
+Implemented:
+- Token-based authentication (Bearer token).
+- Token hashing (SHA-256) and validation via RefreshToken table.
+- User + roles loaded into SecurityContext on every request.
+- Use cases call requireUser() to enforce authentication.
+- Global exception handler returns 401/403/404/409/400.
+
+Key implementation details:
+- AuthTokenService hashes raw tokens; DB stores only hash.
+  File: digimart-application/src/main/java/com/nexashop/application/service/AuthTokenService.java
+- AuthTokenFilter loads user + roles into SecurityContext.
+  File: digimart-api/src/main/java/com/nexashop/api/security/AuthTokenFilter.java
+- CurrentUserProviderAdapter.requireUser() throws UnauthorizedException if not authenticated.
+  File: digimart-api/src/main/java/com/nexashop/api/security/CurrentUserProviderAdapter.java
+
+
+3) WHAT IS NOT YET ENFORCED (GAPS)
+----------------------------------
+GAP A) Role-based authorization is NOT enforced yet.
+Reason: CurrentUserProviderAdapter has empty methods:
+  - requireAdminAny()
+  - requireOwnerOrAdmin(tenantId)
+  - requireSuperAdmin()
+
+So at runtime:
+- Any authenticated user can pass admin/owner checks.
+- Tenant isolation is still enforced in use cases by comparing tenant IDs,
+  but ADMIN/OWNER/SUPER_ADMIN role checks are not active.
+
+GAP B) Password hashing is weak (plain comparison).
+AuthUseCase compares plain password to stored hash string.
+File: digimart-application/src/main/java/com/nexashop/application/usecase/AuthUseCase.java
+
+GAP C) Some endpoints could leak data if admin checks are missing.
+Example: TenantUseCase.listTenants() uses requireAdminAny(), but it is empty.
+
+
+4) WHAT TO IMPROVE (PRIORITY ORDER)
+-----------------------------------
+P1) Implement real role checks in CurrentUserProviderAdapter:
+   - requireAdminAny()
+   - requireOwnerOrAdmin(tenantId)
+   - requireSuperAdmin()
+
+P2) Enforce password hashing (BCrypt or Argon2) in AuthUseCase.
+   - Store hash in DB, use passwordEncoder.matches()
+
+P3) Add missing application layer tests for security rules.
+   - digimart-application/src/test with mocked repos + CurrentUserProvider
+
+P4) Optional: tighten repository queries by tenantId for defense-in-depth.
+
+
+5) SUMMARY (ONE-LINER)
+----------------------
+We ARE using Spring Security with token auth, but ADMIN/OWNER/SUPER_ADMIN
+checks are currently disabled, and password hashing still needs upgrade.
