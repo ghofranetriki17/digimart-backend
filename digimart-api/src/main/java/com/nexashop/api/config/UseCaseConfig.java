@@ -89,9 +89,20 @@ public class UseCaseConfig {
             CurrentUserProvider currentUserProvider,
             CategoryRepository categoryRepository,
             TenantRepository tenantRepository,
-            AiTextProvider aiTextProvider
+            AiTextProvider aiTextProvider,
+            TenantSubscriptionRepository subscriptionRepository,
+            PlanFeatureRepository planFeatureRepository,
+            PremiumFeatureRepository featureRepository
     ) {
-        return new CategoryUseCase(currentUserProvider, categoryRepository, tenantRepository, aiTextProvider);
+        return new CategoryUseCase(
+                currentUserProvider,
+                categoryRepository,
+                tenantRepository,
+                aiTextProvider,
+                subscriptionRepository,
+                planFeatureRepository,
+                featureRepository
+        );
     }
 
     @Bean

@@ -7,29 +7,47 @@ import com.nexashop.application.exception.NotFoundException;
 import com.nexashop.application.port.out.AiTextProvider;
 import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
+import com.nexashop.application.port.out.PlanFeatureRepository;
+import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.security.CurrentUser;
+import com.nexashop.domain.billing.entity.PlanFeature;
+import com.nexashop.domain.billing.entity.PremiumFeature;
+import com.nexashop.domain.billing.entity.TenantSubscription;
+import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import com.nexashop.domain.catalog.entity.Category;
 import java.util.List;
 import java.text.Normalizer;
 
 public class CategoryUseCase {
 
+    private static final String AI_DESCRIPTION_FEATURE_CODE = "AI_DESCRIPTION_GENERATION";
+
     private final CurrentUserProvider currentUserProvider;
     private final CategoryRepository categoryRepository;
     private final TenantRepository tenantRepository;
     private final AiTextProvider aiTextProvider;
+    private final TenantSubscriptionRepository subscriptionRepository;
+    private final PlanFeatureRepository planFeatureRepository;
+    private final PremiumFeatureRepository featureRepository;
 
     public CategoryUseCase(
             CurrentUserProvider currentUserProvider,
             CategoryRepository categoryRepository,
             TenantRepository tenantRepository,
-            AiTextProvider aiTextProvider
+            AiTextProvider aiTextProvider,
+            TenantSubscriptionRepository subscriptionRepository,
+            PlanFeatureRepository planFeatureRepository,
+            PremiumFeatureRepository featureRepository
     ) {
         this.currentUserProvider = currentUserProvider;
         this.categoryRepository = categoryRepository;
         this.tenantRepository = tenantRepository;
         this.aiTextProvider = aiTextProvider;
+        this.subscriptionRepository = subscriptionRepository;
+        this.planFeatureRepository = planFeatureRepository;
+        this.featureRepository = featureRepository;
     }
 
     public Category createCategory(Category category, Long targetTenantId) {
@@ -178,7 +196,11 @@ public class CategoryUseCase {
             Integer maxSentences,
             String tone
     ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
         Category category = getCategory(id);
+        if (!currentUser.hasRole("SUPER_ADMIN")) {
+            ensureFeatureEnabled(category.getTenantId(), AI_DESCRIPTION_FEATURE_CODE);
+        }
         if (category.getName() == null || category.getName().isBlank()) {
             throw new BadRequestException("Category name is required");
         }
@@ -193,6 +215,31 @@ public class CategoryUseCase {
                 resolvedTone
         );
         return aiTextProvider.generateText(prompt);
+    }
+
+    private void ensureFeatureEnabled(Long tenantId, String featureCode) {
+        TenantSubscription subscription = subscriptionRepository
+                .findByTenantIdAndStatus(tenantId, SubscriptionStatus.ACTIVE)
+                .orElseGet(() -> subscriptionRepository
+                        .findByTenantIdAndStatus(tenantId, SubscriptionStatus.PENDING_ACTIVATION)
+                        .orElse(null));
+        if (subscription == null || subscription.getPlanId() == null) {
+            throw new ForbiddenException("Feature not available in current plan");
+        }
+        List<PlanFeature> planFeatures = planFeatureRepository.findByPlanId(subscription.getPlanId());
+        for (PlanFeature planFeature : planFeatures) {
+            if (planFeature == null || planFeature.getFeatureId() == null) {
+                continue;
+            }
+            PremiumFeature feature = featureRepository.findById(planFeature.getFeatureId()).orElse(null);
+            if (feature == null || feature.getCode() == null) {
+                continue;
+            }
+            if (featureCode.equalsIgnoreCase(feature.getCode()) && feature.isActive()) {
+                return;
+            }
+        }
+        throw new ForbiddenException("Feature not available in current plan");
     }
 
     private String resolveUniqueSlug(Long tenantId, String baseSlug, Long currentId) {

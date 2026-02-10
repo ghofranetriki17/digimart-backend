@@ -75,10 +75,11 @@ public class BillingSeedConfig {
                 new FeatureSeed("MULTI_STORE", "Multi-Store Management", "Manage multiple store locations", FeatureCategory.SALES, 2),
                 new FeatureSeed("CUSTOM_THEMES", "Custom Themes", "Personalize your storefront appearance", FeatureCategory.MARKETING, 3),
                 new FeatureSeed("API_ACCESS", "API Access", "Integrate with external systems", FeatureCategory.TECHNICAL, 4),
-                new FeatureSeed("BULK_OPERATIONS", "Bulk Operations", "Import/export data in bulk", FeatureCategory.TECHNICAL, 5),
-                new FeatureSeed("PRIORITY_SUPPORT", "Priority Support", "24/7 dedicated support", FeatureCategory.SUPPORT, 6),
-                new FeatureSeed("CUSTOM_DOMAIN", "Custom Domain", "Use your own domain name", FeatureCategory.TECHNICAL, 7),
-                new FeatureSeed("LOYALTY_PROGRAM", "Loyalty Program", "Customer rewards and points", FeatureCategory.MARKETING, 8)
+                new FeatureSeed("AI_DESCRIPTION_GENERATION", "AI Description Generation", "Generate clean product or category descriptions with AI", FeatureCategory.TECHNICAL, 5),
+                new FeatureSeed("BULK_OPERATIONS", "Bulk Operations", "Import/export data in bulk", FeatureCategory.TECHNICAL, 6),
+                new FeatureSeed("PRIORITY_SUPPORT", "Priority Support", "24/7 dedicated support", FeatureCategory.SUPPORT, 7),
+                new FeatureSeed("CUSTOM_DOMAIN", "Custom Domain", "Use your own domain name", FeatureCategory.TECHNICAL, 8),
+                new FeatureSeed("LOYALTY_PROGRAM", "Loyalty Program", "Customer rewards and points", FeatureCategory.MARKETING, 9)
         );
 
         seeds.forEach(seed -> featureRepository.findByCode(seed.code()).orElseGet(() -> {
