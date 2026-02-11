@@ -397,6 +397,99 @@ public class ProductUseCase {
                 .toList();
     }
 
+    public int bulkUpdatePricing(
+            List<Long> productIds,
+            java.math.BigDecimal initialPrice,
+            java.math.BigDecimal finalPrice,
+            java.math.BigDecimal shippingPrice,
+            java.math.BigDecimal shippingCostPrice
+    ) {
+        if (productIds == null || productIds.isEmpty()) {
+            throw new BadRequestException("Product ids are required");
+        }
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        List<Product> toUpdate = new ArrayList<>();
+        for (Long id : productIds) {
+            Product product = productRepository.findById(id)
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+            if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
+                throw new ForbiddenException("Tenant access required");
+            }
+            if (initialPrice != null) {
+                product.setInitialPrice(initialPrice);
+            }
+            if (finalPrice != null) {
+                product.setFinalPrice(finalPrice);
+            }
+            if (shippingPrice != null) {
+                product.setShippingPrice(shippingPrice);
+            }
+            if (shippingCostPrice != null) {
+                product.setShippingCostPrice(shippingCostPrice);
+            }
+            product.setUpdatedBy(currentUser.userId());
+            toUpdate.add(product);
+        }
+        if (!toUpdate.isEmpty()) {
+            productRepository.saveAll(toUpdate);
+        }
+        return toUpdate.size();
+    }
+
+    public int bulkDeleteProducts(List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            throw new BadRequestException("Product ids are required");
+        }
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        List<Product> toDelete = new ArrayList<>();
+        for (Long id : productIds) {
+            Product product = productRepository.findById(id)
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+            if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
+                throw new ForbiddenException("Tenant access required");
+            }
+            toDelete.add(product);
+        }
+        for (Product product : toDelete) {
+            productCategoryRepository.deleteByProductId(product.getId());
+            productImageRepository.deleteByProductId(product.getId());
+            inventoryRepository.deleteByProductId(product.getId());
+            productRepository.delete(product);
+        }
+        return toDelete.size();
+    }
+
+    public int bulkUpdateStatus(List<Long> productIds, ProductStatus status) {
+        if (productIds == null || productIds.isEmpty()) {
+            throw new BadRequestException("Product ids are required");
+        }
+        if (status == null) {
+            throw new BadRequestException("Status is required");
+        }
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        List<Product> toUpdate = new ArrayList<>();
+        for (Long id : productIds) {
+            Product product = productRepository.findById(id)
+                    .orElseThrow(() -> new NotFoundException("Product not found"));
+            if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
+                throw new ForbiddenException("Tenant access required");
+            }
+            product.setStatus(status);
+            product.setUpdatedBy(currentUser.userId());
+            toUpdate.add(product);
+        }
+        if (!toUpdate.isEmpty()) {
+            productRepository.saveAll(toUpdate);
+        }
+        return toUpdate.size();
+    }
+
     private void saveProductCategories(
             Long productId,
             Long tenantId,

@@ -1,0 +1,167 @@
+﻿PRODUITS - AJOUTS DU JOUR (LOGIQUE + ETAPES)
+===========================================
+
+Date: 2026-02-11
+Contexte: V1 catalogue produits + CSV + images + stock par magasin
+LATER WE HAVE TO ADD VALEURS ET OPTIONS ET AI ET GENERATION DIMAGES ET SUPPRESSION DARRIERE PLNS ET TOUTS  
+1) IMPORT / EXPORT CSV (PRODUITS UNIQUEMENT)
+--------------------------------------------
+Objectif:
+- Importer des produits via CSV (sans images, sans categories).
+- Exporter un template CSV + exporter les produits existants.
+
+Backend:
+- Endpoint import:
+  POST /api/products/import?tenantId={id}
+  Body: multipart/form-data (file)
+  Validation requise par ligne:
+  - name (obligatoire)
+  - initial_price (obligatoire)
+  - shipping_price (obligatoire)
+  - autres champs optionnels
+  Resultat: ProductImportResponse (totalRows, imported, failed, errors[])
+
+- Endpoint export template:
+  GET /api/products/export/template
+
+- Endpoint export data:
+  GET /api/products/export?tenantId={id}
+
+Colonnes CSV:
+name, description, initial_price, final_price, cost_price,
+shipping_price, shipping_cost_price
+
+Notes:
+- slug est auto-genere (base sur name).
+- Categories/images exclues volontairement (ajout manuel apres import).
+
+Frontend:
+- Boutons: Template CSV / Export CSV / Importer CSV
+- Affichage d'un rapport d'import + erreurs par ligne.
+
+2) IMAGES PRODUITS
+------------------
+Objectif:
+- Ajouter plusieurs images, reordonner, et definir la primaire = 1ere.
+
+Backend:
+- POST /api/products/{id}/images (upload)
+- PUT /api/products/{id}/images/order (reorder + primary auto)
+- DELETE /api/products/{id}/images/{imageId}
+
+Frontend:
+- Dropzone + preview.
+- Reorder en local (drag + up/down), puis sauvegarde en 1 call.
+- La 1ere image = primary.
+
+3) STOCK PAR MAGASIN (INVENTORY)
+--------------------------------
+Objectif:
+- Si trackStock = true, stock gere par magasin.
+- Si trackStock = false, stock global.
+
+Backend:
+- inventories[] sur create/update.
+- replaceInventory: une ligne par magasin (quantity + lowStockThreshold).
+- listProductsForStore / stores details expose produits disponibles.
+
+Frontend:
+- Toggle "Suivre le stock par magasin"
+- Tableau stocks par magasin si actif.
+
+4) DISPONIBILITE PRODUIT
+------------------------
+Statut: ACTIVE | HIDDEN | OUT_OF_STOCK
+Availability: IN_STOCK | ON_ORDER | PRE_ORDER
+availabilityText:
+- IN_STOCK / ON_ORDER -> message libre (ex: delai 2-3 semaines)
+- PRE_ORDER -> date/heure (input calendrier + time) stockee comme texte
+  format: YYYY-MM-DDTHH:MM (sert au compte a rebours)
+
+5) PRICING + MARGE (INFO ONLY)
+------------------------------
+Formule:
+Marge = (prix final si present, sinon prix initial)
+        + frais livraison
+        - cout livraison
+        - prix de revient
+
+Affichage:
+- TND + %
+- purement informatif (ne bloque pas la sauvegarde)
+- affiche dans le panneau Resume (plus dans l'etape "Prix")
+
+6) UI FORMULAIRE PRODUIT (WIZARD)
+---------------------------------
+Steps:
+1. Infos
+2. Prix
+3. Categories
+4. Stock
+5. Images
+
+Raccourcis:
+- En edition: bouton "Enregistrer" disponible a tout moment.
+- Previsualisation a droite (image + status + disponibilite).
+
+Champs obligatoires:
+- Nom *
+- Prix initial *
+- Frais de livraison *
+
+Champs caches:
+- SKU (genere/stocke en back, pas visible en front)
+- Slug (auto-genere)
+
+7) STORE AVAILABILITY DANS CARDS
+--------------------------------
+- Affichage des magasins disponibles (pills cliquables)
+- Navigation vers details magasin.
+
+8) PRE-COMMANDE + COUNTDOWN
+---------------------------
+- Si availability = PRE_ORDER, la date/heure est saisie via calendrier.
+- Le card produit affiche un compteur "Disponible dans ...".
+
+9) BULK ACTIONS (SELECTION MULTIPLE)
+------------------------------------
+- Selection multiple via checkbox sur chaque carte.
+- Barre d'actions en haut:
+  - Modifier prix (bulk)
+  - Supprimer (bulk)
+  - Tout deselectionner
+- "Tout selectionner" applique aux produits visibles (page courante).
+
+FICHIERS PRINCIPAUX (BACK)
+--------------------------
+- digimart-api/.../ProductController.java (import/export + images + reorder)
+- digimart-api/.../dto/response/product/ProductImportResponse.java
+- digimart-api/.../dto/response/product/ProductImportErrorResponse.java
+- digimart-api/pom.xml (commons-csv)
+
+FICHIERS PRINCIPAUX (FRONT)
+---------------------------
+- src/pages/catalog/ProductsPage.jsx
+- src/pages/catalog/ProductsPage.css
+- src/components/molecules/ProductCard/ProductCard.jsx
+- src/components/molecules/ProductCard/ProductCard.css
+
+TEST THUNDER CLIENT (EXEMPLES)
+------------------------------
+1) Import CSV:
+POST http://localhost:8080/api/products/import?tenantId=1
+Body: form-data -> file: products.csv
+
+2) Export template:
+GET http://localhost:8080/api/products/export/template
+
+3) Export data:
+GET http://localhost:8080/api/products/export?tenantId=1
+
+4) Upload image:
+POST http://localhost:8080/api/products/1/images
+form-data -> file: image.png
+
+5) Reorder images:
+PUT http://localhost:8080/api/products/1/images/order
+Body: {"imageIds":[12,14,15]}
