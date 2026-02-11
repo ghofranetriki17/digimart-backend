@@ -29,6 +29,9 @@ public class ProductResponse {
     private ProductStatus status;
     private ProductAvailability availability;
     private String availabilityText;
+    private boolean showLowestPrice;
+    private BigDecimal lowestPrice;
+    private boolean lowStock;
     private String imageUrl;
     private List<ProductStoreRefResponse> stores;
     private List<String> storeNames;

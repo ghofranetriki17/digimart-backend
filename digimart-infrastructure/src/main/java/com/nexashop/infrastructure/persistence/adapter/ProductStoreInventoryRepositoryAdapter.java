@@ -42,6 +42,11 @@ public class ProductStoreInventoryRepositoryAdapter
     }
 
     @Override
+    public boolean existsLowStockByProductId(Long productId) {
+        return repository.existsLowStockByProductId(productId);
+    }
+
+    @Override
     @Transactional
     public void deleteByProductId(Long productId) {
         repository.deleteByProductId(productId);

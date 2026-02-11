@@ -10,6 +10,7 @@ import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.ProductCategoryRepository;
 import com.nexashop.application.port.out.ProductImageRepository;
+import com.nexashop.application.port.out.ProductPriceHistoryRepository;
 import com.nexashop.application.port.out.ProductRepository;
 import com.nexashop.application.port.out.ProductStoreInventoryRepository;
 import com.nexashop.application.port.out.RefreshTokenRepository;
@@ -189,6 +190,7 @@ public class UseCaseConfig {
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
+            ProductPriceHistoryRepository priceHistoryRepository,
             ProductStoreInventoryRepository inventoryRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
@@ -199,6 +201,7 @@ public class UseCaseConfig {
                 productRepository,
                 productCategoryRepository,
                 productImageRepository,
+                priceHistoryRepository,
                 inventoryRepository,
                 tenantRepository,
                 categoryRepository,

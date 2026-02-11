@@ -14,6 +14,7 @@ import com.nexashop.api.dto.response.product.ProductImportErrorResponse;
 import com.nexashop.api.dto.response.product.ProductImportResponse;
 import com.nexashop.api.dto.response.product.ProductImageResponse;
 import com.nexashop.api.dto.response.product.ProductInventoryResponse;
+import com.nexashop.api.dto.response.product.ProductPriceHistoryResponse;
 import com.nexashop.api.dto.response.product.ProductResponse;
 import com.nexashop.api.dto.response.product.ProductStoreRefResponse;
 import com.nexashop.api.util.UploadUtil;
@@ -99,6 +100,7 @@ public class ProductController {
         product.setStatus(request.getStatus());
         product.setAvailability(request.getAvailability());
         product.setAvailabilityText(request.getAvailabilityText());
+        product.setShowLowestPrice(Boolean.TRUE.equals(request.getShowLowestPrice()));
 
         Product saved = productUseCase.createProduct(
                 product,
@@ -120,6 +122,24 @@ public class ProductController {
         return toDetailsResponse(details, primaryImageUrl);
     }
 
+    @GetMapping("/{id}/price-history")
+    public PageResponse<ProductPriceHistoryResponse> listPriceHistory(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                productUseCase.listPriceHistory(request, id),
+                history -> ProductPriceHistoryResponse.builder()
+                        .initialPrice(history.getInitialPrice())
+                        .finalPrice(history.getFinalPrice())
+                        .changedAt(history.getChangedAt())
+                        .changedBy(history.getChangedBy())
+                        .build()
+        );
+    }
+
     @GetMapping
     public List<ProductResponse> listProducts(@RequestParam Long tenantId) {
         return productUseCase.listProducts(tenantId).stream()
@@ -135,11 +155,28 @@ public class ProductController {
     public PageResponse<ProductResponse> listProductsPaged(
             @RequestParam Long tenantId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) ProductStatus status,
+            @RequestParam(required = false) ProductAvailability availability,
+            @RequestParam(required = false) Boolean stockLow,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId
     ) {
         PageRequest request = PageRequest.of(page, size);
         return PageResponse.from(
-                productUseCase.listProducts(request, tenantId),
+                productUseCase.listProducts(
+                        request,
+                        tenantId,
+                        status,
+                        availability,
+                        stockLow,
+                        minPrice,
+                        maxPrice,
+                        search,
+                        categoryId
+                ),
                 product -> toResponse(
                         product,
                         resolvePrimaryImageUrl(product.getId()),
@@ -167,6 +204,7 @@ public class ProductController {
         updates.setStatus(request.getStatus());
         updates.setAvailability(request.getAvailability());
         updates.setAvailabilityText(request.getAvailabilityText());
+        updates.setShowLowestPrice(Boolean.TRUE.equals(request.getShowLowestPrice()));
 
         Product saved = productUseCase.updateProduct(
                 id,
@@ -396,6 +434,10 @@ public class ProductController {
                 storeNames.add(ref.name());
             }
         }
+        BigDecimal lowestPrice = product.isShowLowestPrice()
+                ? productUseCase.getLowestPrice(product.getId())
+                : null;
+        boolean lowStock = productUseCase.isLowStock(product);
         return ProductResponse.builder()
                 .id(product.getId())
                 .tenantId(product.getTenantId())
@@ -414,6 +456,9 @@ public class ProductController {
                 .status(product.getStatus())
                 .availability(product.getAvailability())
                 .availabilityText(product.getAvailabilityText())
+                .showLowestPrice(product.isShowLowestPrice())
+                .lowestPrice(lowestPrice)
+                .lowStock(lowStock)
                 .imageUrl(imageUrl)
                 .stores(storeResponses)
                 .storeNames(storeNames)
@@ -426,6 +471,10 @@ public class ProductController {
 
     private ProductDetailsResponse toDetailsResponse(ProductUseCase.ProductDetails details, String imageUrl) {
         Product product = details.product();
+        BigDecimal lowestPrice = product.isShowLowestPrice()
+                ? productUseCase.getLowestPrice(product.getId())
+                : null;
+        boolean lowStock = productUseCase.isLowStock(product);
         return ProductDetailsResponse.builder()
                 .id(product.getId())
                 .tenantId(product.getTenantId())
@@ -444,6 +493,9 @@ public class ProductController {
                 .status(product.getStatus())
                 .availability(product.getAvailability())
                 .availabilityText(product.getAvailabilityText())
+                .showLowestPrice(product.isShowLowestPrice())
+                .lowestPrice(lowestPrice)
+                .lowStock(lowStock)
                 .imageUrl(imageUrl)
                 .createdBy(product.getCreatedBy())
                 .updatedBy(product.getUpdatedBy())

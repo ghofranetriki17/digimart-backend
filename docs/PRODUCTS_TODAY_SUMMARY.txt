@@ -1,9 +1,13 @@
-﻿PRODUITS - AJOUTS DU JOUR (LOGIQUE + ETAPES)
+PRODUITS - AJOUTS DU JOUR (LOGIQUE + ETAPES)
 ===========================================
 
 Date: 2026-02-11
-Contexte: V1 catalogue produits + CSV + images + stock par magasin
-LATER WE HAVE TO ADD VALEURS ET OPTIONS ET AI ET GENERATION DIMAGES ET SUPPRESSION DARRIERE PLNS ET TOUTS  
+Contexte: V1 catalogue produits + CSV + images + stock par magasin + pagination + historique prix
+
+Notes futures:
+- Ajouter variantes/options, AI, generation images, suppression plans, stats globales.
+- Ajouter stats en haut (nb produits, valeur stock si stock global).
+
 1) IMPORT / EXPORT CSV (PRODUITS UNIQUEMENT)
 --------------------------------------------
 Objectif:
@@ -11,59 +15,51 @@ Objectif:
 - Exporter un template CSV + exporter les produits existants.
 
 Backend:
-- Endpoint import:
-  POST /api/products/import?tenantId={id}
-  Body: multipart/form-data (file)
-  Validation requise par ligne:
-  - name (obligatoire)
-  - initial_price (obligatoire)
-  - shipping_price (obligatoire)
-  - autres champs optionnels
-  Resultat: ProductImportResponse (totalRows, imported, failed, errors[])
-
-- Endpoint export template:
-  GET /api/products/export/template
-
-- Endpoint export data:
-  GET /api/products/export?tenantId={id}
+- POST /api/products/import?tenantId={id} (multipart/form-data file)
+- GET  /api/products/export/template
+- GET  /api/products/export?tenantId={id}
 
 Colonnes CSV:
 name, description, initial_price, final_price, cost_price,
 shipping_price, shipping_cost_price
 
+Validation:
+- name obligatoire
+- initial_price obligatoire
+- shipping_price obligatoire
+
 Notes:
-- slug est auto-genere (base sur name).
-- Categories/images exclues volontairement (ajout manuel apres import).
+- slug auto-genere (base sur name).
+- categories/images exclues volontairement (ajout manuel apres import).
 
 Frontend:
 - Boutons: Template CSV / Export CSV / Importer CSV
-- Affichage d'un rapport d'import + erreurs par ligne.
+- Rapport d'import + erreurs par ligne.
 
 2) IMAGES PRODUITS
 ------------------
 Objectif:
-- Ajouter plusieurs images, reordonner, et definir la primaire = 1ere.
+- Ajouter plusieurs images, reordonner, 1ere = primary.
 
 Backend:
-- POST /api/products/{id}/images (upload)
-- PUT /api/products/{id}/images/order (reorder + primary auto)
+- POST /api/products/{id}/images
+- PUT  /api/products/{id}/images/order
 - DELETE /api/products/{id}/images/{imageId}
 
 Frontend:
 - Dropzone + preview.
-- Reorder en local (drag + up/down), puis sauvegarde en 1 call.
+- Reorder en local (drag + up/down), puis 1 call pour sauvegarde.
 - La 1ere image = primary.
 
 3) STOCK PAR MAGASIN (INVENTORY)
 --------------------------------
 Objectif:
-- Si trackStock = true, stock gere par magasin.
-- Si trackStock = false, stock global.
+- trackStock = true -> stock par magasin.
+- trackStock = false -> stock global.
 
 Backend:
 - inventories[] sur create/update.
-- replaceInventory: une ligne par magasin (quantity + lowStockThreshold).
-- listProductsForStore / stores details expose produits disponibles.
+- replaceInventory: une ligne par magasin.
 
 Frontend:
 - Toggle "Suivre le stock par magasin"
@@ -71,28 +67,35 @@ Frontend:
 
 4) DISPONIBILITE PRODUIT
 ------------------------
-Statut: ACTIVE | HIDDEN | OUT_OF_STOCK
+Status: ACTIVE | HIDDEN | OUT_OF_STOCK
 Availability: IN_STOCK | ON_ORDER | PRE_ORDER
-availabilityText:
-- IN_STOCK / ON_ORDER -> message libre (ex: delai 2-3 semaines)
-- PRE_ORDER -> date/heure (input calendrier + time) stockee comme texte
-  format: YYYY-MM-DDTHH:MM (sert au compte a rebours)
 
-5) PRICING + MARGE (INFO ONLY)
-------------------------------
-Formule:
-Marge = (prix final si present, sinon prix initial)
-        + frais livraison
-        - cout livraison
-        - prix de revient
+availabilityText:
+- IN_STOCK / ON_ORDER -> message libre (delai, etc)
+- PRE_ORDER -> date/heure (input datetime-local)
+  Format: YYYY-MM-DDTHH:MM (sert au compte a rebours)
+
+Validation:
+- PRE_ORDER + status ACTIVE => date obligatoire
+- OUT_OF_STOCK => date non obligatoire
+
+5) PRICING + VALIDATION + MARGE (INFO ONLY)
+-------------------------------------------
+Validation:
+- finalPrice <= initialPrice (sinon erreur claire)
+
+Marge (info):
+(finalPrice si present, sinon initialPrice)
+ + shippingPrice
+ - shippingCostPrice
+ - costPrice
 
 Affichage:
 - TND + %
-- purement informatif (ne bloque pas la sauvegarde)
-- affiche dans le panneau Resume (plus dans l'etape "Prix")
+- uniquement dans Resume (pas dans l'etape Prix)
 
-6) UI FORMULAIRE PRODUIT (WIZARD)
----------------------------------
+6) FORMULAIRE PRODUIT (WIZARD)
+------------------------------
 Steps:
 1. Infos
 2. Prix
@@ -102,7 +105,6 @@ Steps:
 
 Raccourcis:
 - En edition: bouton "Enregistrer" disponible a tout moment.
-- Previsualisation a droite (image + status + disponibilite).
 
 Champs obligatoires:
 - Nom *
@@ -113,31 +115,75 @@ Champs caches:
 - SKU (genere/stocke en back, pas visible en front)
 - Slug (auto-genere)
 
-7) STORE AVAILABILITY DANS CARDS
---------------------------------
-- Affichage des magasins disponibles (pills cliquables)
-- Navigation vers details magasin.
+7) PAGINATION + FILTRES (SERVER-SIDE)
+-------------------------------------
+Endpoint:
+- GET /api/products/paged
 
-8) PRE-COMMANDE + COUNTDOWN
----------------------------
-- Si availability = PRE_ORDER, la date/heure est saisie via calendrier.
-- Le card produit affiche un compteur "Disponible dans ...".
+Filtres:
+- status, availability, stockLow, minPrice, maxPrice, search, categoryId
 
-9) BULK ACTIONS (SELECTION MULTIPLE)
-------------------------------------
-- Selection multiple via checkbox sur chaque carte.
-- Barre d'actions en haut:
+Pagination:
+- page, size (default 8)
+- search pagine aussi (pas de filtrage local)
+
+8) HISTORIQUE PRIX + PRIX LE PLUS BAS
+-------------------------------------
+Table:
+- product_price_history (product_id, initial_price, final_price, changed_at, changed_by)
+- enregistre a chaque changement de prix
+
+Backend:
+- GET /api/products/{id}/price-history (paged)
+- lowest price calcule (30 jours -> fallback all-time)
+- showLowestPrice bool (default false)
+
+Frontend:
+- Onglet "Historique prix" (graph + liste)
+- Chip "Prix le plus bas 30j" sur card si showLowestPrice=true
+
+9) STOCK BAS (INDICATEUR + FILTRE)
+----------------------------------
+Backend:
+- lowStock calcule (global ou par magasin)
+- retourne lowStock dans ProductResponse/Details
+
+Frontend:
+- Badge "Stock bas" sur card
+- Filtre "Stock faible"
+
+10) DETAILS PRODUIT (MODAL + TABS)
+----------------------------------
+Acces:
+- clic sur image ou nom dans la card
+
+Tabs:
+- Historique commandes (placeholder)
+- Historique prix (graph + liste)
+- Disponibilite magasin (liste cliquable)
+
+Disponibilite magasin:
+- trackStock=false -> "Tous les magasins"
+- trackStock=true -> liste des magasins actifs (click -> page magasins)
+
+11) BULK ACTIONS
+----------------
+- Selection multiple (checkbox)
+- Actions:
   - Modifier prix (bulk)
+  - Modifier statut (bulk)
   - Supprimer (bulk)
-  - Tout deselectionner
-- "Tout selectionner" applique aux produits visibles (page courante).
+- "Tout selectionner" applique a la page courante
 
 FICHIERS PRINCIPAUX (BACK)
 --------------------------
-- digimart-api/.../ProductController.java (import/export + images + reorder)
-- digimart-api/.../dto/response/product/ProductImportResponse.java
-- digimart-api/.../dto/response/product/ProductImportErrorResponse.java
-- digimart-api/pom.xml (commons-csv)
+- digimart-api/.../ProductController.java
+- digimart-api/.../dto/response/product/ProductPriceHistoryResponse.java
+- digimart-application/.../usecase/ProductUseCase.java
+- digimart-application/.../port/out/ProductPriceHistoryRepository.java
+- digimart-infrastructure/.../ProductPriceHistoryJpaRepository.java
+- digimart-infrastructure/.../ProductPriceHistoryRepositoryAdapter.java
+- digimart-infrastructure/.../ProductStoreInventoryRepositoryAdapter.java
 
 FICHIERS PRINCIPAUX (FRONT)
 ---------------------------
@@ -145,6 +191,8 @@ FICHIERS PRINCIPAUX (FRONT)
 - src/pages/catalog/ProductsPage.css
 - src/components/molecules/ProductCard/ProductCard.jsx
 - src/components/molecules/ProductCard/ProductCard.css
+- src/components/molecules/PriceHistoryChart/PriceHistoryChart.jsx
+- src/components/molecules/PriceHistoryChart/PriceHistoryChart.css
 
 TEST THUNDER CLIENT (EXEMPLES)
 ------------------------------
@@ -165,3 +213,6 @@ form-data -> file: image.png
 5) Reorder images:
 PUT http://localhost:8080/api/products/1/images/order
 Body: {"imageIds":[12,14,15]}
+
+6) Historique prix:
+GET http://localhost:8080/api/products/1/price-history?page=0&size=20

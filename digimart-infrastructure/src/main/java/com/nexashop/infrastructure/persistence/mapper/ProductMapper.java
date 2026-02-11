@@ -29,6 +29,7 @@ public final class ProductMapper {
         domain.setStatus(entity.getStatus());
         domain.setAvailability(entity.getAvailability());
         domain.setAvailabilityText(entity.getAvailabilityText());
+        domain.setShowLowestPrice(entity.isShowLowestPrice());
         domain.setCreatedBy(entity.getCreatedBy());
         domain.setUpdatedBy(entity.getUpdatedBy());
         return domain;
@@ -55,6 +56,7 @@ public final class ProductMapper {
         entity.setStatus(domain.getStatus());
         entity.setAvailability(domain.getAvailability());
         entity.setAvailabilityText(domain.getAvailabilityText());
+        entity.setShowLowestPrice(domain.isShowLowestPrice());
         entity.setCreatedBy(domain.getCreatedBy());
         entity.setUpdatedBy(domain.getUpdatedBy());
         return entity;

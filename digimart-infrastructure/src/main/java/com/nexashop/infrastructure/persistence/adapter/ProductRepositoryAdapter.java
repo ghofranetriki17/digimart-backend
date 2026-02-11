@@ -3,10 +3,13 @@ package com.nexashop.infrastructure.persistence.adapter;
 import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.ProductRepository;
+import com.nexashop.domain.catalog.entity.ProductAvailability;
+import com.nexashop.domain.catalog.entity.ProductStatus;
 import com.nexashop.domain.catalog.entity.Product;
 import com.nexashop.infrastructure.persistence.jpa.ProductJpaRepository;
 import com.nexashop.infrastructure.persistence.mapper.ProductMapper;
 import com.nexashop.infrastructure.persistence.model.catalog.ProductJpaEntity;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -58,6 +61,37 @@ public class ProductRepositoryAdapter
     public PageResult<Product> findByTenantId(PageRequest request, Long tenantId) {
         Page<ProductJpaEntity> page = repository.findByTenantId(
                 tenantId,
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
+    }
+
+    @Override
+    public PageResult<Product> searchProducts(
+            PageRequest request,
+            Long tenantId,
+            ProductStatus status,
+            ProductAvailability availability,
+            Boolean stockLow,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            String search,
+            Long categoryId
+    ) {
+        Page<ProductJpaEntity> page = repository.searchProducts(
+                tenantId,
+                status,
+                availability,
+                stockLow,
+                minPrice,
+                maxPrice,
+                search,
+                categoryId,
                 org.springframework.data.domain.PageRequest.of(request.page(), request.size())
         );
         return PageResult.of(

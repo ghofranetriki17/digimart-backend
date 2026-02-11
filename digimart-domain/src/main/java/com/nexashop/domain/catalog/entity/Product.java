@@ -39,6 +39,8 @@ public class Product extends TenantEntity {
 
     private String availabilityText;
 
+    private boolean showLowestPrice = false;
+
     private Long createdBy;
 
     private Long updatedBy;

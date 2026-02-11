@@ -53,6 +53,8 @@ public class UpdateProductRequest {
 
     private String availabilityText;
 
+    private Boolean showLowestPrice;
+
     private List<Long> categoryIds;
 
     private Long primaryCategoryId;

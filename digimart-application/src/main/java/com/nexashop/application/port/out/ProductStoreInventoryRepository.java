@@ -9,5 +9,7 @@ public interface ProductStoreInventoryRepository extends CrudRepositoryPort<Prod
 
     List<ProductStoreInventory> findByStoreId(Long storeId);
 
+    boolean existsLowStockByProductId(Long productId);
+
     void deleteByProductId(Long productId);
 }

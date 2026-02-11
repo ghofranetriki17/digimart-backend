@@ -10,6 +10,7 @@ import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.ProductCategoryRepository;
 import com.nexashop.application.port.out.ProductImageRepository;
+import com.nexashop.application.port.out.ProductPriceHistoryRepository;
 import com.nexashop.application.port.out.ProductRepository;
 import com.nexashop.application.port.out.ProductStoreInventoryRepository;
 import com.nexashop.application.port.out.StoreRepository;
@@ -20,6 +21,7 @@ import com.nexashop.domain.catalog.entity.Product;
 import com.nexashop.domain.catalog.entity.ProductAvailability;
 import com.nexashop.domain.catalog.entity.ProductCategory;
 import com.nexashop.domain.catalog.entity.ProductImage;
+import com.nexashop.domain.catalog.entity.ProductPriceHistory;
 import com.nexashop.domain.catalog.entity.ProductStatus;
 import com.nexashop.domain.catalog.entity.ProductStoreInventory;
 import com.nexashop.domain.store.entity.Store;
@@ -29,6 +31,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 public class ProductUseCase {
 
@@ -36,6 +40,7 @@ public class ProductUseCase {
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final ProductImageRepository productImageRepository;
+    private final ProductPriceHistoryRepository priceHistoryRepository;
     private final ProductStoreInventoryRepository inventoryRepository;
     private final TenantRepository tenantRepository;
     private final CategoryRepository categoryRepository;
@@ -46,6 +51,7 @@ public class ProductUseCase {
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
+            ProductPriceHistoryRepository priceHistoryRepository,
             ProductStoreInventoryRepository inventoryRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
@@ -55,6 +61,7 @@ public class ProductUseCase {
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.productImageRepository = productImageRepository;
+        this.priceHistoryRepository = priceHistoryRepository;
         this.inventoryRepository = inventoryRepository;
         this.tenantRepository = tenantRepository;
         this.categoryRepository = categoryRepository;
@@ -120,6 +127,9 @@ public class ProductUseCase {
             product.setAvailability(ProductAvailability.IN_STOCK);
         }
 
+        validatePricing(product.getInitialPrice(), product.getFinalPrice());
+        validatePreorder(product.getStatus(), product.getAvailability(), product.getAvailabilityText());
+
         product.setTenantId(tenantId);
         if (product.getCreatedBy() == null) {
             product.setCreatedBy(currentUser.userId());
@@ -127,6 +137,7 @@ public class ProductUseCase {
         product.setUpdatedBy(currentUser.userId());
 
         Product saved = productRepository.save(product);
+        recordPriceHistory(saved, currentUser.userId());
 
         if (categoryIds != null) {
             saveProductCategories(saved.getId(), tenantId, categoryIds, primaryCategoryId, currentUser.userId());
@@ -179,6 +190,9 @@ public class ProductUseCase {
             product.setSku(trimmedSku);
         }
 
+        BigDecimal previousInitial = product.getInitialPrice();
+        BigDecimal previousFinal = product.getFinalPrice();
+
         product.setName(updates.getName());
         product.setDescription(updates.getDescription());
         product.setInitialPrice(updates.getInitialPrice());
@@ -196,9 +210,18 @@ public class ProductUseCase {
             product.setAvailability(updates.getAvailability());
         }
         product.setAvailabilityText(updates.getAvailabilityText());
+        product.setShowLowestPrice(updates.isShowLowestPrice());
         product.setUpdatedBy(currentUser.userId());
 
+        validatePricing(product.getInitialPrice(), product.getFinalPrice());
+        validatePreorder(product.getStatus(), product.getAvailability(), product.getAvailabilityText());
+
         Product saved = productRepository.save(product);
+
+        if (priceChanged(previousInitial, saved.getInitialPrice())
+                || priceChanged(previousFinal, saved.getFinalPrice())) {
+            recordPriceHistory(saved, currentUser.userId());
+        }
 
         if (categoryIds != null) {
             saveProductCategories(saved.getId(), saved.getTenantId(), categoryIds, primaryCategoryId, currentUser.userId());
@@ -260,6 +283,77 @@ public class ProductUseCase {
         }
         PageRequest resolved = PageRequest.of(request.page(), request.size());
         return productRepository.findByTenantId(resolved, tenantId);
+    }
+
+    public PageResult<Product> listProducts(
+            PageRequest request,
+            Long tenantId,
+            ProductStatus status,
+            ProductAvailability availability,
+            Boolean stockLow,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            String search,
+            Long categoryId
+    ) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
+            throw new ForbiddenException("Tenant access required");
+        }
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        String normalizedSearch = search == null
+                ? ""
+                : search.trim().toLowerCase();
+        return productRepository.searchProducts(
+                resolved,
+                tenantId,
+                status,
+                availability,
+                stockLow,
+                minPrice,
+                maxPrice,
+                normalizedSearch,
+                categoryId
+        );
+    }
+
+    public PageResult<ProductPriceHistory> listPriceHistory(PageRequest request, Long productId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+        if (!isSuperAdmin && !product.getTenantId().equals(currentUser.tenantId())) {
+            throw new ForbiddenException("Tenant access required");
+        }
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        PageResult<ProductPriceHistory> result = priceHistoryRepository.findByProductId(resolved, productId);
+        if (!result.items().isEmpty() || resolved.page() > 0) {
+            return result;
+        }
+        if (product.getInitialPrice() == null && product.getFinalPrice() == null) {
+            return result;
+        }
+        ProductPriceHistory fallback = buildPriceHistory(
+                product,
+                product.getUpdatedBy() != null ? product.getUpdatedBy() : currentUser.userId()
+        );
+        fallback.setChangedAt(product.getUpdatedAt() != null ? product.getUpdatedAt() : LocalDateTime.now());
+        priceHistoryRepository.save(fallback);
+        return PageResult.of(List.of(fallback), resolved.page(), resolved.size(), 1);
+    }
+
+    public boolean isLowStock(Product product) {
+        if (product == null) {
+            return false;
+        }
+        if (!product.isTrackStock()) {
+            Integer threshold = product.getLowStockThreshold();
+            Integer quantity = product.getStockQuantity();
+            return threshold != null && quantity != null && quantity <= threshold;
+        }
+        return inventoryRepository.existsLowStockByProductId(product.getId());
     }
 
     public void deleteProduct(Long id) {
@@ -411,12 +505,18 @@ public class ProductUseCase {
         Long requesterTenantId = currentUser.tenantId();
         boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
         List<Product> toUpdate = new ArrayList<>();
+        List<ProductPriceHistory> histories = new ArrayList<>();
         for (Long id : productIds) {
             Product product = productRepository.findById(id)
                     .orElseThrow(() -> new NotFoundException("Product not found"));
             if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
                 throw new ForbiddenException("Tenant access required");
             }
+            BigDecimal previousInitial = product.getInitialPrice();
+            BigDecimal previousFinal = product.getFinalPrice();
+            BigDecimal nextInitial = initialPrice != null ? initialPrice : product.getInitialPrice();
+            BigDecimal nextFinal = finalPrice != null ? finalPrice : product.getFinalPrice();
+            validatePricing(nextInitial, nextFinal);
             if (initialPrice != null) {
                 product.setInitialPrice(initialPrice);
             }
@@ -431,9 +531,16 @@ public class ProductUseCase {
             }
             product.setUpdatedBy(currentUser.userId());
             toUpdate.add(product);
+            if (priceChanged(previousInitial, nextInitial)
+                    || priceChanged(previousFinal, nextFinal)) {
+                histories.add(buildPriceHistory(product, currentUser.userId()));
+            }
         }
         if (!toUpdate.isEmpty()) {
             productRepository.saveAll(toUpdate);
+        }
+        if (!histories.isEmpty()) {
+            priceHistoryRepository.saveAll(histories);
         }
         return toUpdate.size();
     }
@@ -480,6 +587,9 @@ public class ProductUseCase {
             if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
                 throw new ForbiddenException("Tenant access required");
             }
+            if (status == ProductStatus.ACTIVE) {
+                validatePreorder(status, product.getAvailability(), product.getAvailabilityText());
+            }
             product.setStatus(status);
             product.setUpdatedBy(currentUser.userId());
             toUpdate.add(product);
@@ -488,6 +598,15 @@ public class ProductUseCase {
             productRepository.saveAll(toUpdate);
         }
         return toUpdate.size();
+    }
+
+    public BigDecimal getLowestPrice(Long productId) {
+        LocalDateTime since = LocalDateTime.now().minusDays(30);
+        BigDecimal lowest = priceHistoryRepository.findLowestPriceSince(productId, since);
+        if (lowest == null) {
+            lowest = priceHistoryRepository.findLowestPriceAllTime(productId);
+        }
+        return lowest;
     }
 
     private void saveProductCategories(
@@ -555,6 +674,48 @@ public class ProductUseCase {
         if (!toSave.isEmpty()) {
             inventoryRepository.saveAll(toSave);
         }
+    }
+
+    private void recordPriceHistory(Product product, Long changedBy) {
+        if (product == null || product.getId() == null) {
+            return;
+        }
+        priceHistoryRepository.save(buildPriceHistory(product, changedBy));
+    }
+
+    private ProductPriceHistory buildPriceHistory(Product product, Long changedBy) {
+        ProductPriceHistory history = new ProductPriceHistory();
+        history.setTenantId(product.getTenantId());
+        history.setProductId(product.getId());
+        history.setInitialPrice(product.getInitialPrice());
+        history.setFinalPrice(product.getFinalPrice());
+        history.setChangedAt(LocalDateTime.now());
+        history.setChangedBy(changedBy);
+        return history;
+    }
+
+    private void validatePricing(BigDecimal initialPrice, BigDecimal finalPrice) {
+        if (initialPrice != null && finalPrice != null && finalPrice.compareTo(initialPrice) > 0) {
+            throw new BadRequestException("Le prix final doit être inférieur ou égal au prix initial");
+        }
+    }
+
+    private void validatePreorder(ProductStatus status, ProductAvailability availability, String availabilityText) {
+        if (status == ProductStatus.ACTIVE
+                && availability == ProductAvailability.PRE_ORDER
+                && (availabilityText == null || availabilityText.isBlank())) {
+            throw new BadRequestException("La date de disponibilité est obligatoire pour une précommande");
+        }
+    }
+
+    private boolean priceChanged(BigDecimal previous, BigDecimal next) {
+        if (previous == null && next == null) {
+            return false;
+        }
+        if (previous == null || next == null) {
+            return true;
+        }
+        return previous.compareTo(next) != 0;
     }
 
     private String resolveUniqueSlug(Long tenantId, String baseSlug, Long currentId) {
