@@ -8,6 +8,10 @@ import com.nexashop.application.port.out.PermissionRepository;
 import com.nexashop.application.port.out.PlanFeatureRepository;
 import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
+import com.nexashop.application.port.out.ProductCategoryRepository;
+import com.nexashop.application.port.out.ProductImageRepository;
+import com.nexashop.application.port.out.ProductRepository;
+import com.nexashop.application.port.out.ProductStoreInventoryRepository;
 import com.nexashop.application.port.out.RefreshTokenRepository;
 import com.nexashop.application.port.out.RolePermissionRepository;
 import com.nexashop.application.port.out.RoleRepository;
@@ -31,6 +35,7 @@ import com.nexashop.application.usecase.AuthUseCase;
 import com.nexashop.application.usecase.PermissionUseCase;
 import com.nexashop.application.usecase.PlatformConfigUseCase;
 import com.nexashop.application.usecase.PremiumFeatureUseCase;
+import com.nexashop.application.usecase.ProductUseCase;
 import com.nexashop.application.usecase.RoleUseCase;
 import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.application.usecase.SubscriptionPlanUseCase;
@@ -176,6 +181,29 @@ public class UseCaseConfig {
             PremiumFeatureRepository featureRepository
     ) {
         return new PremiumFeatureUseCase(currentUserProvider, featureRepository);
+    }
+
+    @Bean
+    public ProductUseCase productUseCase(
+            CurrentUserProvider currentUserProvider,
+            ProductRepository productRepository,
+            ProductCategoryRepository productCategoryRepository,
+            ProductImageRepository productImageRepository,
+            ProductStoreInventoryRepository inventoryRepository,
+            TenantRepository tenantRepository,
+            CategoryRepository categoryRepository,
+            StoreRepository storeRepository
+    ) {
+        return new ProductUseCase(
+                currentUserProvider,
+                productRepository,
+                productCategoryRepository,
+                productImageRepository,
+                inventoryRepository,
+                tenantRepository,
+                categoryRepository,
+                storeRepository
+        );
     }
 
     @Bean

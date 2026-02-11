@@ -3,14 +3,20 @@ package com.nexashop.api.controller.store;
 import com.nexashop.api.dto.request.store.CreateStoreRequest;
 import com.nexashop.api.dto.request.store.UpdateStoreRequest;
 import com.nexashop.api.dto.response.PageResponse;
+import com.nexashop.api.dto.response.product.ProductResponse;
+import com.nexashop.api.dto.response.product.ProductStoreRefResponse;
 import com.nexashop.api.dto.response.store.StoreResponse;
 import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.usecase.ProductUseCase;
 import com.nexashop.application.usecase.StoreUseCase;
+import com.nexashop.domain.catalog.entity.Product;
+import com.nexashop.domain.catalog.entity.ProductImage;
 import com.nexashop.domain.store.entity.Store;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,13 +38,16 @@ import org.springframework.web.multipart.MultipartFile;
 public class StoreController {
 
     private final StoreUseCase storeUseCase;
+    private final ProductUseCase productUseCase;
     private final String uploadBaseDir;
 
     public StoreController(
             StoreUseCase storeUseCase,
+            ProductUseCase productUseCase,
             @Value("${app.upload.dir:}") String uploadBaseDir
     ) {
         this.storeUseCase = storeUseCase;
+        this.productUseCase = productUseCase;
         this.uploadBaseDir = uploadBaseDir;
     }
 
@@ -75,6 +84,13 @@ public class StoreController {
     public StoreResponse getStore(@PathVariable Long id) {
         Store store = storeUseCase.getStore(id);
         return toResponse(store);
+    }
+
+    @GetMapping("/{id}/products")
+    public List<ProductResponse> listStoreProducts(@PathVariable Long id) {
+        return productUseCase.listProductsForStore(id).stream()
+                .map(this::toProductResponse)
+                .collect(Collectors.toList());
     }
 
     @GetMapping
@@ -174,5 +190,69 @@ public class StoreController {
                 .createdAt(store.getCreatedAt())
                 .updatedAt(store.getUpdatedAt())
                 .build();
+    }
+
+    private ProductResponse toProductResponse(Product product) {
+        String imageUrl = resolvePrimaryImageUrl(product.getId());
+        List<ProductUseCase.StoreRef> storeRefs = productUseCase.listActiveStores(product.getId());
+        List<ProductStoreRefResponse> storeResponses = new ArrayList<>();
+        List<String> storeNames = new ArrayList<>();
+        if (storeRefs != null) {
+            for (ProductUseCase.StoreRef ref : storeRefs) {
+                if (ref == null || ref.name() == null) {
+                    continue;
+                }
+                storeResponses.add(ProductStoreRefResponse.builder()
+                        .id(ref.id())
+                        .name(ref.name())
+                        .build());
+                storeNames.add(ref.name());
+            }
+        }
+        return ProductResponse.builder()
+                .id(product.getId())
+                .tenantId(product.getTenantId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .sku(product.getSku())
+                .description(product.getDescription())
+                .initialPrice(product.getInitialPrice())
+                .finalPrice(product.getFinalPrice())
+                .costPrice(product.getCostPrice())
+                .shippingPrice(product.getShippingPrice())
+                .shippingCostPrice(product.getShippingCostPrice())
+                .trackStock(product.isTrackStock())
+                .stockQuantity(product.getStockQuantity())
+                .lowStockThreshold(product.getLowStockThreshold())
+                .status(product.getStatus())
+                .availability(product.getAvailability())
+                .availabilityText(product.getAvailabilityText())
+                .imageUrl(imageUrl)
+                .stores(storeResponses)
+                .storeNames(storeNames)
+                .createdBy(product.getCreatedBy())
+                .updatedBy(product.getUpdatedBy())
+                .createdAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
+                .build();
+    }
+
+    private String resolvePrimaryImageUrl(Long productId) {
+        if (productId == null) {
+            return null;
+        }
+        return resolvePrimaryImageUrl(productUseCase.listProductImages(productId));
+    }
+
+    private String resolvePrimaryImageUrl(List<ProductImage> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        for (ProductImage image : images) {
+            if (image.isPrimary()) {
+                return image.getImageUrl();
+            }
+        }
+        return images.get(0).getImageUrl();
     }
 }

@@ -3,6 +3,7 @@ package com.nexashop.api.controller;
 import com.nexashop.api.controller.store.StoreController;
 import com.nexashop.api.dto.request.store.CreateStoreRequest;
 import com.nexashop.api.dto.response.store.StoreResponse;
+import com.nexashop.application.usecase.ProductUseCase;
 import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
 import java.util.List;
@@ -17,7 +18,8 @@ class StoreControllerTest {
     @Test
     void listStoresReturnsResponses() {
         StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
-        StoreController controller = new StoreController(useCase, "");
+        ProductUseCase productUseCase = Mockito.mock(ProductUseCase.class);
+        StoreController controller = new StoreController(useCase, productUseCase, "");
 
         Store store = new Store();
         store.setId(1L);
@@ -34,7 +36,8 @@ class StoreControllerTest {
     @Test
     void createStoreReturnsResponse() {
         StoreUseCase useCase = Mockito.mock(StoreUseCase.class);
-        StoreController controller = new StoreController(useCase, "");
+        ProductUseCase productUseCase = Mockito.mock(ProductUseCase.class);
+        StoreController controller = new StoreController(useCase, productUseCase, "");
 
         CreateStoreRequest request = new CreateStoreRequest();
         request.setTenantId(2L);

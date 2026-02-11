@@ -17,7 +17,7 @@ import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 
 public final class UploadUtil {
 
-    private static final long MAX_BYTES = 5L * 1024L * 1024L;
+    private static final long MAX_BYTES = 10L * 1024L * 1024L;
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/png",
             "image/jpeg",
@@ -50,7 +50,7 @@ public final class UploadUtil {
             throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
         }
         if (file.getSize() > MAX_BYTES) {
-            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Image exceeds 5MB limit");
+            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Image exceeds 10MB limit");
         }
 
         String contentType = file.getContentType();

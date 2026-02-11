@@ -1,0 +1,130 @@
+PRODUCTS - IMPLEMENTATION V1 (Backend + Frontend)
+=================================================
+
+Scope V1
+--------
+- Produits (CRUD)
+- Categories (liaison M:N)
+- Images produit (upload)
+- Stock global OU stock par magasin
+- Pagination (liste /paged)
+
+Logic & Rules
+-------------
+1) Slug
+   - Si slug vide => derive du nom (slugify)
+   - Unique par tenant (tenant_id + slug)
+
+2) SKU
+   - Unique par tenant si fourni
+
+3) Categories
+   - categoryIds: liste d'IDs
+   - primaryCategoryId: optionnel
+   - Si primaryCategoryId fourni, il est ajoute automatiquement a categoryIds
+   - Toutes les categories doivent appartenir au meme tenant
+
+4) Stock
+   - trackStock = false => stock global (stockQuantity + lowStockThreshold)
+   - trackStock = true  => ignore stock global et utilise ProductStoreInventory
+   - Inventory rows: {storeId, quantity, lowStockThreshold, activeInStore}
+   - Si trackStock passe a false, on supprime les inventaires existants
+
+5) Images
+   - Upload via /api/products/{id}/images (multipart)
+   - Formats: PNG, JPG, WEBP, GIF (max 5MB)
+   - Si aucune image existante => 1ere image devient "primary"
+
+Tables (Hibernate auto)
+-----------------------
+- products
+- product_categories (tenant_id + product_id + category_id UNIQUE)
+- product_images
+- product_store_inventory (tenant_id + product_id + store_id UNIQUE)
+
+Backend - Endpoints
+-------------------
+POST   /api/products
+GET    /api/products?tenantId=1
+GET    /api/products/paged?tenantId=1&page=0&size=8
+GET    /api/products/{id}
+PUT    /api/products/{id}
+DELETE /api/products/{id}
+POST   /api/products/{id}/images   (multipart)
+GET    /api/products/{id}/images
+DELETE /api/products/{id}/images/{imageId}
+
+Thunder Client - Tests
+----------------------
+1) Create product
+POST /api/products
+Body (JSON):
+{
+  "tenantId": 1,
+  "name": "Chaussure Sport",
+  "sku": "SHOE-001",
+  "description": "Chaussure running",
+  "initialPrice": 120,
+  "finalPrice": 99,
+  "costPrice": 60,
+  "trackStock": false,
+  "stockQuantity": 25,
+  "lowStockThreshold": 5,
+  "status": "ACTIVE",
+  "availability": "IN_STOCK",
+  "availabilityText": "Disponible",
+  "categoryIds": [3, 7],
+  "primaryCategoryId": 3
+}
+
+2) Upload image
+POST /api/products/{id}/images
+Body (form-data):
+  file: (image)
+  primary: true
+
+3) Update product (switch to store inventory)
+PUT /api/products/{id}
+Body (JSON):
+{
+  "name": "Chaussure Sport",
+  "sku": "SHOE-001",
+  "description": "Version 2",
+  "trackStock": true,
+  "status": "ACTIVE",
+  "availability": "ON_ORDER",
+  "inventories": [
+    { "storeId": 1, "quantity": 5, "lowStockThreshold": 2, "activeInStore": true },
+    { "storeId": 2, "quantity": 10, "lowStockThreshold": 3, "activeInStore": true }
+  ]
+}
+
+4) List products (paged)
+GET /api/products/paged?tenantId=1&page=0&size=8
+
+5) Delete product
+DELETE /api/products/{id}
+
+Frontend - Integration Steps
+----------------------------
+1) Add Products page
+   - src/pages/catalog/ProductsPage.jsx
+   - src/pages/catalog/ProductsPage.css
+
+2) Add ProductCard molecule
+   - src/components/molecules/ProductCard/*
+
+3) Wire navigation
+   - Add "products" in TenantSidebar
+   - Add ProductsPage in App.jsx (tenant routes)
+
+4) Form behaviour
+   - Stock global if trackStock = false
+   - Stock par magasin if trackStock = true
+   - Upload images after create/update
+
+Notes
+-----
+- Pagination uses /paged endpoints and size default = 8.
+- Search fetches full list and hides pagination.
+- Images are stored under /uploads/products.
