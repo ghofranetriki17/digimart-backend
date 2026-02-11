@@ -5,8 +5,10 @@ import com.nexashop.api.dto.request.user.CreateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateProfileRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRequest;
 import com.nexashop.api.dto.request.user.UpdateUserRolesRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.user.UserResponse;
 import com.nexashop.api.util.UploadUtil;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.UserUseCase;
 import com.nexashop.domain.user.entity.User;
 import jakarta.validation.Valid;
@@ -71,6 +73,19 @@ public class UserController {
         return userUseCase.listUsers(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<UserResponse> listUsersPaged(
+            @RequestParam Long tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                userUseCase.listUsers(request, tenantId),
+                this::toResponse
+        );
     }
 
     @GetMapping("/{id}")

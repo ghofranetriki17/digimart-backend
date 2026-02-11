@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.ConflictException;
 import com.nexashop.application.exception.NotFoundException;
 import com.nexashop.application.port.out.CurrentUserProvider;
@@ -32,6 +34,14 @@ public class PremiumFeatureUseCase {
         return includeInactive
                 ? featureRepository.findAll()
                 : featureRepository.findByActiveTrueOrderByDisplayOrderAsc();
+    }
+
+    public PageResult<PremiumFeature> list(PageRequest request, boolean includeInactive) {
+        currentUserProvider.requireAdminAny();
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        return includeInactive
+                ? featureRepository.findAll(resolved)
+                : featureRepository.findByActiveTrueOrderByDisplayOrderAsc(resolved);
     }
 
     public PremiumFeature create(PremiumFeature feature) {

@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.BadRequestException;
 import com.nexashop.application.exception.ConflictException;
 import com.nexashop.application.exception.ForbiddenException;
@@ -114,6 +116,23 @@ public class CategoryUseCase {
             return categoryRepository.findByTenantIdAndParentCategoryId(tenantId, parentId);
         }
         return categoryRepository.findByTenantId(tenantId);
+    }
+
+    public PageResult<Category> listCategories(PageRequest request, Long tenantId, Long parentId, boolean rootOnly) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
+            throw new ForbiddenException("Tenant access required");
+        }
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        if (rootOnly) {
+            return categoryRepository.findByTenantIdAndParentCategoryIdIsNull(resolved, tenantId);
+        }
+        if (parentId != null) {
+            return categoryRepository.findByTenantIdAndParentCategoryId(resolved, tenantId, parentId);
+        }
+        return categoryRepository.findByTenantId(resolved, tenantId);
     }
 
     public Category updateCategory(

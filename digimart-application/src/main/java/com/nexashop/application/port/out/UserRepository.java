@@ -1,5 +1,7 @@
 package com.nexashop.application.port.out;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.domain.user.entity.User;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +15,8 @@ public interface UserRepository extends CrudRepositoryPort<User, Long> {
     long countByTenantId(Long tenantId);
 
     List<User> findByTenantId(Long tenantId);
+
+    PageResult<User> findByTenantId(PageRequest request, Long tenantId);
 
     Optional<User> findFirstByTenantIdOrderByIdAsc(Long tenantId);
 

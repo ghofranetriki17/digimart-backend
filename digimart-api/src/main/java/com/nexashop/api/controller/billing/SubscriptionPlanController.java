@@ -2,8 +2,10 @@ package com.nexashop.api.controller.billing;
 
 import com.nexashop.api.dto.request.billing.CreatePlanRequest;
 import com.nexashop.api.dto.request.billing.UpdatePlanRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
 import com.nexashop.api.dto.response.billing.SubscriptionPlanResponse;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.SubscriptionPlanUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.SubscriptionPlan;
@@ -34,6 +36,19 @@ public class SubscriptionPlanController {
         return planUseCase.listPlans(onlyActive).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<SubscriptionPlanResponse> listPlansPaged(
+            @RequestParam(defaultValue = "true") boolean onlyActive,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                planUseCase.listPlans(request, onlyActive),
+                this::toResponse
+        );
     }
 
     @GetMapping("/{id}")

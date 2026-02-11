@@ -2,8 +2,10 @@ package com.nexashop.api.controller.sector;
 
 import com.nexashop.api.dto.request.sector.CreateActivitySectorRequest;
 import com.nexashop.api.dto.request.sector.UpdateActivitySectorRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.sector.ActivitySectorResponse;
 import com.nexashop.api.dto.response.sector.ActivitySectorTenantResponse;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.ActivitySectorUseCase;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.domain.tenant.entity.Tenant;
@@ -37,6 +39,19 @@ public class ActivitySectorController {
         return sectorUseCase.listSectors(includeInactive).stream()
                 .map(summary -> toResponse(summary.sector(), summary.tenantCount()))
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<ActivitySectorResponse> listSectorsPaged(
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                sectorUseCase.listSectors(request, includeInactive),
+                summary -> toResponse(summary.sector(), summary.tenantCount())
+        );
     }
 
     @PostMapping

@@ -1,0 +1,137 @@
+PAGINATION IMPLEMENTATION - DIGIMART
+===================================
+
+Date: 2026-02-11
+Scope: Backend + Frontend pagination for list pages
+
+Goal
+----
+Add clean, reusable pagination on backend (PageRequest/PageResult) and keep
+frontend atomic (shared Pagination component). Search ignores pagination and
+loads full results.
+
+
+1) Backend (Clean Architecture)
+-------------------------------
+We introduced a small pagination contract in the application layer:
+
+1.1 Common DTOs
+- File: digimart-application/src/main/java/com/nexashop/application/common/PageRequest.java
+  - record PageRequest(int page, int size)
+  - PageRequest.of(page, size) enforces defaults (page >= 0, size >= 1)
+
+- File: digimart-application/src/main/java/com/nexashop/application/common/PageResult.java
+  - record PageResult<T>(items, page, size, totalItems, totalPages, hasNext, hasPrevious)
+
+1.2 Repository ports
+We added paged methods to the ports (no Spring types in application layer):
+- CategoryRepository: findByTenantId(PageRequest), findByTenantIdAndParent...
+- UserRepository: findByTenantId(PageRequest)
+- StoreRepository: findByTenantId(PageRequest)
+- ActivitySectorRepository: findAll(PageRequest), findByActiveTrue(PageRequest)
+- SubscriptionPlanRepository: findAll(PageRequest), findByActiveTrueOrderByNameAsc(PageRequest)
+- PremiumFeatureRepository: findAll(PageRequest), findByActiveTrueOrderByDisplayOrderAsc(PageRequest)
+
+1.3 Use cases
+Each use case now exposes a paged list method that:
+- checks security (same rules as non-paged list)
+- builds PageRequest.of(page, size)
+- returns PageResult<T>
+
+Files:
+- digimart-application/src/main/java/com/nexashop/application/usecase/CategoryUseCase.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/UserUseCase.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/StoreUseCase.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/ActivitySectorUseCase.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/SubscriptionPlanUseCase.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/PremiumFeatureUseCase.java
+
+1.4 Infrastructure (Spring Data)
+We added Pageable methods in JPA repositories and adapted in adapters:
+- JPA repos: add Page<...> findBy...(..., Pageable)
+- Adapters: call repository.findBy...(Pageable) and map to PageResult
+
+Files:
+- digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/jpa/*JpaRepository.java
+- digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/adapter/*RepositoryAdapter.java
+
+1.5 API response model
+We added a generic API response wrapper:
+- File: digimart-api/src/main/java/com/nexashop/api/dto/response/PageResponse.java
+  - PageResponse.from(PageResult, mapper)
+
+1.6 Controllers (new /paged endpoints)
+Each list controller has a /paged endpoint:
+- GET /api/users/paged?tenantId=&page=&size=
+- GET /api/stores/paged?tenantId=&page=&size=
+- GET /api/categories/paged?tenantId=&parentId=&rootOnly=&page=&size=
+- GET /api/activity-sectors/paged?includeInactive=&page=&size=
+- GET /api/plans/paged?onlyActive=&page=&size=
+- GET /api/premium-features/paged?includeInactive=&page=&size=
+
+Files:
+- digimart-api/src/main/java/com/nexashop/api/controller/user/UserController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/store/StoreController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/catalog/CategoryController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/sector/ActivitySectorController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/billing/SubscriptionPlanController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/billing/PremiumFeatureController.java
+
+
+2) Frontend (Atomic + Reusable)
+-------------------------------
+2.1 Shared Pagination component
+- File: C:/Dev/nexashop-frontend/src/components/molecules/Pagination/Pagination.jsx
+- Reused in multiple pages, keeping atomic structure
+
+2.2 Page-level logic
+Each list page now:
+- fetches /paged when search is empty
+- fetches full list (non-paged) when search has text
+- keeps pagination state (page, size, totalPages, totalItems)
+- shows <Pagination> only when search is empty
+
+Pages updated:
+- C:/Dev/nexashop-frontend/src/pages/users/UsersPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/stores/StoresPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/sectors/SectorsPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/billing/PlansPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/billing/PremiumFeaturesPage.jsx
+- Admin tenants already had pagination: C:/Dev/nexashop-frontend/src/pages/tenants/AdminTenantsPage.jsx
+
+2.3 Tests adjusted
+Mocked /paged responses where needed:
+- C:/Dev/nexashop-frontend/src/pages/users/UsersPage.test.jsx
+- C:/Dev/nexashop-frontend/src/pages/stores/StoresPage.test.jsx
+
+
+3) Search rule (Important)
+--------------------------
+If search is active:
+- pagination is ignored
+- full list endpoint is used
+- pagination control is hidden
+This fixes the issue where search results were limited to page 1.
+
+
+4) Notes
+--------
+- Categories use a tree UI; the frontend still loads full list to preserve hierarchy.
+- Backend supports /api/categories/paged for future root-level pagination if needed.
+
+
+5) Example: how to call paged endpoint
+--------------------------------------
+GET /api/users/paged?tenantId=5&page=0&size=8
+
+Response:
+{
+  "items": [...],
+  "page": 0,
+  "size": 8,
+  "totalItems": 42,
+  "totalPages": 6,
+  "hasNext": true,
+  "hasPrevious": false
+}
+

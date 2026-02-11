@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.application.port.out.TenantRepository;
@@ -39,6 +41,21 @@ public class ActivitySectorUseCase {
                         tenantCounts.getOrDefault(sector.getId(), 0L)
                 ))
                 .collect(Collectors.toList());
+    }
+
+    public PageResult<ActivitySectorSummary> listSectors(PageRequest request, boolean includeInactive) {
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        PageResult<ActivitySector> page = includeInactive
+                ? sectorRepository.findAll(resolved)
+                : sectorRepository.findByActiveTrue(resolved);
+        Map<Long, Long> tenantCounts = buildTenantCounts(page.items());
+        List<ActivitySectorSummary> summaries = page.items().stream()
+                .map(sector -> new ActivitySectorSummary(
+                        sector,
+                        tenantCounts.getOrDefault(sector.getId(), 0L)
+                ))
+                .collect(Collectors.toList());
+        return PageResult.of(summaries, page.page(), page.size(), page.totalItems());
     }
 
     public ActivitySector createSector(String label, String description, Boolean active) {

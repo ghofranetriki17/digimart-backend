@@ -1,11 +1,14 @@
 package com.nexashop.infrastructure.persistence.adapter;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.domain.tenant.entity.Tenant;
 import com.nexashop.infrastructure.persistence.jpa.TenantJpaRepository;
 import com.nexashop.infrastructure.persistence.mapper.TenantMapper;
 import com.nexashop.infrastructure.persistence.model.tenant.TenantJpaEntity;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -43,5 +46,18 @@ public class TenantRepositoryAdapter
     @Override
     public List<Tenant> findBySectorIdIn(List<Long> sectorIds) {
         return toDomainList(repository.findBySectorIdIn(sectorIds));
+    }
+
+    @Override
+    public PageResult<Tenant> findAll(PageRequest request) {
+        Page<TenantJpaEntity> page = repository.findAll(
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 }

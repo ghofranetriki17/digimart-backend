@@ -1,5 +1,7 @@
 package com.nexashop.infrastructure.persistence.adapter;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.UserRepository;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.infrastructure.persistence.jpa.UserJpaRepository;
@@ -7,6 +9,7 @@ import com.nexashop.infrastructure.persistence.mapper.UserMapper;
 import com.nexashop.infrastructure.persistence.model.user.UserJpaEntity;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -49,6 +52,20 @@ public class UserRepositoryAdapter
     @Override
     public List<User> findByTenantId(Long tenantId) {
         return toDomainList(repository.findByTenantId(tenantId));
+    }
+
+    @Override
+    public PageResult<User> findByTenantId(PageRequest request, Long tenantId) {
+        Page<UserJpaEntity> page = repository.findByTenantId(
+                tenantId,
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 
     @Override

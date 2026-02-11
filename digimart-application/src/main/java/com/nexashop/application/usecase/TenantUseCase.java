@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
@@ -48,6 +50,12 @@ public class TenantUseCase {
     public List<Tenant> listTenants() {
         currentUserProvider.requireAdminAny();
         return tenantRepository.findAll();
+    }
+
+    public PageResult<Tenant> listTenants(PageRequest request) {
+        currentUserProvider.requireAdminAny();
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        return tenantRepository.findAll(resolved);
     }
 
     public Tenant updateTenant(Long id, Tenant updates) {

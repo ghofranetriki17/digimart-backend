@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.StoreRepository;
@@ -63,6 +65,17 @@ public class StoreUseCase {
             throw new ForbiddenException("Tenant access required");
         }
         return storeRepository.findByTenantId(tenantId);
+    }
+
+    public PageResult<Store> listStores(PageRequest request, Long tenantId) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Long requesterTenantId = currentUser.tenantId();
+        boolean isSuperAdmin = currentUser.hasRole("SUPER_ADMIN");
+        if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
+            throw new ForbiddenException("Tenant access required");
+        }
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        return storeRepository.findByTenantId(resolved, tenantId);
     }
 
     public Store updateStore(

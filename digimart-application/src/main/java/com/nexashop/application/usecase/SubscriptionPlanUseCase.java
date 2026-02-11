@@ -1,5 +1,7 @@
 package com.nexashop.application.usecase;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.exception.*;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PlanFeatureRepository;
@@ -57,6 +59,17 @@ public class SubscriptionPlanUseCase {
         return plans.stream()
                 .map(this::toDetails)
                 .collect(Collectors.toList());
+    }
+
+    public PageResult<PlanDetails> listPlans(PageRequest request, boolean onlyActive) {
+        PageRequest resolved = PageRequest.of(request.page(), request.size());
+        PageResult<SubscriptionPlan> page = onlyActive
+                ? planRepository.findByActiveTrueOrderByNameAsc(resolved)
+                : planRepository.findAll(resolved);
+        List<PlanDetails> details = page.items().stream()
+                .map(this::toDetails)
+                .collect(Collectors.toList());
+        return PageResult.of(details, page.page(), page.size(), page.totalItems());
     }
 
     public PlanDetails getPlan(Long id) {

@@ -1,5 +1,7 @@
 package com.nexashop.infrastructure.persistence.adapter;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.infrastructure.persistence.jpa.PremiumFeatureJpaRepository;
@@ -7,6 +9,7 @@ import com.nexashop.infrastructure.persistence.mapper.BillingMapper;
 import com.nexashop.infrastructure.persistence.model.billing.PremiumFeatureJpaEntity;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -39,5 +42,31 @@ public class PremiumFeatureRepositoryAdapter
     @Override
     public List<PremiumFeature> findByActiveTrueOrderByDisplayOrderAsc() {
         return toDomainList(repository.findByActiveTrueOrderByDisplayOrderAsc());
+    }
+
+    @Override
+    public PageResult<PremiumFeature> findByActiveTrueOrderByDisplayOrderAsc(PageRequest request) {
+        Page<PremiumFeatureJpaEntity> page = repository.findByActiveTrueOrderByDisplayOrderAsc(
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
+    }
+
+    @Override
+    public PageResult<PremiumFeature> findAll(PageRequest request) {
+        Page<PremiumFeatureJpaEntity> page = repository.findAll(
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 }

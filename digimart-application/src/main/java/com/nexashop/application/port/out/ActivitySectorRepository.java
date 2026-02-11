@@ -1,5 +1,7 @@
 package com.nexashop.application.port.out;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import java.util.List;
 import java.util.Optional;
@@ -9,4 +11,8 @@ public interface ActivitySectorRepository extends CrudRepositoryPort<ActivitySec
     Optional<ActivitySector> findByLabelIgnoreCase(String label);
 
     List<ActivitySector> findByActiveTrue();
+
+    PageResult<ActivitySector> findAll(PageRequest request);
+
+    PageResult<ActivitySector> findByActiveTrue(PageRequest request);
 }

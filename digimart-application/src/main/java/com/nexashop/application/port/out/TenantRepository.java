@@ -1,5 +1,7 @@
 package com.nexashop.application.port.out;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.domain.tenant.entity.Tenant;
 import java.util.List;
 
@@ -10,4 +12,6 @@ public interface TenantRepository extends CrudRepositoryPort<Tenant, Long> {
     List<Tenant> findBySectorId(Long sectorId);
 
     List<Tenant> findBySectorIdIn(List<Long> sectorIds);
+
+    PageResult<Tenant> findAll(PageRequest request);
 }

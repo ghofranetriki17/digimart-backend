@@ -2,8 +2,10 @@ package com.nexashop.api.controller.store;
 
 import com.nexashop.api.dto.request.store.CreateStoreRequest;
 import com.nexashop.api.dto.request.store.UpdateStoreRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.store.StoreResponse;
 import com.nexashop.api.util.UploadUtil;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.StoreUseCase;
 import com.nexashop.domain.store.entity.Store;
 import jakarta.validation.Valid;
@@ -80,6 +82,19 @@ public class StoreController {
         return storeUseCase.listStores(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<StoreResponse> listStoresPaged(
+            @RequestParam Long tenantId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                storeUseCase.listStores(request, tenantId),
+                this::toResponse
+        );
     }
 
     @PutMapping("/{id}")

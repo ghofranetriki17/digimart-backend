@@ -1,5 +1,7 @@
 package com.nexashop.infrastructure.persistence.adapter;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.StoreRepository;
 import com.nexashop.domain.store.entity.Store;
 import com.nexashop.infrastructure.persistence.jpa.StoreJpaRepository;
@@ -7,6 +9,7 @@ import com.nexashop.infrastructure.persistence.mapper.StoreMapper;
 import com.nexashop.infrastructure.persistence.model.store.StoreJpaEntity;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -44,6 +47,20 @@ public class StoreRepositoryAdapter
     @Override
     public List<Store> findByTenantId(Long tenantId) {
         return toDomainList(repository.findByTenantId(tenantId));
+    }
+
+    @Override
+    public PageResult<Store> findByTenantId(PageRequest request, Long tenantId) {
+        Page<StoreJpaEntity> page = repository.findByTenantId(
+                tenantId,
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 
     @Override

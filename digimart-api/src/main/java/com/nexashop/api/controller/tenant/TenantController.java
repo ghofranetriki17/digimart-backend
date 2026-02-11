@@ -2,7 +2,10 @@ package com.nexashop.api.controller.tenant;
 
 import com.nexashop.api.dto.request.tenant.CreateTenantRequest;
 import com.nexashop.api.dto.request.tenant.UpdateTenantRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.tenant.TenantResponse;
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.usecase.TenantUseCase;
 import com.nexashop.domain.tenant.entity.Tenant;
 import jakarta.validation.Valid;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -71,6 +75,15 @@ public class TenantController {
         return tenantUseCase.listTenants().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<TenantResponse> listTenantsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageResult<Tenant> result = tenantUseCase.listTenants(PageRequest.of(page, size));
+        return PageResponse.from(result, this::toResponse);
     }
 
     @PutMapping("/{id}")

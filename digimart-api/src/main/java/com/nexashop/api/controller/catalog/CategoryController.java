@@ -3,8 +3,10 @@ package com.nexashop.api.controller.catalog;
 import com.nexashop.api.dto.request.category.CategoryDescriptionAiRequest;
 import com.nexashop.api.dto.request.category.CreateCategoryRequest;
 import com.nexashop.api.dto.request.category.UpdateCategoryRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.category.CategoryDescriptionAiResponse;
 import com.nexashop.api.dto.response.category.CategoryResponse;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.CategoryUseCase;
 import com.nexashop.domain.catalog.entity.Category;
 import jakarta.validation.Valid;
@@ -69,6 +71,21 @@ public class CategoryController {
         return categoryUseCase.listCategories(tenantId, parentId, rootOnly).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<CategoryResponse> listCategoriesPaged(
+            @RequestParam Long tenantId,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(name = "rootOnly", defaultValue = "false") boolean rootOnly,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                categoryUseCase.listCategories(request, tenantId, parentId, rootOnly),
+                this::toResponse
+        );
     }
 
     @PutMapping("/{id}")

@@ -1,5 +1,7 @@
 package com.nexashop.infrastructure.persistence.adapter;
 
+import com.nexashop.application.common.PageRequest;
+import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.domain.tenant.entity.ActivitySector;
 import com.nexashop.infrastructure.persistence.jpa.ActivitySectorJpaRepository;
@@ -7,6 +9,7 @@ import com.nexashop.infrastructure.persistence.mapper.TenantMapper;
 import com.nexashop.infrastructure.persistence.model.tenant.ActivitySectorJpaEntity;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -39,5 +42,31 @@ public class ActivitySectorRepositoryAdapter
     @Override
     public List<ActivitySector> findByActiveTrue() {
         return toDomainList(repository.findByActiveTrue());
+    }
+
+    @Override
+    public PageResult<ActivitySector> findAll(PageRequest request) {
+        Page<ActivitySectorJpaEntity> page = repository.findAll(
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
+    }
+
+    @Override
+    public PageResult<ActivitySector> findByActiveTrue(PageRequest request) {
+        Page<ActivitySectorJpaEntity> page = repository.findByActiveTrue(
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 }

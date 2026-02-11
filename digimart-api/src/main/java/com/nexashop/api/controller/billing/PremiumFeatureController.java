@@ -2,7 +2,9 @@ package com.nexashop.api.controller.billing;
 
 import com.nexashop.api.dto.request.billing.CreatePremiumFeatureRequest;
 import com.nexashop.api.dto.request.billing.UpdatePremiumFeatureRequest;
+import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
+import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.PremiumFeatureUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import jakarta.validation.Valid;
@@ -32,6 +34,19 @@ public class PremiumFeatureController {
         return featureUseCase.list(includeInactive).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/paged")
+    public PageResponse<PremiumFeatureResponse> listPaged(
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "8") int size
+    ) {
+        PageRequest request = PageRequest.of(page, size);
+        return PageResponse.from(
+                featureUseCase.list(request, includeInactive),
+                this::toResponse
+        );
     }
 
     @PostMapping
