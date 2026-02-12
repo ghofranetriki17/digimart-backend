@@ -4,10 +4,12 @@ import com.nexashop.api.dto.request.product.CreateProductRequest;
 import com.nexashop.api.dto.request.product.ProductBulkDeleteRequest;
 import com.nexashop.api.dto.request.product.ProductBulkPriceUpdateRequest;
 import com.nexashop.api.dto.request.product.ProductBulkStatusUpdateRequest;
+import com.nexashop.api.dto.request.product.ProductDescriptionAiRequest;
 import com.nexashop.api.dto.request.product.ProductInventoryRequest;
 import com.nexashop.api.dto.request.product.UpdateProductRequest;
 import com.nexashop.api.dto.request.product.UpdateProductImageOrderRequest;
 import com.nexashop.api.dto.response.PageResponse;
+import com.nexashop.api.dto.response.product.ProductDescriptionAiResponse;
 import com.nexashop.api.dto.response.product.ProductDetailsResponse;
 import com.nexashop.api.dto.response.product.ProductBulkActionResponse;
 import com.nexashop.api.dto.response.product.ProductImportErrorResponse;
@@ -138,6 +140,26 @@ public class ProductController {
                         .changedBy(history.getChangedBy())
                         .build()
         );
+    }
+
+    @PostMapping("/{id}/ai-description")
+    public ProductDescriptionAiResponse suggestProductDescription(
+            @PathVariable Long id,
+            @RequestBody(required = false) ProductDescriptionAiRequest request
+    ) {
+        ProductDescriptionAiRequest resolvedRequest = request == null
+                ? new ProductDescriptionAiRequest()
+                : request;
+        String suggestion = productUseCase.suggestProductDescription(
+                id,
+                resolvedRequest.getLanguage(),
+                resolvedRequest.getMaxSentences(),
+                resolvedRequest.getTone()
+        );
+        return ProductDescriptionAiResponse.builder()
+                .productId(id)
+                .suggestion(suggestion)
+                .build();
     }
 
     @GetMapping
@@ -372,6 +394,21 @@ public class ProductController {
                      .setTrim(true)
                      .build()
                      .parse(reader)) {
+            List<String> missingHeaders = CSV_HEADERS.stream()
+                    .filter((header) -> !parser.getHeaderMap().containsKey(header))
+                    .toList();
+            if (!missingHeaders.isEmpty()) {
+                return ProductImportResponse.builder()
+                        .totalRows(0)
+                        .imported(0)
+                        .failed(1)
+                        .errors(List.of(ProductImportErrorResponse.builder()
+                                .row(0)
+                                .message("CSV non conforme. Exportez le template et remplissez-le. " +
+                                        "Colonnes manquantes: " + String.join(", ", missingHeaders))
+                                .build()))
+                        .build();
+            }
             for (CSVRecord record : parser) {
                 totalRows += 1;
                 int rowNumber = (int) record.getRecordNumber() + 1;

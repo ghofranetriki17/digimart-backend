@@ -187,6 +187,7 @@ public class UseCaseConfig {
     @Bean
     public ProductUseCase productUseCase(
             CurrentUserProvider currentUserProvider,
+            AiTextProvider aiTextProvider,
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
@@ -198,6 +199,7 @@ public class UseCaseConfig {
     ) {
         return new ProductUseCase(
                 currentUserProvider,
+                aiTextProvider,
                 productRepository,
                 productCategoryRepository,
                 productImageRepository,

@@ -4,6 +4,7 @@ import com.nexashop.api.dto.request.auth.LoginRequest;
 import com.nexashop.api.dto.request.auth.RegisterTenantStep1Request;
 import com.nexashop.api.dto.request.auth.RegisterTenantStep2Request;
 import com.nexashop.api.dto.request.permission.CreatePermissionRequest;
+import com.nexashop.api.dto.request.product.CreateProductRequest;
 import com.nexashop.api.dto.request.role.CloneRoleRequest;
 import com.nexashop.api.dto.request.role.UpdateRoleRequest;
 import com.nexashop.api.dto.request.user.CreateUserRequest;
@@ -14,6 +15,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import java.math.BigDecimal;
 import java.util.Set;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -122,5 +124,25 @@ class DtoValidationTest {
         request.setRoles(null);
         Set<ConstraintViolation<UpdateUserRolesRequest>> violations = validator.validate(request);
         assertEquals(0, violations.size());
+    }
+
+    @Test
+    void createProductRequestRequiresNameAndPrices() {
+        CreateProductRequest request = new CreateProductRequest();
+        request.setName("");
+        request.setInitialPrice(null);
+        request.setShippingPrice(null);
+        Set<ConstraintViolation<CreateProductRequest>> violations = validator.validate(request);
+        assertFalse(violations.isEmpty());
+    }
+
+    @Test
+    void createProductRequestValidWhenRequiredFieldsPresent() {
+        CreateProductRequest request = new CreateProductRequest();
+        request.setName("Produit");
+        request.setInitialPrice(BigDecimal.valueOf(10));
+        request.setShippingPrice(BigDecimal.valueOf(2));
+        Set<ConstraintViolation<CreateProductRequest>> violations = validator.validate(request);
+        assertTrue(violations.isEmpty());
     }
 }

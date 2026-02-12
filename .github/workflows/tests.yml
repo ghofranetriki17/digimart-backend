@@ -18,4 +18,6 @@ jobs:
           java-version: '17'
 
       - name: Run backend tests
-        run: ./mvnw -B -pl digimart-api -am test
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -pl digimart-api -am test

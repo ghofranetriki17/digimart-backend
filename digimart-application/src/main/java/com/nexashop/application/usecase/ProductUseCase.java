@@ -6,6 +6,7 @@ import com.nexashop.application.exception.BadRequestException;
 import com.nexashop.application.exception.ConflictException;
 import com.nexashop.application.exception.ForbiddenException;
 import com.nexashop.application.exception.NotFoundException;
+import com.nexashop.application.port.out.AiTextProvider;
 import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.ProductCategoryRepository;
@@ -37,6 +38,7 @@ import java.math.BigDecimal;
 public class ProductUseCase {
 
     private final CurrentUserProvider currentUserProvider;
+    private final AiTextProvider aiTextProvider;
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final ProductImageRepository productImageRepository;
@@ -48,6 +50,7 @@ public class ProductUseCase {
 
     public ProductUseCase(
             CurrentUserProvider currentUserProvider,
+            AiTextProvider aiTextProvider,
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
@@ -58,6 +61,7 @@ public class ProductUseCase {
             StoreRepository storeRepository
     ) {
         this.currentUserProvider = currentUserProvider;
+        this.aiTextProvider = aiTextProvider;
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.productImageRepository = productImageRepository;
@@ -262,6 +266,32 @@ public class ProductUseCase {
         List<ProductImage> images = productImageRepository.findByProductId(product.getId());
         List<ProductStoreInventory> inventories = inventoryRepository.findByProductId(product.getId());
         return new ProductDetails(product, categoryIds, primaryCategoryId, images, inventories);
+    }
+
+    public String suggestProductDescription(
+            Long id,
+            String language,
+            Integer maxSentences,
+            String tone
+    ) {
+        currentUserProvider.requireUser();
+        Product product = getProduct(id);
+        if (product.getName() == null || product.getName().isBlank()) {
+            throw new BadRequestException("Product name is required");
+        }
+        String resolvedLanguage = language == null || language.isBlank() ? "FR" : language.trim();
+        int resolvedMaxSentences = maxSentences == null || maxSentences < 1 ? 2 : Math.min(maxSentences, 4);
+        String resolvedTone = tone == null || tone.isBlank() ? "neutre" : tone.trim();
+        String categoryContext = resolvePrimaryCategoryContext(product.getId());
+        String prompt = buildProductDescriptionPrompt(
+                product.getName(),
+                product.getDescription(),
+                categoryContext,
+                resolvedLanguage,
+                resolvedMaxSentences,
+                resolvedTone
+        );
+        return aiTextProvider.generateText(prompt);
     }
 
     public List<Product> listProducts(Long tenantId) {
@@ -755,5 +785,68 @@ public class ProductUseCase {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
+    }
+
+    private String buildProductDescriptionPrompt(
+            String name,
+            String description,
+            String categoryContext,
+            String language,
+            int maxSentences,
+            String tone
+    ) {
+        String current = description == null || description.isBlank() ? "(vide)" : description.trim();
+        String categoryLine = categoryContext == null || categoryContext.isBlank()
+                ? ""
+                : " Categorie principale: " + categoryContext + ".";
+        return String.format(
+                "Ameliore cette description de produit en %s, %d phrase(s), ton %s. " +
+                        "Ne renvoie que le texte final, sans liste ni titre. " +
+                        "%s Produit: %s. Description actuelle: %s.",
+                language,
+                maxSentences,
+                tone,
+                categoryLine,
+                name,
+                current
+        );
+    }
+
+    private String resolvePrimaryCategoryContext(Long productId) {
+        if (productId == null) {
+            return null;
+        }
+        List<ProductCategory> links = productCategoryRepository.findByProductId(productId);
+        Long primaryId = links.stream()
+                .filter(ProductCategory::isPrimary)
+                .map(ProductCategory::getCategoryId)
+                .findFirst()
+                .orElse(null);
+        if (primaryId == null) {
+            return null;
+        }
+        Category category = categoryRepository.findById(primaryId).orElse(null);
+        if (category == null || category.getName() == null) {
+            return null;
+        }
+        return buildCategoryPath(category);
+    }
+
+    private String buildCategoryPath(Category category) {
+        List<String> parts = new ArrayList<>();
+        Category current = category;
+        int guard = 0;
+        while (current != null && guard < 10) {
+            if (current.getName() != null && !current.getName().isBlank()) {
+                parts.add(0, current.getName().trim());
+            }
+            Long parentId = current.getParentCategoryId();
+            if (parentId == null) {
+                break;
+            }
+            current = categoryRepository.findById(parentId).orElse(null);
+            guard += 1;
+        }
+        return parts.isEmpty() ? null : String.join(" > ", parts);
     }
 }

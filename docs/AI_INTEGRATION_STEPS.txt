@@ -90,3 +90,26 @@ Notes for jury/encadreur (accurate)
 - Missing provider or key => DisabledAiTextProvider => 502.
 - Category AI is feature-gated by plan (AI_DESCRIPTION_GENERATION).
 - Generic AI endpoint still requires authentication (requireUser).
+
+Product AI description (FRONTEND only, same API as category)
+-----------------------------------------------------------
+What was added:
+- UI block in product form (Assistant IA + language/phrases/tone)
+  File: nexashop-frontend/src/components/organisms/ProductFormModal/ProductFormModal.jsx
+- Call API: POST /api/products/{id}/ai-description
+  File: nexashop-frontend/src/pages/catalog/ProductsPage.jsx
+- CSS styles for the AI block + locked modal
+  File: nexashop-frontend/src/pages/catalog/ProductsPage.css
+
+Behavior (matching current code):
+- Requires product to be saved (editingId) before calling AI.
+- Button disabled when plan does NOT include AI Description Generation.
+- "Voir conditions" opens the lock modal with eligible plans.
+- Response field: { "suggestion": "..." } is written into description.
+- Feature gating is done ONLY in frontend (backend not modified).
+
+How to test quickly:
+1) Create product (save once).
+2) Open edit form -> click "Generer".
+3) Description should update with AI suggestion.
+4) If plan lacks feature: button shows "IA verrouillee" + modal with plans.
