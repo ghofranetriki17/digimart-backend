@@ -50,6 +50,7 @@ Frontend:
 - Dropzone + preview.
 - Reorder en local (drag + up/down), puis 1 call pour sauvegarde.
 - La 1ere image = primary.
+- Bouton supprimer image (DELETE). Si image existante, re-sauvegarde l'ordre restant pour recalculer le primary.
 
 3) STOCK PAR MAGASIN (INVENTORY)
 --------------------------------
@@ -213,6 +214,9 @@ form-data -> file: image.png
 5) Reorder images:
 PUT http://localhost:8080/api/products/1/images/order
 Body: {"imageIds":[12,14,15]}
+
+5b) Supprimer image:
+DELETE http://localhost:8080/api/products/1/images/12
 
 6) Historique prix:
 GET http://localhost:8080/api/products/1/price-history?page=0&size=20

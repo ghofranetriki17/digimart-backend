@@ -1,54 +1,60 @@
-DIGIMART — AI INTEGRATION STEPS (GEMINI)
+DIGIMART - AI INTEGRATION STEPS (GEMINI)
 =======================================
 
 Purpose
 -------
-Reusable AI text generation for many features (categories, products, stores, marketing).
+Reusable AI text generation for multiple features (categories now, products later).
 
-What we implemented
--------------------
-1) Application port (clean arch):
+What we implemented (100% matching code)
+---------------------------------------
+1) Application port (clean arch)
    - AiTextProvider (application port/out)
      File: digimart-application/src/main/java/com/nexashop/application/port/out/AiTextProvider.java
 
-2) Infrastructure adapter (Gemini):
-   - GeminiAiTextProvider uses HTTP + JSON to call Gemini
+2) Infrastructure adapter (Gemini)
+   - GeminiAiTextProvider (HTTP + JSON)
      File: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/ai/GeminiAiTextProvider.java
-   - DisabledAiTextProvider returns a clean error when no key is set
+   - DisabledAiTextProvider throws ExternalServiceException when provider or key is missing
      File: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/ai/DisabledAiTextProvider.java
 
-3) API config:
-   - AiConfig wires AiTextProvider and loads GEMINI_API_KEY
+3) API config + wiring
+   - AiConfig selects provider and reads config
      File: digimart-api/src/main/java/com/nexashop/api/config/AiConfig.java
-   - app properties:
-     File: digimart-api/src/main/resources/application.properties
-       ai.provider=gemini
-       ai.gemini.api-key=${GEMINI_API_KEY}
+   - Properties (defaults):
+     ai.provider=gemini
+     ai.gemini.api-key=${GEMINI_API_KEY}
+     ai.gemini.model=gemini-2.5-flash
+     ai.gemini.base-url=https://generativelanguage.googleapis.com
 
-4) Exception mapping:
+4) Exception mapping
    - ExternalServiceException -> 502 Bad Gateway
      File: digimart-api/src/main/java/com/nexashop/api/exception/GlobalExceptionHandler.java
 
-5) Category integration:
-   - CategoryUseCase builds the prompt and calls AiTextProvider
-     File: digimart-application/src/main/java/com/nexashop/application/usecase/CategoryUseCase.java
-     Method: buildCategoryDescriptionPrompt(...)
-   - API endpoint:
-     POST /api/categories/{id}/ai-description
+5) Category AI integration (feature-gated)
+   - CategoryUseCase builds prompt and calls AiTextProvider
+   - Feature gate: AI_DESCRIPTION_GENERATION
+     - Enforced for non SUPER_ADMIN
+     - Uses TenantSubscription + PlanFeature + PremiumFeature
+   File: digimart-application/src/main/java/com/nexashop/application/usecase/CategoryUseCase.java
+   Endpoint:
+   - POST /api/categories/{id}/ai-description
      File: digimart-api/src/main/java/com/nexashop/api/controller/catalog/CategoryController.java
-   - Frontend button:
-     Categories modal -> "Generer avec IA"
-     File: C:/Dev/nexashop-frontend/src/pages/catalog/CategoriesPage.jsx
 
-6) Generic AI endpoint (for reuse):
-   - Use case:
-     AiTextUseCase (requires authenticated user)
+6) Generic AI endpoint
+   - Use case: AiTextUseCase (requires authenticated user)
      File: digimart-application/src/main/java/com/nexashop/application/usecase/AiTextUseCase.java
    - API endpoint:
      POST /api/ai/text
      Request: { "prompt": "..." }
      Response: { "text": "..." }
      File: digimart-api/src/main/java/com/nexashop/api/controller/ai/AiController.java
+
+How Gemini is called (exact behavior)
+------------------------------------
+- Endpoint: {baseUrl}/v1beta/models/{model}:generateContent
+- Header: x-goog-api-key: <GEMINI_API_KEY>
+- Payload: { "contents": [ { "parts": [ { "text": "<prompt>" } ] } ] }
+- Timeout: 30s
 
 How to configure the API key
 ----------------------------
@@ -57,12 +63,10 @@ Option A (PowerShell):
   ./mvnw -pl digimart-api -am spring-boot:run
 
 Option B (VS Code launch.json):
-  File: .vscode/launch.json
-  Set:
-    "env": { "GEMINI_API_KEY": "YOUR_KEY" }
+  "env": { "GEMINI_API_KEY": "YOUR_KEY" }
 
-Test endpoints
---------------
+Test endpoints (Thunder/cURL)
+-----------------------------
 1) Category AI:
   POST /api/categories/{id}/ai-description
   Body:
@@ -79,197 +83,10 @@ Test endpoints
     "prompt": "Ameliore cette description en FR: ..."
   }
 
-How to reuse for other features
--------------------------------
-Example: Product description
-1) Build a prompt in your ProductUseCase or API controller:
-   "Ameliore la description du produit: <name> ..."
-2) Call AiTextUseCase.generateText(prompt) or /api/ai/text.
-3) Return the suggestion to the UI and let the user apply it.
-
-Notes for jury/encadreur
-------------------------
-- Clean architecture respected:
-  Application defines the port; Infrastructure provides the adapter.
-- AI calls are centralized in AiTextProvider and AiTextUseCase.
-- External API errors return 502 with a clear message.
-- The API key never lives in code; it is injected via environment variable.
-I'll explain the AI integration architecture so you can confidently answer your encadrant's questions.
-
-## Core Architecture (Clean Architecture Pattern)
-
-**1. The Port-Adapter Pattern**
-
-```
-Application Layer (Core Business)
-        ↓ defines
-   AiTextProvider (interface/port)
-        ↑ implements
-Infrastructure Layer (External Details)
-   GeminiAiTextProvider (adapter)
-```
-
-**Why this matters**: Your business logic doesn't depend on Gemini specifically. Tomorrow you could swap to OpenAI, Claude, or a local model by just creating a new adapter implementing `AiTextProvider`.
-
-## Key Components Explained
-
-### 1. **AiTextProvider Interface (Port)**
-```java
-public interface AiTextProvider {
-    String generateText(String prompt);
-}
-```
-- **Location**: Application layer (core domain)
-- **Purpose**: Defines WHAT the application needs (generate text) without caring HOW
-- **Benefit**: Business logic stays independent of external services
-
-### 2. **GeminiAiTextProvider (Adapter)**
-```java
-public class GeminiAiTextProvider implements AiTextProvider {
-    // HTTP client, JSON parsing, Gemini API specifics
-}
-```
-- **Location**: Infrastructure layer
-- **Does**: 
-  - Builds JSON payload for Gemini API
-  - Makes HTTP POST to `generativelanguage.googleapis.com`
-  - Parses response and extracts text
-  - Handles errors (timeout, invalid response, HTTP errors)
-
-### 3. **DisabledAiTextProvider (Fallback)**
-```java
-public class DisabledAiTextProvider implements AiTextProvider {
-    public String generateText(String prompt) {
-        throw new ExternalServiceException("AI provider not configured");
-    }
-}
-```
-- **Purpose**: Graceful degradation when no API key is configured
-- **Returns**: Clean 502 error instead of crashing
-
-### 4. **AiConfig (Dependency Injection)**
-```java
-@Bean
-public AiTextProvider aiTextProvider(...) {
-    if (apiKey missing) return new DisabledAiTextProvider(...);
-    return new GeminiAiTextProvider(apiKey, model, baseUrl);
-}
-```
-- **Decides**: Which implementation to inject based on configuration
-- **Reads**: Environment variable `GEMINI_API_KEY` or application.properties
-
-## How It Works End-to-End
-
-**Example: Generating a category description**
-
-1. **Frontend**: User clicks "Générer avec IA" button
-2. **API Controller**: Receives `POST /api/categories/123/ai-description`
-3. **CategoryUseCase**: 
-   ```java
-   String prompt = buildCategoryDescriptionPrompt(
-       "Electronics",    // category name
-       "Old description",
-       "FR",            // language
-       2,               // max sentences
-       "neutre"         // tone
-   );
-   return aiTextProvider.generateText(prompt);
-   ```
-4. **GeminiAiTextProvider**: 
-   - Builds JSON: `{"contents":[{"parts":[{"text":"Améliore..."}]}]}`
-   - Calls Gemini API
-   - Parses response: `candidates[0].content.parts[0].text`
-5. **Response**: Returns suggestion to frontend
-6. **User**: Can accept/reject/modify the AI suggestion
-
-## Security & Configuration
-
-**API Key Management**:
-```properties
-# application.properties
-ai.gemini.api-key=${GEMINI_API_KEY:}
-```
-- `:` means "use environment variable, fallback to empty"
-- Never hardcoded in source control
-- Set via: `export GEMINI_API_KEY="your-key"` or IDE environment variables
-
-**Error Handling**:
-```java
-@ExceptionHandler(ExternalServiceException.class)
-public ResponseEntity handleExternalService(ExternalServiceException ex) {
-    return 502 BAD_GATEWAY; // Clear distinction from app errors
-}
-```
-
-## Reusability Design
-
-You created **two ways** to use AI:
-
-### Option A: Domain-Specific (Category)
-```
-POST /api/categories/123/ai-description
-{
-  "language": "FR",
-  "maxSentences": 2,
-  "tone": "neutre"
-}
-```
-- **Pro**: Business logic controls prompt engineering
-- **Use**: When each feature needs specific prompt structure
-
-### Option B: Generic Endpoint
-```
-POST /api/ai/text
-{
-  "prompt": "Améliore cette description..."
-}
-```
-- **Pro**: Maximum flexibility
-- **Use**: For quick prototyping or frontend-controlled prompts
-
-**To add AI to products tomorrow**:
-```java
-public class ProductUseCase {
-    private final AiTextProvider aiTextProvider; // Inject same provider
-    
-    public String suggestProductDescription(Product p) {
-        String prompt = "Améliore le produit " + p.getName() + "...";
-        return aiTextProvider.generateText(prompt);
-    }
-}
-```
-
-## Questions Your Encadrant Might Ask
-
-**Q: Why not call Gemini directly in the controller?**  
-A: Violates clean architecture. Business logic would depend on infrastructure details. Testing would require real API calls.
-
-**Q: How do you test this without using API credits?**  
-A: Create a `MockAiTextProvider` that returns dummy text. Inject it in tests instead of Gemini.
-
-**Q: What if Gemini is down?**  
-A: `ExternalServiceException` → 502 error. User sees clear message. App continues working for other features.
-
-**Q: Why not use a library like LangChain?**  
-A: Direct HTTP keeps dependencies minimal, gives full control, and meets current needs. Libraries add complexity only justified for advanced features (embeddings, RAG, chaining).
-
-**Q: How does the prompt engineering work?**  
-A: `buildCategoryDescriptionPrompt()` creates structured prompts:
-```
-"Améliore cette description de catégorie en FR, 2 phrase(s), ton neutre. 
-Ne renvoie que le texte final, sans liste ni titre. 
-Catégorie: Electronics. Description actuelle: Old text."
-```
-Clear instructions → better AI output quality.
-
-**Q: What's your API cost strategy?**  
-A: Gemini 2.5 Flash is free tier eligible. For production, add rate limiting in `AiTextProvider` or use caching for common prompts.
-
----
-
-**Key Points to Emphasize**:
-1. ✅ Clean separation of concerns (domain vs infrastructure)
-2. ✅ Easy to swap AI providers
-3. ✅ Secure configuration (no hardcoded keys)
-4. ✅ Graceful error handling
-5. ✅ Reusable across features (categories, products, stores...)
+Notes for jury/encadreur (accurate)
+-----------------------------------
+- Clean architecture respected (port in application, adapter in infrastructure).
+- AI calls centralized in AiTextProvider + AiTextUseCase.
+- Missing provider or key => DisabledAiTextProvider => 502.
+- Category AI is feature-gated by plan (AI_DESCRIPTION_GENERATION).
+- Generic AI endpoint still requires authentication (requireUser).

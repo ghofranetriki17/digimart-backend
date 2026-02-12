@@ -8,12 +8,16 @@ Scope V1
 - Images produit (upload)
 - Stock global OU stock par magasin
 - Pagination (liste /paged)
+- Import/Export CSV (produits uniquement)
+- Actions bulk (prix, statut, suppression)
+- Historique prix + indicateur stock bas
 
 Logic & Rules
 -------------
 1) Slug
    - Si slug vide => derive du nom (slugify)
    - Unique par tenant (tenant_id + slug)
+   - Si nom repete, suffixe auto (ex: "produit-2")
 
 2) SKU
    - Unique par tenant si fourni
@@ -30,10 +34,26 @@ Logic & Rules
    - Inventory rows: {storeId, quantity, lowStockThreshold, activeInStore}
    - Si trackStock passe a false, on supprime les inventaires existants
 
-5) Images
+5) Disponibilite
+   - status: ACTIVE | HIDDEN | OUT_OF_STOCK
+   - availability: IN_STOCK | ON_ORDER | PRE_ORDER
+   - availabilityText:
+     - IN_STOCK / ON_ORDER -> message libre
+     - PRE_ORDER -> date/heure (datetime-local)
+   - Validation:
+     - PRE_ORDER + status ACTIVE => date obligatoire
+     - OUT_OF_STOCK => date non obligatoire
+
+6) Pricing
+   - finalPrice <= initialPrice (sinon erreur claire)
+   - Marge affichee en front: (finalPrice ou initialPrice) + shippingPrice - costPrice - shippingCostPrice
+
+7) Images
    - Upload via /api/products/{id}/images (multipart)
-   - Formats: PNG, JPG, WEBP, GIF (max 5MB)
+   - Formats: PNG, JPG, WEBP, GIF (max 10MB)
    - Si aucune image existante => 1ere image devient "primary"
+   - Reorder via /api/products/{id}/images/order
+   - Delete via /api/products/{id}/images/{imageId}
 
 Tables (Hibernate auto)
 -----------------------
@@ -41,6 +61,7 @@ Tables (Hibernate auto)
 - product_categories (tenant_id + product_id + category_id UNIQUE)
 - product_images
 - product_store_inventory (tenant_id + product_id + store_id UNIQUE)
+- product_price_history
 
 Backend - Endpoints
 -------------------
@@ -48,11 +69,19 @@ POST   /api/products
 GET    /api/products?tenantId=1
 GET    /api/products/paged?tenantId=1&page=0&size=8
 GET    /api/products/{id}
+GET    /api/products/{id}/price-history?page=0&size=20
 PUT    /api/products/{id}
 DELETE /api/products/{id}
 POST   /api/products/{id}/images   (multipart)
 GET    /api/products/{id}/images
+PUT    /api/products/{id}/images/order
 DELETE /api/products/{id}/images/{imageId}
+PUT    /api/products/bulk/pricing
+PUT    /api/products/bulk/status
+DELETE /api/products/bulk
+GET    /api/products/export?tenantId=1
+GET    /api/products/export/template
+POST   /api/products/import?tenantId=1 (multipart)
 
 Thunder Client - Tests
 ----------------------
@@ -99,10 +128,21 @@ Body (JSON):
   ]
 }
 
-4) List products (paged)
+4) Reorder images
+PUT /api/products/{id}/images/order
+Body (JSON):
+{ "imageIds": [12, 14, 15] }
+
+5) Delete image
+DELETE /api/products/{id}/images/{imageId}
+
+6) List products (paged)
 GET /api/products/paged?tenantId=1&page=0&size=8
 
-5) Delete product
+7) Price history
+GET /api/products/{id}/price-history?page=0&size=20
+
+8) Delete product
 DELETE /api/products/{id}
 
 Frontend - Integration Steps
@@ -113,6 +153,7 @@ Frontend - Integration Steps
 
 2) Add ProductCard molecule
    - src/components/molecules/ProductCard/*
+   - Badge stock bas + prix le plus bas
 
 3) Wire navigation
    - Add "products" in TenantSidebar
@@ -122,9 +163,11 @@ Frontend - Integration Steps
    - Stock global if trackStock = false
    - Stock par magasin if trackStock = true
    - Upload images after create/update
+   - Reorder + delete images dans le wizard
+   - Historique prix: onglet dans le detail produit
 
 Notes
 -----
 - Pagination uses /paged endpoints and size default = 8.
-- Search fetches full list and hides pagination.
+- Search est pagine (pas de filtrage local).
 - Images are stored under /uploads/products.

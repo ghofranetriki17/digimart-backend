@@ -1,390 +1,786 @@
-Current Class Diagram (Domain + Standalone Billing) - updated 2026-02-05
-==============================
+Current Class Diagram (Domain + Billing + Catalog)
+===============================================
 
 Mermaid (classDiagram)
 ----------------------
 classDiagram
-  direction TB
+direction TB
+    class ActivitySector {
+        ~~ [EXISTING]
+        +Long id PK
+        +String label UNIQUE
+        +String description
+        +boolean active
+    }
 
-  %% ========================================
-  %% EXISTING - Core Multi-Tenant
-  %% ========================================
+    class Tenant {
+        ~~ [EXISTING]
+        +Long id PK
+        +String name
+        +String subdomain UNIQUE
+        +String contactEmail
+        +String contactPhone
+        +String logoUrl
+        +TenantStatus status
+        +Locale defaultLocale
+        +Long sectorId FK
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
 
-  class ActivitySector {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +String label UNIQUE
-    +String description
-    +boolean active
-  }
-  style ActivitySector fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class TenantStatus {
+        ~~ [EXISTING]
+        ACTIVE
+        SUSPENDED
+        TRIAL
+        EXPIRED
+    }
 
-  class Tenant {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +String name
-    +String subdomain UNIQUE
-    +String contactEmail
-    +String contactPhone
-    +String logoUrl
-    +TenantStatus status
-    +Locale defaultLocale
-    +Long sectorId FK
-    +LocalDateTime createdAt
-    +LocalDateTime updatedAt
-  }
-  style Tenant fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:4px
+    class Store {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +String name
+        +String code
+        +String address
+        +String city
+        +String postalCode
+        +String country
+        +String phone
+        +String email
+        +boolean active
+    }
 
-  class TenantStatus {
-    <<enum>> [EXISTING]
-    ACTIVE
-    SUSPENDED
-    TRIAL
-    EXPIRED
-  }
-  style TenantStatus fill:#3F51B5,stroke:#1A237E,color:#fff
+    class User {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +String passwordHash
+        +String firstName
+        +String lastName
+        +String phone
+        +String imageUrl
+        +boolean enabled
+        +LocalDateTime lastLogin
+        +String email UNIQUE
+    }
 
-  class Store {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +String name
-    +String code
-    +String address
-    +String city
-    +String postalCode
-    +String country
-    +String phone
-    +String email
-    +boolean active
-  }
-  style Store fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class RefreshToken {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +Long userId FK
+        +String tokenHash
+        +LocalDateTime expiresAt
+        +LocalDateTime revokedAt
+        +String deviceInfo
+    }
 
-  class User {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +String email UNIQUE(tenant)
-    +String passwordHash
-    +String firstName
-    +String lastName
-    +String phone
-    +String imageUrl
-    +boolean enabled
-    +LocalDateTime lastLogin
-  }
-  style User fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class Role {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +String label
+        +boolean systemRole
+        +String code UNIQUE(tenant)
+    }
 
-  class RefreshToken {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +Long userId FK
-    +String tokenHash
-    +LocalDateTime expiresAt
-    +LocalDateTime revokedAt
-  }
-  style RefreshToken fill:#3F51B5,stroke:#1A237E,color:#fff
+    class Permission {
+        ~~ [EXISTING]
+        +Long id PK
+        +String code UNIQUE
+        +String domain
+        +String description
+    }
 
-  class Role {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +String code UNIQUE(tenant)
-    +String label
-    +boolean systemRole
-  }
-  style Role fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class UserRoleAssignment {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +Long userId FK
+        +Long roleId FK
+    }
 
-  class Permission {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +String code UNIQUE
-    +String domain
-    +String description
-  }
-  style Permission fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class RolePermission {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +Long roleId FK
+        +Long permissionId FK
+    }
 
-  class UserRoleAssignment {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +Long userId FK
-    +Long roleId FK
-  }
-  style UserRoleAssignment fill:#3F51B5,stroke:#1A237E,color:#fff
+    class AuditEvent {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +String entityType
+        +Long entityId
+        +AuditAction action
+        +String beforeJson
+        +String afterJson
+        +Long actorUserId FK
+        +String ipAddress
+        +String userAgent
+        +String correlationId
+        +LocalDateTime occurredAt
+    }
 
-  class RolePermission {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +Long roleId FK
-    +Long permissionId FK
-  }
-  style RolePermission fill:#3F51B5,stroke:#1A237E,color:#fff
+    class AuditAction {
+        ~~ [EXISTING]
+        CREATE
+        UPDATE
+        DELETE
+        STATUS_CHANGE
+    }
 
-  class AuditEvent {
-    <<entity>> [EXISTING]
-    +Long id PK
-    +Long tenantId FK
-    +String entityType
-    +Long entityId
-    +AuditAction action
-    +String beforeJson
-    +String afterJson
-    +Long actorUserId FK
-    +LocalDateTime occurredAt
-  }
-  style AuditEvent fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    class Locale {
+        ~~ [EXISTING]
+        FR
+        AR
+        EN
+    }
 
-  class AuditAction {
-    <<enum>> [EXISTING]
-    CREATE
-    UPDATE
-    DELETE
-    STATUS_CHANGE
-  }
-  style AuditAction fill:#3F51B5,stroke:#1A237E,color:#fff
+    class Category {
+        ~~ [EXISTING - CATALOG]
+        +Long id PK
+        +Long tenantId FK
+        +String name
+        +String slug UNIQUE(tenant)
+        +String description
+        +Long parentCategoryId FK
+        +Integer displayOrder
+        +boolean active
+        +Long createdBy FK
+        +Long updatedBy FK
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
 
-  class Locale {
-    <<enum>> [EXISTING]
-    FR
-    AR
-    EN
-  }
-  style Locale fill:#9E9E9E,stroke:#424242,color:#fff
+    class Product {
+        ~~ [NEW - CATALOG]
+        +Long id PK
+        +Long tenantId FK
+        +String name
+        +String slug UNIQUE(tenant)
+        +String sku UNIQUE(tenant)
+        +String description
+        +BigDecimal initialPrice
+        +BigDecimal finalPrice
+        +BigDecimal costPrice
+        +BigDecimal shippingPrice
+        +BigDecimal shippingCostPrice
+        +boolean trackStock
+        +Integer stockQuantity
+        +Integer lowStockThreshold
+        +ProductStatus status
+        +ProductAvailability availability
+        +String availabilityText
+        +boolean showLowestPrice
+        +Long createdBy FK
+        +Long updatedBy FK
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
 
-  %% ========================================
-  %% NEW - Standalone Billing System
-  %% ========================================
+    class ProductStatus {
+        ~~ [NEW]
+        ACTIVE
+        HIDDEN
+        OUT_OF_STOCK
+    }
 
-  class PlatformConfig {
-    <<entity>> [NEW]
-    +Long id PK
-    +String configKey UNIQUE
-    +String configValue
-    +String description
-    +LocalDateTime updatedAt
-    +Long updatedBy FK
-  }
-  style PlatformConfig fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+    class ProductAvailability {
+        ~~ [NEW]
+        IN_STOCK
+        ON_ORDER
+        PRE_ORDER
+    }
 
-  class TenantWallet {
-    <<entity>> [NEW]
-    +Long id PK
-    +Long tenantId FK UNIQUE
-    +BigDecimal balance
-    +String currency
-    +WalletStatus status
-    +LocalDateTime lastTransactionAt
-    +LocalDateTime createdAt
-    +LocalDateTime updatedAt
-  }
-  style TenantWallet fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+    class ProductCategory {
+        ~~ [NEW - JUNCTION TABLE]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +Long categoryId FK
+        +boolean primary
+        +Integer displayOrder
+        +Long createdBy FK
+        +LocalDateTime createdAt
+        ---
+        UNIQUE(tenantId,productId,categoryId)
+    }
 
-  class WalletStatus {
-    <<enum>> [NEW]
-    ACTIVE
-    SUSPENDED
-    FROZEN
-  }
-  style WalletStatus fill:#FF6F00,stroke:#E65100,color:#fff
+    class ProductImage {
+        ~~ [NEW]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +String imageUrl
+        +String altText
+        +Integer displayOrder
+        +boolean primary
+    }
 
-  class WalletTransaction {
-    <<entity>> [NEW]
-    +Long id PK
-    +Long tenantId FK
-    +Long walletId FK
-    +WalletTxnType type
-    +BigDecimal amount
-    +BigDecimal balanceBefore
-    +BigDecimal balanceAfter
-    +String reason
-    +String reference
-    +Long processedBy FK
-    +LocalDateTime transactionDate
-    +LocalDateTime createdAt
-  }
-  style WalletTransaction fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:3px
+    class ProductStoreInventory {
+        ~~ [NEW]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +Long storeId FK
+        +Integer quantity
+        +Integer lowStockThreshold
+        +boolean activeInStore
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+        ---
+        UNIQUE(tenantId,productId,storeId)
+    }
 
-  class WalletTxnType {
-    <<enum>> [NEW]
-    INITIAL_CREDIT
-    MANUAL_CREDIT
-    MANUAL_DEBIT
-    ADJUSTMENT
-    REFUND
-  }
-  style WalletTxnType fill:#FF6F00,stroke:#E65100,color:#fff
+    class ProductPriceHistory {
+        ~~ [NEW]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +BigDecimal initialPrice
+        +BigDecimal finalPrice
+        +LocalDateTime changedAt
+        +Long changedBy FK
+    }
 
-  class PremiumFeature {
-    <<entity>> [NEW - SEEDED]
-    +Long id PK
-    +String code UNIQUE
-    +String name
-    +String description
-    +String category
-    +boolean active
-    +Integer displayOrder
-    +LocalDateTime createdAt
-  }
-  style PremiumFeature fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    class PlatformConfig {
+        ~~ [EXISTING]
+        +Long id PK
+        +String configKey UNIQUE
+        +String configValue
+        +String description
+        +LocalDateTime updatedAt
+        +Long updatedBy FK
+        ---
+        Examples:
+        - COMMISSION_PERCENTAGE = "2.5"
+        - INITIAL_WALLET_BALANCE = "500"
+        - LOW_BALANCE_THRESHOLD = "50"
+        - DEFAULT_CURRENCY = "TND"
+    }
 
-  class FeatureCategory {
-    <<enum>> [NEW]
-    ANALYTICS
-    SALES
-    MARKETING
-    TECHNICAL
-    SUPPORT
-  }
-  style FeatureCategory fill:#9C27B0,stroke:#4A148C,color:#fff
+    class TenantWallet {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK UNIQUE
+        +BigDecimal balance
+        +String currency
+        +WalletStatus status
+        +LocalDateTime lastTransactionAt
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
 
-  class SubscriptionPlan {
-    <<entity>> [NEW - ADMIN]
-    +Long id PK
-    +String code UNIQUE
-    +String name
-    +String description
-    +BigDecimal price
-    +String currency
-    +BillingCycle billingCycle
-    +BigDecimal discountPercentage
-    +boolean isStandard
-    +boolean isActive
-    +LocalDateTime startDate
-    +LocalDateTime endDate
-    +Long createdBy FK
-    +LocalDateTime createdAt
-    +LocalDateTime updatedAt
-  }
-  style SubscriptionPlan fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    class WalletStatus {
+        ~~ [EXISTING]
+        ACTIVE
+        SUSPENDED
+        FROZEN
+    }
 
-  class BillingCycle {
-    <<enum>> [NEW]
-    MONTHLY
-    QUARTERLY
-    YEARLY
-    ONE_TIME
-  }
-  style BillingCycle fill:#9C27B0,stroke:#4A148C,color:#fff
+    class WalletTransaction {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +Long walletId FK
+        +WalletTxnType type
+        +BigDecimal amount
+        +BigDecimal balanceBefore
+        +BigDecimal balanceAfter
+        +String reason
+        +String reference
+        +Long processedBy FK
+        +LocalDateTime transactionDate
+        +LocalDateTime createdAt
+    }
 
-  class PlanFeature {
-    <<entity>> [NEW - JUNCTION]
-    +Long id PK
-    +Long planId FK
-    +Long featureId FK
-    +LocalDateTime createdAt
-  }
-  style PlanFeature fill:#9C27B0,stroke:#4A148C,color:#fff
+    class WalletTxnType {
+        ~~ [EXISTING]
+        INITIAL_CREDIT
+        MANUAL_CREDIT
+        MANUAL_DEBIT
+        ADJUSTMENT
+        REFUND
+    }
 
-  class TenantSubscription {
-    <<entity>> [NEW]
-    +Long id PK
-    +Long tenantId FK
-    +Long planId FK
-    +SubscriptionStatus status
-    +LocalDateTime startDate
-    +LocalDateTime endDate
-    +LocalDateTime nextBillingDate
-    +BigDecimal pricePaid
-    +String paymentReference
-    +Long activatedBy FK
-    +LocalDateTime activatedAt
-    +LocalDateTime cancelledAt
-    +String cancellationReason
-    +LocalDateTime createdAt
-    +LocalDateTime updatedAt
-  }
-  style TenantSubscription fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    class PremiumFeature {
+        ~~ [EXISTING - SEEDED BY DEVS]
+        +Long id PK
+        +String code UNIQUE
+        +String name
+        +String description
+        +FeatureCategory category
+        +boolean active
+        +Integer displayOrder
+        +LocalDateTime createdAt
+        ---
+        - ADVANCED_ANALYTICS
+        - MULTI_STORE
+        - CUSTOM_THEMES
+        - API_ACCESS
+        - BULK_OPERATIONS
+        - PRIORITY_SUPPORT
+        - CUSTOM_DOMAIN
+        - LOYALTY_PROGRAM
+        - AI_DESCRIPTION_GENERATION
+        Examples(seeded) :
+    }
 
-  class SubscriptionStatus {
-    <<enum>> [NEW]
-    ACTIVE
-    PENDING_ACTIVATION
-    EXPIRED
-    CANCELLED
-    SUSPENDED
-  }
-  style SubscriptionStatus fill:#9C27B0,stroke:#4A148C,color:#fff
+    class FeatureCategory {
+        ~~ [EXISTING]
+        ANALYTICS
+        SALES
+        MARKETING
+        TECHNICAL
+        SUPPORT
+    }
 
-  class SubscriptionHistory {
-    <<entity>> [NEW - AUDIT]
-    +Long id PK
-    +Long tenantId FK
-    +Long subscriptionId FK
-    +Long oldPlanId FK
-    +Long newPlanId FK
-    +SubscriptionAction action
-    +String notes
-    +Long performedBy FK
-    +LocalDateTime performedAt
-  }
-  style SubscriptionHistory fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:3px
+    class SubscriptionPlan {
+        ~~ [EXISTING - CREATED BY ADMIN]
+        +Long id PK
+        +String code UNIQUE
+        +String name
+        +String description
+        +BigDecimal price
+        +String currency
+        +BillingCycle billingCycle
+        +BigDecimal discountPercentage
+        +boolean standard
+        +boolean active
+        +LocalDateTime startDate
+        +LocalDateTime endDate
+        +Long createdBy FK
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+        ---
+        Standard Plan:
+        - code: "STANDARD"
+        - standard: true
+        - price: 0
+        - Commission-based only
+    }
 
-  class SubscriptionAction {
-    <<enum>> [NEW]
-    CREATED
-    ACTIVATED
-    UPGRADED
-    DOWNGRADED
-    RENEWED
-    CANCELLED
-    SUSPENDED
-    EXPIRED
-  }
-  style SubscriptionAction fill:#9C27B0,stroke:#4A148C,color:#fff
+    class BillingCycle {
+        ~~ [EXISTING]
+        MONTHLY
+        QUARTERLY
+        YEARLY
+        ONE_TIME
+    }
 
-  %% ============================
-  %% EXISTING RELATIONS
-  %% ============================
-  Tenant "many" --> "1" ActivitySector : belongsTo
-  Tenant "1" --o "0..*" Store : owns
-  Tenant "1" --o "0..*" User : has
-  User "1" --o "0..*" RefreshToken : tokens
-  Tenant "1" --o "0..*" Role : roles
-  Tenant "1" --o "0..*" RolePermission : rolePermissions
-  Tenant "1" --o "0..*" UserRoleAssignment : assignments
-  User "1" --o "0..*" UserRoleAssignment : assigned
-  Role "1" --o "0..*" UserRoleAssignment : has
-  Role "1" --o "0..*" RolePermission : grants
-  Permission "1" --o "0..*" RolePermission : usedBy
-  User "1" --o "0..*" AuditEvent : actor
-  Tenant "1" --> "1" TenantStatus : status
+    class PlanFeature {
+        ~~ [EXISTING - JUNCTION TABLE]
+        +Long id PK
+        +Long planId FK
+        +Long featureId FK
+        +LocalDateTime createdAt
+        ---
+        Links plans to features
+        UNIQUE(planId, featureId)
+    }
 
-  %% ============================
-  %% NEW BILLING RELATIONS
-  %% ============================
-  %% Wallet System
-  Tenant "1" --o "1" TenantWallet : hasWallet
-  TenantWallet "1" --> "1" WalletStatus : status
-  TenantWallet "1" --o "0..*" WalletTransaction : transactions
-  WalletTransaction "1" --> "1" WalletTxnType : type
-  User "1" --o "0..*" WalletTransaction : processes
-  User "1" --o "0..*" PlatformConfig : manages
+    class TenantSubscription {
+        ~~ [EXISTING]
+        +Long id PK
+        +Long tenantId FK
+        +Long planId FK
+        +SubscriptionStatus status
+        +LocalDateTime startDate
+        +LocalDateTime endDate
+        +LocalDateTime nextBillingDate
+        +BigDecimal pricePaid
+        +String paymentReference
+        +Long activatedBy FK
+        +LocalDateTime activatedAt
+        +LocalDateTime cancelledAt
+        +String cancellationReason
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
 
-  %% Plan & Feature System
-  PremiumFeature "1" --> "1" FeatureCategory : category
-  SubscriptionPlan "1" --o "0..*" PlanFeature : includes
-  PremiumFeature "1" --o "0..*" PlanFeature : usedIn
-  SubscriptionPlan "1" --> "1" BillingCycle : cycle
-  User "1" --o "0..*" SubscriptionPlan : creates
+    class SubscriptionStatus {
+        ~~ [EXISTING]
+        ACTIVE
+        PENDING_ACTIVATION
+        EXPIRED
+        CANCELLED
+        SUSPENDED
+    }
 
-  %% Subscription System
-  Tenant "1" --o "0..*" TenantSubscription : subscriptions
-  SubscriptionPlan "1" --o "0..*" TenantSubscription : subscribedBy
-  TenantSubscription "1" --> "1" SubscriptionStatus : status
-  User "1" --o "0..*" TenantSubscription : activates
+    class SubscriptionHistory {
+        ~~ [EXISTING - AUDIT TRAIL]
+        +Long id PK
+        +Long tenantId FK
+        +Long subscriptionId FK
+        +Long oldPlanId FK
+        +Long newPlanId FK
+        +SubscriptionAction action
+        +String notes
+        +Long performedBy FK
+        +LocalDateTime performedAt
+    }
 
-  %% Subscription History
-  TenantSubscription "1" --o "0..*" SubscriptionHistory : history
-  SubscriptionHistory "1" --> "1" SubscriptionAction : action
-  User "1" --o "0..*" SubscriptionHistory : performs
+    class SubscriptionAction {
+        ~~ [EXISTING]
+        CREATED
+        ACTIVATED
+        UPGRADED
+        DOWNGRADED
+        RENEWED
+        CANCELLED
+        SUSPENDED
+        EXPIRED
+    }
 
-  %% ============================
-  %% NOTES
-  %% ============================
-  note for TenantWallet "Created automatically when\nTenant is created\nInitial balance from PlatformConfig"
-  note for SubscriptionPlan "Standard plan is pre-seeded\nwith isStandard=true\nAll new tenants start here"
-  note for PremiumFeature "Seeded by developers\nAdmin cannot create features\nOnly assign to plans"
-  note for WalletTransaction "Manual credit/debit for now\nFuture: auto-deduction from orders"
+    %% ============================
+    %% USE CASES (METHODES UTILES)
+    %% ============================
+    class CategoryUseCase {
+        +CurrentUserProvider currentUserProvider
+        +CategoryRepository categoryRepository
+        +TenantRepository tenantRepository
+        +AiTextProvider aiTextProvider
+        +TenantSubscriptionRepository subscriptionRepository
+        +PlanFeatureRepository planFeatureRepository
+        +PremiumFeatureRepository featureRepository
+        --
+        +createCategory(category, tenantId)
+        +getCategory(id)
+        +listCategories(tenantId, parentId, rootOnly)
+        +updateCategory(id, slug, updates, active)
+        +setCategoryActive(id, active)
+        +deleteCategory(id)
+        +suggestCategoryDescription(id, language, maxSentences, tone)
+    }
+
+    class ProductUseCase {
+        +CurrentUserProvider currentUserProvider
+        +ProductRepository productRepository
+        +ProductCategoryRepository productCategoryRepository
+        +ProductImageRepository productImageRepository
+        +ProductPriceHistoryRepository priceHistoryRepository
+        +ProductStoreInventoryRepository inventoryRepository
+        +TenantRepository tenantRepository
+        +CategoryRepository categoryRepository
+        +StoreRepository storeRepository
+        --
+        +createProduct(product, slug, sku, categoryIds, primaryCategoryId, inventories)
+        +updateProduct(id, slug, sku, updates, categoryIds, primaryCategoryId, inventories)
+        +getProduct(id)
+        +getProductDetails(id)
+        +listProducts(tenantId)
+        +listProducts(pageRequest, tenantId, status, availability, stockLow, minPrice, maxPrice, search, categoryId)
+        +listPriceHistory(pageRequest, productId)
+        +addProductImage(productId, image)
+        +listProductImages(productId)
+        +reorderProductImages(productId, imageIds)
+        +deleteProductImage(productId, imageId)
+        +bulkUpdatePricing(productIds, initialPrice, finalPrice, shippingPrice, shippingCostPrice)
+        +bulkUpdateStatus(productIds, status)
+        +bulkDeleteProducts(productIds)
+        +listActiveStores(productId)
+        +getLowestPrice(productId)
+    }
+
+    class ActivitySectorUseCase {
+        +ActivitySectorRepository sectorRepository
+        +TenantRepository tenantRepository
+        --
+        +listSectors(includeInactive)
+        +listSectors(pageRequest, includeInactive)
+        +createSector(label, description, active)
+        +updateSector(id, label, description, active)
+        +listSectorTenants(id)
+        +deleteSector(id)
+    }
+
+    class AdminProvisionUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantRepository tenantRepository
+        +TenantProvisioningService provisioningService
+        --
+        +provisionAllTenants()
+    }
+
+    class AdminTenantSubscriptionUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantSubscriptionRepository subscriptionRepository
+        +SubscriptionPlanRepository planRepository
+        +SubscriptionHistoryRepository historyRepository
+        +TenantRepository tenantRepository
+        +TenantProvisioningService provisioningService
+        --
+        +getCurrent(tenantId)
+        +history(tenantId)
+        +activate(tenantId, planId, pricePaid, paymentReference)
+        +deactivate(tenantId)
+    }
+
+    class AiTextUseCase {
+        +CurrentUserProvider currentUserProvider
+        +AiTextProvider aiTextProvider
+        --
+        +generateText(prompt)
+    }
+
+    class AuthUseCase {
+        +UserRepository userRepository
+        +UserRoleAssignmentRepository assignmentRepository
+        +RoleRepository roleRepository
+        +TenantRepository tenantRepository
+        +ActivitySectorRepository sectorRepository
+        +AuthTokenService tokenService
+        +TenantProvisioningService provisioningService
+        --
+        +login(email, password, userAgent)
+        +registerTenantStep1(tenantName, contactEmail, contactPhone, logoUrl, status, defaultLocale, sectorId)
+        +registerTenantStep2(tenantId, ownerEmail, ownerPassword, ownerFirstName, ownerLastName, ownerPhone)
+    }
+
+    class PermissionUseCase {
+        +CurrentUserProvider currentUserProvider
+        +PermissionRepository permissionRepository
+        --
+        +listPermissions()
+        +createPermission(code, domain, description)
+    }
+
+    class PlatformConfigUseCase {
+        +CurrentUserProvider currentUserProvider
+        +PlatformConfigRepository configRepository
+        --
+        +listConfigs()
+        +updateConfig(configKey, configValue, description)
+    }
+
+    class PremiumFeatureUseCase {
+        +CurrentUserProvider currentUserProvider
+        +PremiumFeatureRepository featureRepository
+        --
+        +list(includeInactive)
+        +list(pageRequest, includeInactive)
+        +create(feature)
+        +update(id, update)
+    }
+
+    class RoleUseCase {
+        +CurrentUserProvider currentUserProvider
+        +RoleRepository roleRepository
+        +RolePermissionRepository rolePermissionRepository
+        +PermissionRepository permissionRepository
+        +UserRoleAssignmentRepository userRoleAssignmentRepository
+        --
+        +listRoles(tenantId)
+        +cloneRole(templateRoleId, code, label, targetTenantId)
+        +createRole(code, label, tenantId)
+        +createTemplate(code, label)
+        +updateRole(id, label)
+        +updateRolePermissions(id, permissionCodes)
+        +listRolePermissions(id)
+        +deleteRole(id)
+    }
+
+    class StoreUseCase {
+        +CurrentUserProvider currentUserProvider
+        +StoreRepository storeRepository
+        +TenantRepository tenantRepository
+        --
+        +createStore(store, tenantId)
+        +getStore(id)
+        +listStores(tenantId)
+        +listStores(pageRequest, tenantId)
+        +updateStore(id, updates)
+        +updateStoreImage(id, imageUrl)
+        +setStoreActive(id, active)
+        +deleteStore(id)
+    }
+
+    class SubscriptionPlanUseCase {
+        +CurrentUserProvider currentUserProvider
+        +SubscriptionPlanRepository planRepository
+        +PremiumFeatureRepository featureRepository
+        +PlanFeatureRepository planFeatureRepository
+        --
+        +listPlans(onlyActive)
+        +listPlans(pageRequest, onlyActive)
+        +getPlan(id)
+        +createPlan(plan, featureIds)
+        +updatePlan(id, update)
+        +setPlanActive(id, active)
+    }
+
+    class TenantSubscriptionUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantSubscriptionRepository subscriptionRepository
+        +SubscriptionPlanRepository planRepository
+        +SubscriptionHistoryRepository historyRepository
+        +TenantRepository tenantRepository
+        +TenantProvisioningService provisioningService
+        --
+        +getCurrent(tenantId)
+        +history(tenantId)
+        +activate(tenantId, planId, pricePaid, paymentReference)
+    }
+
+    class TenantUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantRepository tenantRepository
+        +ActivitySectorRepository sectorRepository
+        +TenantProvisioningService provisioningService
+        --
+        +createTenant(tenant)
+        +getTenant(id)
+        +listTenants()
+        +listTenants(pageRequest)
+        +updateTenant(id, updates)
+        +updateLogo(id, logoUrl)
+    }
+
+    class UserUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantRepository tenantRepository
+        +UserRepository userRepository
+        +RoleRepository roleRepository
+        +UserRoleAssignmentRepository assignmentRepository
+        --
+        +createUser(user, tenantId)
+        +listUsers(tenantId)
+        +listUsers(pageRequest, tenantId)
+        +getUser(id)
+        +updateUser(id, updates)
+        +updateUserImage(id, imageUrl)
+        +getCurrentUser()
+        +updateCurrentUserProfile(firstName, lastName, phone)
+        +updateCurrentUserImage(imageUrl)
+        +changePassword(currentPassword, newPassword)
+        +updateUserRoles(id, roles)
+        +grantAdmin(id)
+        +grantSuperAdmin(id)
+        +resolveUserRoleCodes(user)
+    }
+
+    class WalletUseCase {
+        +CurrentUserProvider currentUserProvider
+        +TenantWalletRepository walletRepository
+        +WalletTransactionRepository transactionRepository
+        +PlatformConfigRepository configRepository
+        +TenantRepository tenantRepository
+        --
+        +getWallet(tenantId)
+        +listTransactions(tenantId)
+        +credit(tenantId, amount, reason, reference)
+        +debit(tenantId, amount, reason, reference)
+    }
+
+    note for TenantWallet "Created automatically when\nTenant is created\nInitial balance from PlatformConfig"
+    note for SubscriptionPlan "Standard plan is pre-seeded\nwith standard=true\nAll new tenants start here"
+    note for PremiumFeature "Seeded by developers\nAdmin cannot create features\nOnly assign to plans"
+    note for WalletTransaction "For now: manual credit/debit only\nFuture: auto-deduction from orders"
+    note for Category "Hierarchical structure via parentCategoryId\nSlug auto-generated from name\nSupports AI description generation"
+    note for Product "Slug auto-generated from name\navailabilityText: free text like 'Delai 2-3 semaines'\nshowLowestPrice: affichage du prix le plus bas"
+    note for ProductStoreInventory "Used ONLY when product has NO variants\nTracks inventory per store"
+
+    Tenant "many" --> "1" ActivitySector : belongsTo
+    Tenant "1" --o "0..*" Store : owns
+    Tenant "1" --o "0..*" User : has
+    Tenant "1" --o "0..*" Category : hasCategories
+    Tenant "1" --o "0..*" Product : hasProducts
+    User "1" --o "0..*" RefreshToken : tokens
+    Tenant "1" --o "0..*" Role : roles
+    Tenant "1" --o "0..*" RolePermission : rolePermissions
+    Tenant "1" --o "0..*" UserRoleAssignment : assignments
+    User "1" --o "0..*" UserRoleAssignment : assigned
+    Role "1" --o "0..*" UserRoleAssignment : has
+    Role "1" --o "0..*" RolePermission : grants
+    Permission "1" --o "0..*" RolePermission : usedBy
+    User "1" --o "0..*" AuditEvent : actor
+    User "1" --o "0..*" Category : creates
+    User "1" --o "0..*" Category : updates
+    User "1" --o "0..*" Product : creates
+    User "1" --o "0..*" Product : updates
+    Category "many" --> "0..1" Category : parent
+    Product "1" --o "0..*" ProductCategory : categorizedBy
+    Category "1" --o "0..*" ProductCategory : contains
+    ProductCategory "0..*" --> "1" Product : product
+    ProductCategory "0..*" --> "1" Category : category
+    Product "1" --> "1" ProductStatus : status
+    Product "1" --> "1" ProductAvailability : availability
+    Product "1" --o "0..*" ProductImage : images
+    Product "1" --o "0..*" ProductStoreInventory : inventory
+    ProductStoreInventory "0..*" --> "1" Store : store
+    Product "1" --o "0..*" ProductPriceHistory : priceHistory
+    Tenant "1" --> "1" TenantStatus : status
+    Tenant "1" --o "1" TenantWallet : hasWallet
+    TenantWallet "1" --> "1" WalletStatus : status
+    TenantWallet "1" --o "0..*" WalletTransaction : transactions
+    WalletTransaction "1" --> "1" WalletTxnType : type
+    User "1" --o "0..*" WalletTransaction : processes
+    User "1" --o "0..*" PlatformConfig : manages
+    PremiumFeature "1" --> "1" FeatureCategory : category
+    SubscriptionPlan "1" --o "0..*" PlanFeature : includes
+    PremiumFeature "1" --o "0..*" PlanFeature : usedIn
+    SubscriptionPlan "1" --> "1" BillingCycle : cycle
+    User "1" --o "0..*" SubscriptionPlan : creates
+    Tenant "1" --o "0..*" TenantSubscription : subscriptions
+    SubscriptionPlan "1" --o "0..*" TenantSubscription : subscribedBy
+    TenantSubscription "1" --> "1" SubscriptionStatus : status
+    User "1" --o "0..*" TenantSubscription : activates
+    TenantSubscription "1" --o "0..*" SubscriptionHistory : history
+    SubscriptionHistory "1" --> "1" SubscriptionAction : action
+    User "1" --o "0..*" SubscriptionHistory : performs
+
+    style ActivitySector fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    style Tenant fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:4px
+
+    style Store fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    style User fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    style Category fill:#00897B,stroke:#004D40,color:#fff,stroke-width:4px
+    style Product fill:#00897B,stroke:#004D40,color:#fff,stroke-width:4px
+    style ProductCategory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+    style ProductImage fill:#00897B,stroke:#004D40,color:#fff
+    style ProductStatus fill:#00897B,stroke:#004D40,color:#fff
+    style ProductAvailability fill:#00897B,stroke:#004D40,color:#fff
+    style ProductStoreInventory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+    style ProductPriceHistory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+
+    style Role fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    style Permission fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
+    style UserRoleAssignment fill:#3F51B5,stroke:#1A237E,color:#fff
+    style RolePermission fill:#3F51B5,stroke:#1A237E,color:#fff
+
+    style PlatformConfig fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+    style TenantWallet fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
+    style WalletTransaction fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:3px
+    style PremiumFeature fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    style FeatureCategory fill:#9C27B0,stroke:#4A148C,color:#fff
+    style SubscriptionPlan fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    style PlanFeature fill:#9C27B0,stroke:#4A148C,color:#fff
+    style TenantSubscription fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
+    style SubscriptionHistory fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:3px
+
+    style CategoryUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style ProductUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style ActivitySectorUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style AdminProvisionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style AdminTenantSubscriptionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style AiTextUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style AuthUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style PermissionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style PlatformConfigUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style PremiumFeatureUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style RoleUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style StoreUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style SubscriptionPlanUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style TenantSubscriptionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style TenantUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style UserUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+    style WalletUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
+
+    class RefreshToken:::Pine
+    class AuditEvent:::Pine
+
+    classDef Pine :,stroke-width:1px,stroke-dasharray:none,stroke:#254336,fill:#27654A,color:#FFFFFF,stroke-width:1px,stroke-dasharray:none,stroke:#254336,fill:#27654A,color:#FFFFFF

@@ -1,73 +1,857 @@
-Backend Architecture (DigiMart)
-================================
+﻿================================================================================
+        GUIDE D'ARCHITECTURE - DIGIMART BACKEND (CURRENT, HONEST)
+================================================================================
+Version: 0.0.1-SNAPSHOT
+Date: 12 Février 2026
+Scope: code présent dans ce repository (digimart-domain, digimart-application,
+       digimart-infrastructure, digimart-api)
 
-Overview
---------
-The backend follows a Clean Architecture style and is split into Maven modules:
+Ce document est volontairement FACTUEL.
+Si une règle ou une sécurité n'existe pas dans le code, elle est notée comme absente.
 
-1) digimart-domain
-   - Pure business model: entities, enums, and base classes.
-   - No Spring dependencies.
-   - Common base classes: BaseEntity, AuditableEntity, TenantEntity.
+================================================================================
+SECTION 0: COMMENT LIRE CE GUIDE
+================================================================================
+- Tout est basé sur le code actuel, pas sur l'intention.
+- Quand une section parle de "sécurité" ou "règle", c'est vérifié dans le code.
+- Les chemins sont donnés en chemins complets (relatifs au repo).
+- Les champs listés sont ceux des classes Domain (source de vérité métier),
+  puis JPA (persistance).
 
-2) digimart-application
-   - Reserved for application use-cases and services.
-   - Currently minimal; most logic is inside API controllers.
+================================================================================
+SECTION 1: APERÇU GLOBAL (VUE D'ENSEMBLE)
+================================================================================
 
-3) digimart-infrastructure
-   - Persistence layer (Spring Data JPA repositories).
-   - Maps domain entities to database tables using JPA.
+1.1) STYLE D'ARCHITECTURE
+===============================
+- Clean Architecture (découplage Domain/Application/Infrastructure/API).
+- DDD léger (entités métier dans Domain, ports dans Application).
+- Dépendances unidirectionnelles: API -> Application -> Domain.
+- Infrastructure dépend de Domain + Application (implémentation des ports).
+- Domain ne dépend d'aucun framework.
 
-4) digimart-api
-   - Presentation layer (REST controllers, DTOs, security).
-   - Contains authentication, authorization checks, and HTTP wiring.
+1.2) MODULES MAVEN
+===============================
+- digimart-domain: entités métier, enums, classes de base (aucun Spring).
+- digimart-application: use cases, ports, services métier, exceptions.
+- digimart-infrastructure: JPA entities, repositories, mappers, adapters.
+- digimart-api: controllers REST, DTOs, config, security, exception handler.
 
-Key Domain Concepts
--------------------
-Multi-tenancy
-- tenantId is present on tenant-owned entities (users, stores, roles, etc.).
-- Tenant has subdomain and optional logoUrl.
-- Email is globally unique (login does not require tenantId).
+1.3) FLUX DE DÉPENDANCES
+===============================
+API (HTTP + Controllers)
+  ↓
+APPLICATION (Use cases + Ports)
+  ↓
+DOMAIN (Entités + Enums)
 
-Authentication and Security
-- Token-based authentication (AuthTokenFilter).
-- SecurityContextUtil enforces role checks:
-  - requireUser, requireAdmin, requireOwnerOrAdmin, requireSuperAdmin.
-- First user in a tenant auto-receives OWNER role on login if no roles exist.
+Infrastructure est "sur le côté": elle implémente les ports de l'Application.
 
-RBAC (Roles and Permissions)
-- Permission: global dictionary of permissions (unique by code).
-- Role: tenant-scoped, can be a template when tenantId = 0.
-- RolePermission: association between Role and Permission.
-- UserRoleAssignment: links User to Role for a tenant.
+1.4) CONVENTIONS DE NOMMAGE
+===============================
+- Domain entities: .../domain/<domaine>/entity/*.java
+- JPA entities: .../infrastructure/persistence/model/<domaine>/*JpaEntity.java
+- Mappers: .../infrastructure/persistence/mapper/*Mapper.java
+- JPA repos: .../infrastructure/persistence/jpa/*JpaRepository.java
+- Adapters: .../infrastructure/persistence/adapter/*RepositoryAdapter.java
+- Controllers: .../api/controller/**/<X>Controller.java
+- DTOs request/response: .../api/dto/request/**, .../api/dto/response/**
 
-Stores (Points de Vente)
-- Store entity belongs to a tenant.
-- CRUD endpoints with tenant access checks (no OWNER/ADMIN restriction).
+================================================================================
+SECTION 2: DOMAIN LAYER (digimart-domain)
+================================================================================
 
-API Layer Structure
--------------------
-- Controllers expose REST endpoints:
-  - AuthController: login + 2-step tenant/owner registration.
-  - TenantController: CRUD + logo upload.
-  - UserController: user CRUD and role assignment.
-  - StoreController: store CRUD + image upload.
-  - RoleController: list/clone/update roles + permissions.
-  - PermissionController: list/create permissions.
+2.1) COMMON (classes de base)
+===============================
 
-DTOs
-----
-All HTTP inputs/outputs are via DTOs to keep the domain model clean:
-- request/auth, request/tenant, request/user, request/store, request/role, request/permission
-- response/auth, response/tenant, response/user, response/store, response/role, response/permission
+Path: digimart-domain/src/main/java/com/nexashop/domain/common/BaseEntity.java
+Purpose: Classe de base minimale (id uniquement).
+Layer: Domain
+Depends on: None
+Used by: AuditableEntity, Permission, etc.
+Notes:
+- Contient uniquement: id (Long)
 
-Persistence
------------
-Spring Data JPA repositories live in digimart-infrastructure and are injected
-into API controllers.
+Path: digimart-domain/src/main/java/com/nexashop/domain/common/AuditableEntity.java
+Purpose: Base avec timestamps (createdAt/updatedAt).
+Layer: Domain
+Depends on: BaseEntity
+Used by: Tenant, SubscriptionPlan, PremiumFeature, PlatformConfig, ActivitySector
+Notes:
+- createdAt, updatedAt
+- onCreate/onUpdate existent mais ne sont pas appelés automatiquement en Domain
+  (les timestamps sont gérés côté JPA).
 
-Uploads
--------
-- Local file storage under /uploads.
-- WebConfig exposes /uploads/** as static resources.
-- Tenant logo and store image are uploaded via multipart endpoints.
+Path: digimart-domain/src/main/java/com/nexashop/domain/common/TenantEntity.java
+Purpose: Base tenant-scoped (ajoute tenantId).
+Layer: Domain
+Depends on: AuditableEntity
+Used by: User, Role, Store, WalletTransaction, Category, Product, etc.
+Notes:
+- tenantId (Long)
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/common/Locale.java
+Purpose: Enum de locale
+Layer: Domain
+Values: FR, AR, EN
+
+2.2) AUDIT
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/audit/entity/AuditEvent.java
+Purpose: Journal d'audit (qui a fait quoi quand).
+Fields:
+- tenantId, entityType, entityId, action, beforeJson, afterJson
+- actorUserId, ipAddress, userAgent, correlationId, occurredAt
+Notes:
+- occurredAt est initialisé si null dans onPersist (méthode protégée).
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/audit/entity/AuditAction.java
+Purpose: Enum d'actions audit
+Values: CREATE, UPDATE, DELETE, STATUS_CHANGE
+
+2.3) USER & RBAC
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/User.java
+Purpose: Utilisateur tenant-scoped
+Fields:
+- tenantId, email, passwordHash, firstName, lastName
+- phone, imageUrl, enabled, lastLogin
+Notes:
+- email est unique globalement en base (voir JPA).
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/Role.java
+Purpose: Rôle tenant-scoped (ou template) pour RBAC
+Fields:
+- tenantId, code, label, systemRole
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/Permission.java
+Purpose: Permission globale (non tenant-scoped)
+Fields:
+- code, domain, description
+Notes:
+- Hérite de BaseEntity (pas de createdAt/updatedAt en Domain).
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/UserRoleAssignment.java
+Purpose: Liaison User -> Role (tenant-scoped)
+Fields:
+- tenantId, userId, roleId, active
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/RolePermission.java
+Purpose: Liaison Role -> Permission (tenant-scoped)
+Fields:
+- tenantId, roleId, permissionId
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/user/entity/RefreshToken.java
+Purpose: Token de session hashé (stateless)
+Fields:
+- tenantId, userId, tokenHash, expiresAt, revokedAt, deviceInfo
+
+2.4) TENANT
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/tenant/entity/Tenant.java
+Purpose: Tenant (client/boutique) global
+Fields:
+- name, subdomain, contactEmail, contactPhone, logoUrl
+- status (TenantStatus), defaultLocale (Locale), sectorId
+Notes:
+- Hérite de AuditableEntity (createdAt/updatedAt, pas tenantId).
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/tenant/entity/TenantStatus.java
+Values: ACTIVE, SUSPENDED, TRIAL, EXPIRED
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/tenant/entity/ActivitySector.java
+Purpose: Secteur d'activité global
+Fields:
+- label, description, active
+
+2.5) STORE
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/store/entity/Store.java
+Purpose: Point de vente tenant-scoped
+Fields:
+- name, code, address, city, postalCode, country
+- phone, email, imageUrl
+- latitude, longitude (BigDecimal)
+- active
+
+2.6) BILLING
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/SubscriptionPlan.java
+Purpose: Plan d'abonnement global
+Fields:
+- code, name, description
+- price, currency, billingCycle, discountPercentage
+- standard, active, startDate, endDate, createdBy
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/PremiumFeature.java
+Purpose: Feature premium globale
+Fields:
+- code, name, description, category (FeatureCategory)
+- active, displayOrder
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/PlanFeature.java
+Purpose: Liaison plan -> feature (global)
+Fields:
+- planId, featureId
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/TenantSubscription.java
+Purpose: Abonnement d'un tenant
+Fields:
+- tenantId, planId, status
+- startDate, endDate, nextBillingDate
+- pricePaid, paymentReference
+- activatedBy, activatedAt
+- cancelledAt, cancellationReason
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/SubscriptionHistory.java
+Purpose: Historique des changements d'abonnement
+Fields:
+- tenantId, subscriptionId, oldPlanId, newPlanId
+- action, notes, performedBy, performedAt
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/TenantWallet.java
+Purpose: Wallet tenant-scoped
+Fields:
+- tenantId, balance, currency, status, lastTransactionAt
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/WalletTransaction.java
+Purpose: Mouvements de wallet
+Fields:
+- tenantId, walletId, type, amount
+- balanceBefore, balanceAfter
+- reason, reference, processedBy, transactionDate
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/billing/entity/PlatformConfig.java
+Purpose: Config globale (clé/valeur)
+Fields:
+- configKey, configValue, description, updatedBy
+
+Billing Enums:
+- BillingCycle: MONTHLY, QUARTERLY, YEARLY, ONE_TIME
+- FeatureCategory: ANALYTICS, SALES, MARKETING, TECHNICAL, SUPPORT
+- SubscriptionAction: CREATED, ACTIVATED, UPGRADED, DOWNGRADED, RENEWED, CANCELLED, SUSPENDED, EXPIRED
+- SubscriptionStatus: ACTIVE, PENDING_ACTIVATION, EXPIRED, CANCELLED, SUSPENDED
+- WalletStatus: ACTIVE, SUSPENDED, FROZEN
+- WalletTxnType: INITIAL_CREDIT, MANUAL_CREDIT, MANUAL_DEBIT, ADJUSTMENT, REFUND
+
+2.7) CATALOG
+===============================
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/Category.java
+Purpose: Catégorie (hiérarchie)
+Fields:
+- tenantId, name, slug, description, parentCategoryId
+- displayOrder, active, createdBy, updatedBy
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/Product.java
+Purpose: Produit
+Fields:
+- tenantId, name, slug, sku, description
+- initialPrice, finalPrice, costPrice, shippingPrice, shippingCostPrice
+- trackStock, stockQuantity, lowStockThreshold
+- status (ProductStatus), availability (ProductAvailability), availabilityText
+- showLowestPrice, createdBy, updatedBy
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/ProductCategory.java
+Purpose: Liaison produit -> catégorie
+Fields:
+- tenantId, productId, categoryId, primary, displayOrder, createdBy
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/ProductImage.java
+Purpose: Images produit
+Fields:
+- tenantId, productId, imageUrl, altText, displayOrder, primary
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/ProductStoreInventory.java
+Purpose: Stock par magasin
+Fields:
+- tenantId, productId, storeId, quantity, lowStockThreshold, activeInStore
+
+Path: digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/ProductPriceHistory.java
+Purpose: Historique des prix
+Fields:
+- tenantId, productId, initialPrice, finalPrice, changedAt, changedBy
+
+Catalog Enums:
+- ProductStatus: ACTIVE, HIDDEN, OUT_OF_STOCK
+- ProductAvailability: IN_STOCK, ON_ORDER, PRE_ORDER
+
+================================================================================
+SECTION 3: APPLICATION LAYER (digimart-application)
+================================================================================
+
+3.1) COMMON (Pagination)
+===============================
+
+Path: digimart-application/src/main/java/com/nexashop/application/common/PageRequest.java
+Purpose: Requête de pagination
+Fields: page, size
+Notes: size < 1 -> 20 par défaut
+
+Path: digimart-application/src/main/java/com/nexashop/application/common/PageResult.java
+Purpose: Résultat paginé
+Fields: items, page, size, totalItems, totalPages, hasNext, hasPrevious
+Notes: PageResult.of(...) calcule les flags
+
+3.2) EXCEPTIONS MÉTIER
+===============================
+Path: digimart-application/src/main/java/com/nexashop/application/exception/*
+Exceptions:
+- BadRequestException (400)
+- ConflictException (409)
+- ForbiddenException (403)
+- NotFoundException (404)
+- UnauthorizedException (401)
+- ExternalServiceException (502)
+
+3.3) SECURITY (Application)
+===============================
+
+Path: digimart-application/src/main/java/com/nexashop/application/security/CurrentUser.java
+Purpose: Record de l'utilisateur courant
+Fields: userId, tenantId, roles
+Notes:
+- hasRole(String) teste la présence dans roles
+
+Path: digimart-application/src/main/java/com/nexashop/application/port/out/CurrentUserProvider.java
+Purpose: Port d'accès à l'utilisateur courant (impl en API)
+Methods:
+- getCurrentUser()
+- requireUser()
+- requireAdminAny()
+- requireOwnerOrAdmin(tenantId)
+- requireSuperAdmin()
+Notes:
+- Ces méthodes sont censées imposer l'authorization.
+
+3.4) PORTS (Interfaces outbound)
+===============================
+Path: digimart-application/src/main/java/com/nexashop/application/port/out/*.java
+Purpose: Contrats pour persistence et services externes.
+Ports existants:
+- ActivitySectorRepository
+- AiTextProvider
+- CategoryRepository
+- CrudRepositoryPort
+- PermissionRepository
+- PlanFeatureRepository
+- PlatformConfigRepository
+- PremiumFeatureRepository
+- ProductCategoryRepository
+- ProductImageRepository
+- ProductPriceHistoryRepository
+- ProductRepository
+- ProductStoreInventoryRepository
+- RefreshTokenRepository
+- RolePermissionRepository
+- RoleRepository
+- StoreRepository
+- SubscriptionHistoryRepository
+- SubscriptionPlanRepository
+- TenantRepository
+- TenantSubscriptionRepository
+- TenantWalletRepository
+- UserRepository
+- UserRoleAssignmentRepository
+- WalletTransactionRepository
+
+3.5) SERVICES MÉTIER
+===============================
+
+Path: digimart-application/src/main/java/com/nexashop/application/service/AuthTokenService.java
+Purpose: Création et validation de tokens (SHA-256 hash).
+Notes:
+- Token UUID random
+- Stocke hash en DB (RefreshToken)
+- Expiration 7 jours
+
+Path: digimart-application/src/main/java/com/nexashop/application/service/TenantProvisioningService.java
+Purpose: Provisionnement tenant
+Notes:
+- Crée wallet, subscription STANDARD, history, wallet transaction initiale
+
+3.6) USE CASES (principaux comportements)
+===============================
+
+AuthUseCase
+- login(email, password, userAgent)
+- registerTenantStep1(...)
+- registerTenantStep2(...)
+Notes:
+- Password compare en clair (pas de BCrypt).
+- Auto-assign SUPER_ADMIN au tout premier user global.
+- Auto-assign OWNER au premier user d'un tenant.
+
+UserUseCase
+- createUser / listUsers / getUser / updateUser
+- updateUserRoles / grantAdmin / grantSuperAdmin
+- updateCurrentUserProfile / updateCurrentUserImage / changePassword
+Notes:
+- Vérifie tenantId et SUPER_ADMIN via currentUser.hasRole.
+- Si SUPER_ADMIN et tenantId == 1L, roles inconnus peuvent être auto-créés.
+
+TenantUseCase
+- createTenant / listTenants / getTenant / updateTenant / updateLogo
+Notes:
+- listTenants() et updateTenant() utilisent CurrentUserProvider (voir sécurité). 
+
+ActivitySectorUseCase
+- listSectors(includeInactive)
+- listSectorTenants(id)
+- createSector / updateSector / deleteSector
+
+RoleUseCase
+- createRole, updateRole, deleteRole
+- createTemplate (tenantId=0)
+- cloneRole (template -> tenant)
+- updateRolePermissions (full replace)
+
+PermissionUseCase
+- listPermissions / createPermission
+
+StoreUseCase
+- createStore / listStores / updateStore / setStoreActive / deleteStore
+- updateStoreImage
+
+SubscriptionPlanUseCase
+- listPlans / getPlan / createPlan / updatePlan
+- setPlanActive
+- Gère les features via PlanFeature
+
+TenantSubscriptionUseCase
+- getCurrent / history / activate
+- Combine TenantSubscription + SubscriptionPlan
+
+AdminTenantSubscriptionUseCase
+- getCurrent / history / activate / deactivate
+
+WalletUseCase
+- getWallet / listTransactions / credit / debit
+
+PlatformConfigUseCase
+- listConfigs / updateConfig
+
+PremiumFeatureUseCase
+- list (includeInactive) / create / update
+
+CategoryUseCase
+- create / list / update / delete / setActive
+- slug auto-généré + unique par tenant
+- parentCategoryId validé dans le même tenant
+- AI: suggestCategoryDescription() gated par feature AI_DESCRIPTION_GENERATION
+
+ProductUseCase
+- create / update / delete / list / listPaged
+- slug auto-généré + unique par tenant
+- sku unique par tenant si présent
+- pricing validation: finalPrice <= initialPrice
+- preorder validation: si status=ACTIVE et availability=PRE_ORDER, availabilityText requis
+- price history enregistré à chaque création / changement de prix
+- inventories: trackStock -> ProductStoreInventory
+- images: reorder avec primary = premier élément
+- bulk updates: pricing, status, delete
+- lowest price: min sur 30 jours, sinon all-time
+
+AiTextUseCase
+- generateText(prompt)
+- requireUser() + prompt non vide
+
+AdminProvisionUseCase
+- provisionAllTenants()
+- relance TenantProvisioningService pour tous les tenants
+
+================================================================================
+SECTION 4: INFRASTRUCTURE LAYER (digimart-infrastructure)
+================================================================================
+
+4.1) BASE JPA CLASSES
+===============================
+
+Path: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/model/common/BaseJpaEntity.java
+- id Long (PK, IDENTITY)
+
+Path: .../AuditableJpaEntity.java
+- createdAt, updatedAt avec @PrePersist/@PreUpdate
+
+Path: .../TenantScopedJpaEntity.java
+- tenant_id (non-null)
+
+4.2) JPA ENTITIES (par domaine)
+===============================
+
+User/RBAC:
+- UserJpaEntity -> table users (email UNIQUE global)
+- RoleJpaEntity -> table roles (tenant_id + code UNIQUE)
+- PermissionJpaEntity -> table permissions (code UNIQUE global)
+- UserRoleAssignmentJpaEntity -> table user_role_assignments (tenant_id+user_id+role_id UNIQUE)
+- RolePermissionJpaEntity -> table role_permissions (tenant_id+role_id+permission_id UNIQUE)
+- RefreshTokenJpaEntity -> table refresh_tokens
+
+Tenant:
+- TenantJpaEntity -> table tenants
+- ActivitySectorJpaEntity -> table activity_sectors
+
+Store:
+- StoreJpaEntity -> table stores
+
+Billing:
+- SubscriptionPlanJpaEntity -> table subscription_plans
+- PremiumFeatureJpaEntity -> table premium_features
+- PlanFeatureJpaEntity -> table plan_features (plan_id+feature_id UNIQUE)
+- TenantSubscriptionJpaEntity -> table tenant_subscriptions
+- SubscriptionHistoryJpaEntity -> table subscription_history
+- TenantWalletJpaEntity -> table tenant_wallets (tenant_id UNIQUE)
+- WalletTransactionJpaEntity -> table wallet_transactions
+- PlatformConfigJpaEntity -> table platform_config
+
+Catalog:
+- CategoryJpaEntity -> table categories (tenant_id+slug UNIQUE)
+- ProductJpaEntity -> table products (tenant_id+slug UNIQUE, tenant_id+sku UNIQUE)
+- ProductCategoryJpaEntity -> table product_categories (tenant_id+product_id+category_id UNIQUE)
+- ProductImageJpaEntity -> table product_images
+- ProductStoreInventoryJpaEntity -> table product_store_inventory
+- ProductPriceHistoryJpaEntity -> table product_price_history
+
+4.3) JPA REPOSITORIES
+===============================
+Path: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/jpa/*JpaRepository.java
+Notes:
+- Méthodes findBy*, countBy*, existsBy* utilisées par adapters
+- Certaines queries custom (ex: product search) définies ici
+
+4.4) MAPPERS
+===============================
+Path: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/mapper/*.java
+Mappers existants:
+- UserMapper, TenantMapper, StoreMapper, BillingMapper, AuditMapper
+- CategoryMapper, ProductMapper
+- ProductCategoryMapper, ProductImageMapper, ProductStoreInventoryMapper, ProductPriceHistoryMapper
+- MapperUtils (map fields communs)
+
+4.5) ADAPTERS
+===============================
+Path: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/adapter/*.java
+Adapters implementent les ports Application.
+Exemples:
+- UserRepositoryAdapter implements UserRepository
+- ProductRepositoryAdapter implements ProductRepository
+- SubscriptionPlanRepositoryAdapter implements SubscriptionPlanRepository
+
+4.6) AI PROVIDER (Infrastructure)
+===============================
+Path: digimart-infrastructure/src/main/java/com/nexashop/infrastructure/ai/GeminiAiTextProvider.java
+- Appel HTTP à Google Gemini (v1beta/models/<model>:generateContent)
+- Header: x-goog-api-key
+
+Path: .../DisabledAiTextProvider.java
+- Retourne une erreur claire si provider non configuré
+
+================================================================================
+SECTION 5: API LAYER (digimart-api)
+================================================================================
+
+5.1) BOOTSTRAP
+===============================
+Path: digimart-api/src/main/java/com/nexashop/NexaShopApplication.java
+Purpose: entry point Spring Boot
+
+5.2) CONFIGURATION
+===============================
+
+SecurityConfig
+Path: digimart-api/src/main/java/com/nexashop/api/config/SecurityConfig.java
+- CORS enabled
+- CSRF disabled
+- Stateless session
+- authorizeHttpRequests: permitAll (tout est ouvert)
+- AuthTokenFilter placé avant UsernamePasswordAuthenticationFilter
+
+AiConfig
+Path: digimart-api/src/main/java/com/nexashop/api/config/AiConfig.java
+- Choix provider (gemini), API key via property ou env GEMINI_API_KEY
+
+UseCaseConfig
+Path: digimart-api/src/main/java/com/nexashop/api/config/UseCaseConfig.java
+- Déclare tous les beans de use case + services
+
+BillingSeedConfig
+Path: digimart-api/src/main/java/com/nexashop/api/config/BillingSeedConfig.java
+- Seed PlatformConfig, PremiumFeatures, Standard Plan
+
+WebConfig
+Path: digimart-api/src/main/java/com/nexashop/api/config/WebConfig.java
+- Expose /uploads/** via ResourceHandler
+
+5.3) SECURITY (API)
+===============================
+
+AuthTokenFilter
+- Lit Authorization: Bearer <token>
+- Valide via AuthTokenService
+- Charge User + Roles (UserRoleAssignment + RoleRepository)
+- Place AuthenticatedUser dans SecurityContext
+- Ajoute autorités "ROLE_<CODE>" (mais pas exploitées par @PreAuthorize)
+
+AuthenticatedUser
+- POJO (ne implémente pas UserDetails)
+- fields: userId, tenantId, roles
+
+CurrentUserProviderAdapter
+- Lit SecurityContextHolder
+- requireUser() fonctionne
+- requireAdminAny / requireOwnerOrAdmin / requireSuperAdmin = NO-OP (dev)
+
+SecurityContextUtil
+- Existe mais non utilisé
+
+5.4) EXCEPTION HANDLER
+===============================
+
+GlobalExceptionHandler
+- Mappe les exceptions Application vers HTTP (400/401/403/404/409/502)
+- Format JSON: { message, status, errors? }
+
+5.5) DTOs
+===============================
+
+Requests: digimart-api/src/main/java/com/nexashop/api/dto/request/**
+Responses: digimart-api/src/main/java/com/nexashop/api/dto/response/**
+Notes:
+- Validation via jakarta.validation
+- Mapping manuel dans les controllers
+
+5.6) UTILITAIRES
+===============================
+
+UploadUtil
+Path: digimart-api/src/main/java/com/nexashop/api/util/UploadUtil.java
+- Upload d'images (PNG/JPG/WEBP/GIF)
+- Max 10MB (aligné avec spring.servlet.multipart.*)
+- Stockage sous /uploads/<folder>
+
+5.7) CONTROLLERS & ENDPOINTS
+===============================
+
+AuthController (/api/auth)
+- POST /login
+- POST /register-tenant (legacy -> 400)
+- POST /register-tenant/step1
+- POST /register-tenant/step2
+
+UserController (/api/users)
+- POST / (create user)
+- GET /?tenantId=...
+- GET /paged?tenantId=...&page&size
+- GET /{id}
+- GET /me
+- PUT /{id}
+- PUT /{id}/roles
+- POST /{id}/roles/admin
+- POST /{id}/roles/super-admin
+- POST /{id}/image (multipart)
+- POST /me/image (multipart)
+- PUT /me
+- PUT /me/password
+
+TenantController (/api/tenants)
+- POST /
+- GET /{id}
+- GET /
+- GET /paged?page&size
+- PUT /{id}
+- POST /{id}/logo (multipart)
+
+StoreController (/api/stores)
+- POST /
+- GET /{id}
+- GET /{id}/products
+- GET /?tenantId=...
+- GET /paged?tenantId=...&page&size
+- PUT /{id}
+- POST /{id}/image (multipart)
+- POST /{id}/activate
+- POST /{id}/deactivate
+- DELETE /{id}
+
+RoleController (/api/roles)
+- GET /?tenantId=...
+- POST /
+- POST /templates
+- POST /clone
+- PUT /{id}
+- PUT /{id}/permissions
+- GET /{id}/permissions
+- DELETE /{id}
+
+PermissionController (/api/permissions)
+- GET /
+- POST /
+
+ActivitySectorController (/api/activity-sectors)
+- GET /
+- GET /paged
+- POST /
+- PUT /{id}
+- GET /{id}/tenants
+- DELETE /{id}
+
+CategoryController (/api/categories)
+- POST /
+- GET /{id}
+- GET /?tenantId=...&parentId=&rootOnly=
+- GET /paged
+- PUT /{id}
+- POST /{id}/activate
+- POST /{id}/deactivate
+- DELETE /{id}
+- POST /{id}/ai-description
+
+ProductController (/api/products)
+- POST /
+- GET /{id}
+- GET /{id}/price-history
+- GET /?tenantId=...
+- GET /paged (filters: status, availability, stockLow, minPrice, maxPrice, search, categoryId)
+- PUT /{id}
+- DELETE /{id}
+- POST /{id}/images (multipart)
+- GET /{id}/images
+- PUT /{id}/images/order
+- DELETE /{id}/images/{imageId}
+- PUT /bulk/pricing
+- PUT /bulk/status
+- DELETE /bulk
+- GET /export?tenantId=...
+- GET /export/template
+- POST /import (multipart)
+
+WalletController (/api/tenants/{tenantId}/wallet)
+- GET /
+- GET /transactions
+- POST /credit
+- POST /debit
+
+TenantSubscriptionController (/api/tenants/{tenantId}/subscriptions)
+- GET /current
+- GET /history
+- POST /activate
+
+AdminTenantSubscriptionController (/api/admin/tenants/{tenantId}/subscriptions)
+- GET /current
+- GET /history
+- POST /activate
+- POST /deactivate
+
+SubscriptionPlanController (/api/plans)
+- GET /?onlyActive=
+- GET /paged
+- GET /{id}
+- POST /
+- PUT /{id}
+- POST /{id}/activate
+- POST /{id}/deactivate
+
+PremiumFeatureController (/api/premium-features)
+- GET /?includeInactive=
+- GET /paged
+- POST /
+- PUT /{id}
+
+PlatformConfigController (/api/platform-config)
+- GET /
+- PUT /{configKey}
+
+AiController (/api/ai)
+- POST /text
+
+MapLinkController (/api/maps)
+- POST /resolve
+- Utilise HttpClient pour résoudre un lien Google Maps -> coordonnées
+
+AdminProvisionController (/api/admin/provision)
+- POST /tenants
+
+================================================================================
+SECTION 6: FLUX D'EXÉCUTION (RUNTIME)
+================================================================================
+
+6.1) AUTHENTIFICATION
+===============================
+- Client POST /api/auth/login
+- AuthUseCase.login vérifie email + password (comparaison en clair)
+- AuthTokenService crée un token UUID
+- RefreshToken stocke le hash + expiresAt (7 jours)
+- Response renvoie le token brut au client
+
+6.2) REQUÊTE AUTHENTIFIÉE
+===============================
+- Client envoie Authorization: Bearer <token>
+- AuthTokenFilter valide le token et charge l'utilisateur
+- AuthenticatedUser est injecté dans SecurityContext
+- Use case appelle currentUserProvider.requireUser()
+- Vérifications tenantId/role (quand présentes) dans le use case
+
+6.3) UPLOAD IMAGE
+===============================
+- Endpoint multipart (users/stores/tenants/products)
+- UploadUtil valide type + taille
+- Fichier stocké sous /uploads/<folder>
+- URL relative retournée (ex: /uploads/products/<uuid>.png)
+
+6.4) AI TEXT
+===============================
+- AiTextUseCase.requireUser() (auth requise)
+- Appel Gemini via GeminiAiTextProvider
+- Erreurs converties en ExternalServiceException -> HTTP 502
+
+================================================================================
+SECTION 7: SEEDING, MIGRATIONS, CONFIG
+================================================================================
+
+7.1) Seed automatique (BillingSeedConfig)
+- PlatformConfig defaults
+- PremiumFeatures defaults
+- Plan STANDARD (gratuit)
+
+7.2) Activity sectors
+- Seed via SQL: docs/MIGRATION_2026_02_04_activity_sectors.sql
+
+7.3) application.properties (réel)
+- PostgreSQL: digimart_db / user=postgres / password=admin
+- Hibernate: ddl-auto=update, show-sql=true
+- Multipart: 10MB max
+- AI: ai.provider=gemini, ai.gemini.api-key from env
+
+================================================================================
+SECTION 8: TESTS (ÉTAT ACTUEL)
+================================================================================
+- Tests majoritairement dans digimart-api/src/test
+- Pas de vraie suite use case (application) ni infra @DataJpaTest
+
+================================================================================
+SECTION 9: LIMITATIONS CONNUES (FACTUEL)
+================================================================================
+- SecurityConfig est en permitAll (pas de protection au niveau URL).
+- CurrentUserProviderAdapter.requireAdminAny/requireOwnerOrAdmin/requireSuperAdmin
+  sont vides (no-op). Donc RBAC partiel seulement.
+- Password hashing: comparaison en clair (pas de BCrypt/Argon2).
+- SecurityContextUtil existe mais non utilisée.
+
+================================================================================
+SECTION 10: AMÉLIORATIONS RECOMMANDÉES (NON IMPLEMENTÉES)
+================================================================================
+- Activer les checks role/tenant dans CurrentUserProviderAdapter.
+- Ajouter BCrypt (PasswordEncoder) + migration des passwords existants.
+- Ajouter @PreAuthorize ou règles d'URL (SecurityConfig) si besoin.
+- Ajouter tests d'application layer et infra layer.
+- Ajouter rate limiting / brute-force protection sur /api/auth/login.
+
+================================================================================
+FIN DU DOCUMENT
+================================================================================
+
