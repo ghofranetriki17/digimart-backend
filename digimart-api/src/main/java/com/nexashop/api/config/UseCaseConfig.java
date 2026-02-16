@@ -10,9 +10,12 @@ import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.ProductCategoryRepository;
 import com.nexashop.application.port.out.ProductImageRepository;
+import com.nexashop.application.port.out.ProductOptionRepository;
+import com.nexashop.application.port.out.ProductOptionValueRepository;
 import com.nexashop.application.port.out.ProductPriceHistoryRepository;
 import com.nexashop.application.port.out.ProductRepository;
 import com.nexashop.application.port.out.ProductStoreInventoryRepository;
+import com.nexashop.application.port.out.ProductVariantRepository;
 import com.nexashop.application.port.out.RefreshTokenRepository;
 import com.nexashop.application.port.out.RolePermissionRepository;
 import com.nexashop.application.port.out.RoleRepository;
@@ -24,6 +27,7 @@ import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.port.out.TenantWalletRepository;
 import com.nexashop.application.port.out.UserRepository;
 import com.nexashop.application.port.out.UserRoleAssignmentRepository;
+import com.nexashop.application.port.out.VariantOptionValueRepository;
 import com.nexashop.application.port.out.WalletTransactionRepository;
 import com.nexashop.application.service.AuthTokenService;
 import com.nexashop.application.service.TenantProvisioningService;
@@ -191,8 +195,12 @@ public class UseCaseConfig {
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
+            ProductOptionRepository productOptionRepository,
+            ProductOptionValueRepository productOptionValueRepository,
             ProductPriceHistoryRepository priceHistoryRepository,
             ProductStoreInventoryRepository inventoryRepository,
+            ProductVariantRepository productVariantRepository,
+            VariantOptionValueRepository variantOptionValueRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
             StoreRepository storeRepository
@@ -203,8 +211,12 @@ public class UseCaseConfig {
                 productRepository,
                 productCategoryRepository,
                 productImageRepository,
+                productOptionRepository,
+                productOptionValueRepository,
                 priceHistoryRepository,
                 inventoryRepository,
+                productVariantRepository,
+                variantOptionValueRepository,
                 tenantRepository,
                 categoryRepository,
                 storeRepository

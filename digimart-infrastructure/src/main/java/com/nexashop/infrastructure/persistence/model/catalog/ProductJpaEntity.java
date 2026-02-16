@@ -72,6 +72,9 @@ public class ProductJpaEntity extends TenantScopedJpaEntity {
     @Column
     private String availabilityText;
 
+    @Column(name = "continue_selling", nullable = false)
+    private boolean continueSelling = false;
+
     @Column(name = "show_lowest_price", nullable = false)
     private boolean showLowestPrice = false;
 

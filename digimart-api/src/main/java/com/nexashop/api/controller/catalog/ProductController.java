@@ -6,8 +6,13 @@ import com.nexashop.api.dto.request.product.ProductBulkPriceUpdateRequest;
 import com.nexashop.api.dto.request.product.ProductBulkStatusUpdateRequest;
 import com.nexashop.api.dto.request.product.ProductDescriptionAiRequest;
 import com.nexashop.api.dto.request.product.ProductInventoryRequest;
+import com.nexashop.api.dto.request.product.ProductOptionRequest;
+import com.nexashop.api.dto.request.product.ProductOptionValueRequest;
+import com.nexashop.api.dto.request.product.ProductVariantRequest;
 import com.nexashop.api.dto.request.product.UpdateProductRequest;
 import com.nexashop.api.dto.request.product.UpdateProductImageOrderRequest;
+import com.nexashop.api.dto.request.product.UpdateProductOptionsRequest;
+import com.nexashop.api.dto.request.product.UpdateProductVariantsRequest;
 import com.nexashop.api.dto.response.PageResponse;
 import com.nexashop.api.dto.response.product.ProductDescriptionAiResponse;
 import com.nexashop.api.dto.response.product.ProductDetailsResponse;
@@ -16,16 +21,22 @@ import com.nexashop.api.dto.response.product.ProductImportErrorResponse;
 import com.nexashop.api.dto.response.product.ProductImportResponse;
 import com.nexashop.api.dto.response.product.ProductImageResponse;
 import com.nexashop.api.dto.response.product.ProductInventoryResponse;
+import com.nexashop.api.dto.response.product.ProductOptionResponse;
+import com.nexashop.api.dto.response.product.ProductOptionValueResponse;
 import com.nexashop.api.dto.response.product.ProductPriceHistoryResponse;
 import com.nexashop.api.dto.response.product.ProductResponse;
 import com.nexashop.api.dto.response.product.ProductStoreRefResponse;
+import com.nexashop.api.dto.response.product.ProductVariantResponse;
 import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.ProductUseCase;
 import com.nexashop.domain.catalog.entity.Product;
 import com.nexashop.domain.catalog.entity.ProductAvailability;
 import com.nexashop.domain.catalog.entity.ProductImage;
+import com.nexashop.domain.catalog.entity.ProductOption;
+import com.nexashop.domain.catalog.entity.ProductOptionValue;
 import com.nexashop.domain.catalog.entity.ProductStoreInventory;
+import com.nexashop.domain.catalog.entity.ProductVariant;
 import com.nexashop.domain.catalog.entity.ProductStatus;
 import jakarta.validation.Valid;
 import java.io.IOException;
@@ -102,6 +113,7 @@ public class ProductController {
         product.setStatus(request.getStatus());
         product.setAvailability(request.getAvailability());
         product.setAvailabilityText(request.getAvailabilityText());
+        product.setContinueSelling(Boolean.TRUE.equals(request.getContinueSelling()));
         product.setShowLowestPrice(Boolean.TRUE.equals(request.getShowLowestPrice()));
 
         Product saved = productUseCase.createProduct(
@@ -226,6 +238,7 @@ public class ProductController {
         updates.setStatus(request.getStatus());
         updates.setAvailability(request.getAvailability());
         updates.setAvailabilityText(request.getAvailabilityText());
+        updates.setContinueSelling(Boolean.TRUE.equals(request.getContinueSelling()));
         updates.setShowLowestPrice(Boolean.TRUE.equals(request.getShowLowestPrice()));
 
         Product saved = productUseCase.updateProduct(
@@ -268,6 +281,39 @@ public class ProductController {
         return productUseCase.listProductImages(id).stream()
                 .map(this::toImageResponse)
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}/options")
+    public List<ProductOptionResponse> listProductOptions(@PathVariable Long id) {
+        return productUseCase.listProductOptions(id).stream()
+                .map(this::toOptionResponse)
+                .collect(Collectors.toList());
+    }
+
+    @PutMapping("/{id}/options")
+    public List<ProductOptionResponse> replaceProductOptions(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateProductOptionsRequest request
+    ) {
+        List<ProductUseCase.ProductOptionGroup> groups = toOptionGroups(request == null ? null : request.getOptions());
+        return productUseCase.replaceProductOptions(id, groups).stream()
+                .map(this::toOptionResponse)
+                .collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}/variants")
+    public List<ProductVariantResponse> listProductVariants(@PathVariable Long id) {
+        return mapVariantResponses(id, productUseCase.listProductVariants(id));
+    }
+
+    @PutMapping("/{id}/variants")
+    public List<ProductVariantResponse> replaceProductVariants(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateProductVariantsRequest request
+    ) {
+        List<ProductUseCase.ProductVariantGroup> groups = toVariantGroups(request == null ? null : request.getVariants());
+        List<ProductUseCase.ProductVariantGroup> saved = productUseCase.replaceProductVariants(id, groups);
+        return mapVariantResponses(id, saved);
     }
 
     @PutMapping("/{id}/images/order")
@@ -493,6 +539,7 @@ public class ProductController {
                 .status(product.getStatus())
                 .availability(product.getAvailability())
                 .availabilityText(product.getAvailabilityText())
+                .continueSelling(product.isContinueSelling())
                 .showLowestPrice(product.isShowLowestPrice())
                 .lowestPrice(lowestPrice)
                 .lowStock(lowStock)
@@ -530,6 +577,7 @@ public class ProductController {
                 .status(product.getStatus())
                 .availability(product.getAvailability())
                 .availabilityText(product.getAvailabilityText())
+                .continueSelling(product.isContinueSelling())
                 .showLowestPrice(product.isShowLowestPrice())
                 .lowestPrice(lowestPrice)
                 .lowStock(lowStock)
@@ -543,6 +591,157 @@ public class ProductController {
                 .images(details.images().stream().map(this::toImageResponse).toList())
                 .inventories(details.inventories().stream().map(this::toInventoryResponse).toList())
                 .build();
+    }
+
+    private ProductOptionResponse toOptionResponse(ProductUseCase.ProductOptionGroup group) {
+        ProductOption option = group.option();
+        return ProductOptionResponse.builder()
+                .id(option.getId())
+                .productId(option.getProductId())
+                .name(option.getName())
+                .type(option.getType())
+                .required(option.isRequired())
+                .usedForVariants(option.isUsedForVariants())
+                .displayOrder(option.getDisplayOrder())
+                .createdBy(option.getCreatedBy())
+                .createdAt(option.getCreatedAt())
+                .values(group.values().stream().map(this::toOptionValueResponse).toList())
+                .build();
+    }
+
+    private ProductOptionValueResponse toOptionValueResponse(ProductOptionValue value) {
+        return ProductOptionValueResponse.builder()
+                .id(value.getId())
+                .optionId(value.getOptionId())
+                .value(value.getValue())
+                .hexColor(value.getHexColor())
+                .displayOrder(value.getDisplayOrder())
+                .createdBy(value.getCreatedBy())
+                .createdAt(value.getCreatedAt())
+                .build();
+    }
+
+    private List<ProductUseCase.ProductOptionGroup> toOptionGroups(List<ProductOptionRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        List<ProductUseCase.ProductOptionGroup> groups = new ArrayList<>();
+        for (ProductOptionRequest request : requests) {
+            if (request == null) {
+                continue;
+            }
+            ProductOption option = new ProductOption();
+            option.setName(request.getName());
+            option.setType(request.getType());
+            option.setRequired(Boolean.TRUE.equals(request.getRequired()));
+            option.setUsedForVariants(request.getUsedForVariants() == null || request.getUsedForVariants());
+            option.setDisplayOrder(request.getDisplayOrder());
+
+            List<ProductOptionValue> values = new ArrayList<>();
+            if (request.getValues() != null) {
+                for (ProductOptionValueRequest valueRequest : request.getValues()) {
+                    if (valueRequest == null) {
+                        continue;
+                    }
+                    ProductOptionValue value = new ProductOptionValue();
+                    value.setValue(valueRequest.getValue());
+                    value.setHexColor(valueRequest.getHexColor());
+                    value.setDisplayOrder(valueRequest.getDisplayOrder());
+                    values.add(value);
+                }
+            }
+            groups.add(new ProductUseCase.ProductOptionGroup(option, values));
+        }
+        return groups;
+    }
+
+    private List<ProductUseCase.ProductVariantGroup> toVariantGroups(List<ProductVariantRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        List<ProductUseCase.ProductVariantGroup> groups = new ArrayList<>();
+        for (ProductVariantRequest request : requests) {
+            if (request == null) {
+                continue;
+            }
+            ProductVariant variant = new ProductVariant();
+            variant.setSku(request.getSku());
+            variant.setPriceOverride(request.getPriceOverride());
+            variant.setStockQuantity(request.getStockQuantity());
+            variant.setLowStockThreshold(request.getLowStockThreshold());
+            variant.setStatus(request.getStatus());
+            variant.setDefaultVariant(Boolean.TRUE.equals(request.getIsDefault()));
+            variant.setContinueSellingOverride(request.getContinueSellingOverride());
+            variant.setProductImageId(request.getProductImageId());
+            groups.add(new ProductUseCase.ProductVariantGroup(variant, request.getOptionValueIds()));
+        }
+        return groups;
+    }
+
+    private List<ProductVariantResponse> mapVariantResponses(
+            Long productId,
+            List<ProductUseCase.ProductVariantGroup> groups
+    ) {
+        List<ProductUseCase.ProductOptionGroup> optionGroups = productUseCase.listProductOptions(productId);
+        List<ProductImage> images = productUseCase.listProductImages(productId);
+
+        var optionOrder = optionGroups.stream()
+                .collect(Collectors.toMap(
+                        group -> group.option().getId(),
+                        group -> group.option().getDisplayOrder()
+                ));
+        var valueById = new java.util.HashMap<Long, ProductOptionValue>();
+        var optionByValueId = new java.util.HashMap<Long, Long>();
+        for (ProductUseCase.ProductOptionGroup group : optionGroups) {
+            for (ProductOptionValue value : group.values()) {
+                valueById.put(value.getId(), value);
+                optionByValueId.put(value.getId(), group.option().getId());
+            }
+        }
+        var imageUrlById = images.stream()
+                .collect(Collectors.toMap(ProductImage::getId, ProductImage::getImageUrl));
+
+        List<ProductVariantResponse> responses = new ArrayList<>();
+        for (ProductUseCase.ProductVariantGroup group : groups) {
+            ProductVariant variant = group.variant();
+            List<Long> optionValueIds = group.optionValueIds() == null ? List.of() : group.optionValueIds();
+            List<Long> sortedIds = optionValueIds.stream()
+                    .sorted((a, b) -> {
+                        Integer orderA = optionOrder.getOrDefault(optionByValueId.get(a), 0);
+                        Integer orderB = optionOrder.getOrDefault(optionByValueId.get(b), 0);
+                        return Integer.compare(orderA, orderB);
+                    })
+                    .toList();
+            String displayName = sortedIds.stream()
+                    .map(valueById::get)
+                    .filter(value -> value != null && value.getValue() != null)
+                    .map(ProductOptionValue::getValue)
+                    .collect(Collectors.joining(" / "));
+            String imageUrl = variant.getProductImageId() == null
+                    ? null
+                    : imageUrlById.get(variant.getProductImageId());
+
+            responses.add(ProductVariantResponse.builder()
+                    .id(variant.getId())
+                    .productId(variant.getProductId())
+                    .sku(variant.getSku())
+                    .priceOverride(variant.getPriceOverride())
+                    .stockQuantity(variant.getStockQuantity())
+                    .lowStockThreshold(variant.getLowStockThreshold())
+                    .status(variant.getStatus())
+                    .isDefault(variant.isDefaultVariant())
+                    .continueSellingOverride(variant.getContinueSellingOverride())
+                    .productImageId(variant.getProductImageId())
+                    .productImageUrl(imageUrl)
+                    .optionValueIds(sortedIds)
+                    .displayName(displayName)
+                    .createdBy(variant.getCreatedBy())
+                    .updatedBy(variant.getUpdatedBy())
+                    .createdAt(variant.getCreatedAt())
+                    .updatedAt(variant.getUpdatedAt())
+                    .build());
+        }
+        return responses;
     }
 
     private ProductImageResponse toImageResponse(ProductImage image) {

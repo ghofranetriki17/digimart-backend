@@ -55,6 +55,8 @@ public class CreateProductRequest {
 
     private String availabilityText;
 
+    private Boolean continueSelling;
+
     private Boolean showLowestPrice;
 
     private List<Long> categoryIds;

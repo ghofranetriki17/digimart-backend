@@ -1,0 +1,98 @@
+﻿DIGIMART – VARIANTS & OPTIONS (V1)
+
+1) OBJECTIF
+Permettre des variantes de produit (ex: Couleur/Taille) avec stock global, prix override, image liee.
+Les options et valeurs n'existent QUE si elles servent aux variantes. Pas de variantes = pas d'options.
+
+2) ENTITES & CHAMPS PRINCIPAUX
+
+A) ProductOption
+- productId (FK)
+- name (ex: "Couleur")
+- type (TEXT | COLOR | NUMBER | DROPDOWN | MULTISELECT)
+- required (bool)
+- usedForVariants (bool)
+- displayOrder
+- createdBy
+
+B) ProductOptionValue
+- optionId (FK)
+- value (ex: "Rouge")
+- hexColor (ex: "#FF0000", optionnel, utile pour COLOR)
+- displayOrder
+- createdBy
+
+C) ProductVariant
+- productId (FK)
+- sku (OPTIONNEL, cache en UI V1)
+- priceOverride (nullable, sinon prix du produit)
+- stockQuantity (global)
+- lowStockThreshold
+- status (ACTIVE | DISABLED)
+- isDefault (1 seule variante par defaut)
+- continueSellingOverride (null = herite du produit)
+- productImageId (optionnel, 1 image du produit)
+- createdBy / updatedBy
+
+D) VariantOptionValue (liaison)
+- variantId (FK)
+- optionValueId (FK)
+- UNIQUE(variantId, optionValueId)
+
+3) REGLES METIER (LOGIQUE)
+
+A) Options & valeurs
+- Si un option n'a PAS de valeurs => il n'est PAS sauvegarde.
+- Si le produit n'a AUCUNE variante => toutes les options/valeurs sont supprimees.
+- Les options sauvegardees sont uniquement celles utilisees pour variantes.
+- Les valeurs doivent etre uniques par option (pas de doublon).
+- Hex color valide si fourni (format #RRGGBB).
+
+B) Variantes
+- SKU est optionnel (peut etre NULL).
+- Une seule variante peut etre par defaut.
+- Chaque variante doit inclure toutes les options "usedForVariants".
+- productImageId doit appartenir au produit.
+- continueSellingOverride:
+  - null => herite du produit
+  - true => vendre meme stock 0
+  - false => bloquer quand stock 0
+
+C) Stock
+- V1 = stock global uniquement (pas par magasin sur variantes).
+- La logique low stock s'applique sur stockQuantity vs lowStockThreshold.
+
+4) ENDPOINTS API
+
+- GET /api/products/{id}/options
+- PUT /api/products/{id}/options
+- GET /api/products/{id}/variants
+- PUT /api/products/{id}/variants
+
+5) FLOW FRONTEND (UI)
+
+A) Etape "Options"
+- Ajouter option (nom + type + valeurs)
+- Si option sans valeurs -> ignore au moment de sauver.
+- Si aucune variante -> options supprimees.
+
+B) Etape "Variantes"
+- Generer variantes depuis combinaisons d'options
+- Modifier chaque variante (prix, stock, statut, image, continueSellingOverride)
+- Definir la variante par defaut
+- SKU cache en V1
+
+C) Preview
+- En details produit, selectionner variante change l'image principale via productImageId.
+
+6) SAUVEGARDE – LOGIQUE TECHNIQUE
+
+- Quand on sauvegarde le produit:
+  1) Sauvegarde options (nettoyees: uniquement options avec valeurs)
+  2) Sauvegarde variantes (avec optionValueIds)
+- Si aucune variante: options = []
+
+7) NOTE FUTURE (NON V1)
+- Stock par magasin pour variantes
+- Historique prix par variante
+- SKU visible si besoin logistique

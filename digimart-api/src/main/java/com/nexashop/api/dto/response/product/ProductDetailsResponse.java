@@ -29,6 +29,7 @@ public class ProductDetailsResponse {
     private ProductStatus status;
     private ProductAvailability availability;
     private String availabilityText;
+    private boolean continueSelling;
     private boolean showLowestPrice;
     private BigDecimal lowestPrice;
     private boolean lowStock;

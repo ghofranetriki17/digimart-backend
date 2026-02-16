@@ -11,20 +11,30 @@ import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.ProductCategoryRepository;
 import com.nexashop.application.port.out.ProductImageRepository;
+import com.nexashop.application.port.out.ProductOptionRepository;
+import com.nexashop.application.port.out.ProductOptionValueRepository;
 import com.nexashop.application.port.out.ProductPriceHistoryRepository;
 import com.nexashop.application.port.out.ProductRepository;
 import com.nexashop.application.port.out.ProductStoreInventoryRepository;
+import com.nexashop.application.port.out.ProductVariantRepository;
 import com.nexashop.application.port.out.StoreRepository;
 import com.nexashop.application.port.out.TenantRepository;
+import com.nexashop.application.port.out.VariantOptionValueRepository;
 import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.catalog.entity.Category;
+import com.nexashop.domain.catalog.entity.OptionType;
 import com.nexashop.domain.catalog.entity.Product;
 import com.nexashop.domain.catalog.entity.ProductAvailability;
 import com.nexashop.domain.catalog.entity.ProductCategory;
 import com.nexashop.domain.catalog.entity.ProductImage;
+import com.nexashop.domain.catalog.entity.ProductOption;
+import com.nexashop.domain.catalog.entity.ProductOptionValue;
 import com.nexashop.domain.catalog.entity.ProductPriceHistory;
 import com.nexashop.domain.catalog.entity.ProductStatus;
 import com.nexashop.domain.catalog.entity.ProductStoreInventory;
+import com.nexashop.domain.catalog.entity.ProductVariant;
+import com.nexashop.domain.catalog.entity.VariantOptionValue;
+import com.nexashop.domain.catalog.entity.VariantStatus;
 import com.nexashop.domain.store.entity.Store;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -42,8 +52,12 @@ public class ProductUseCase {
     private final ProductRepository productRepository;
     private final ProductCategoryRepository productCategoryRepository;
     private final ProductImageRepository productImageRepository;
+    private final ProductOptionRepository productOptionRepository;
+    private final ProductOptionValueRepository productOptionValueRepository;
     private final ProductPriceHistoryRepository priceHistoryRepository;
     private final ProductStoreInventoryRepository inventoryRepository;
+    private final ProductVariantRepository productVariantRepository;
+    private final VariantOptionValueRepository variantOptionValueRepository;
     private final TenantRepository tenantRepository;
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
@@ -54,8 +68,12 @@ public class ProductUseCase {
             ProductRepository productRepository,
             ProductCategoryRepository productCategoryRepository,
             ProductImageRepository productImageRepository,
+            ProductOptionRepository productOptionRepository,
+            ProductOptionValueRepository productOptionValueRepository,
             ProductPriceHistoryRepository priceHistoryRepository,
             ProductStoreInventoryRepository inventoryRepository,
+            ProductVariantRepository productVariantRepository,
+            VariantOptionValueRepository variantOptionValueRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
             StoreRepository storeRepository
@@ -65,8 +83,12 @@ public class ProductUseCase {
         this.productRepository = productRepository;
         this.productCategoryRepository = productCategoryRepository;
         this.productImageRepository = productImageRepository;
+        this.productOptionRepository = productOptionRepository;
+        this.productOptionValueRepository = productOptionValueRepository;
         this.priceHistoryRepository = priceHistoryRepository;
         this.inventoryRepository = inventoryRepository;
+        this.productVariantRepository = productVariantRepository;
+        this.variantOptionValueRepository = variantOptionValueRepository;
         this.tenantRepository = tenantRepository;
         this.categoryRepository = categoryRepository;
         this.storeRepository = storeRepository;
@@ -79,6 +101,12 @@ public class ProductUseCase {
             List<ProductImage> images,
             List<ProductStoreInventory> inventories
     ) {
+    }
+
+    public record ProductOptionGroup(ProductOption option, List<ProductOptionValue> values) {
+    }
+
+    public record ProductVariantGroup(ProductVariant variant, List<Long> optionValueIds) {
     }
 
     public record StoreRef(Long id, String name) {
@@ -214,6 +242,7 @@ public class ProductUseCase {
             product.setAvailability(updates.getAvailability());
         }
         product.setAvailabilityText(updates.getAvailabilityText());
+        product.setContinueSelling(updates.isContinueSelling());
         product.setShowLowestPrice(updates.isShowLowestPrice());
         product.setUpdatedBy(currentUser.userId());
 
@@ -266,6 +295,209 @@ public class ProductUseCase {
         List<ProductImage> images = productImageRepository.findByProductId(product.getId());
         List<ProductStoreInventory> inventories = inventoryRepository.findByProductId(product.getId());
         return new ProductDetails(product, categoryIds, primaryCategoryId, images, inventories);
+    }
+
+    public List<ProductOptionGroup> listProductOptions(Long productId) {
+        getProduct(productId);
+        List<ProductOption> options = productOptionRepository.findByProductId(productId);
+        if (options.isEmpty()) {
+            return List.of();
+        }
+        List<Long> optionIds = options.stream().map(ProductOption::getId).toList();
+        List<ProductOptionValue> values = productOptionValueRepository.findByOptionIds(optionIds);
+        var valuesByOption = values.stream()
+                .collect(Collectors.groupingBy(ProductOptionValue::getOptionId));
+        return options.stream()
+                .sorted((a, b) -> Integer.compare(a.getDisplayOrder(), b.getDisplayOrder()))
+                .map(option -> new ProductOptionGroup(
+                        option,
+                        valuesByOption.getOrDefault(option.getId(), List.of()).stream()
+                                .sorted((a, b) -> Integer.compare(a.getDisplayOrder(), b.getDisplayOrder()))
+                                .toList()
+                ))
+                .toList();
+    }
+
+    public List<ProductOptionGroup> replaceProductOptions(Long productId, List<ProductOptionGroup> groups) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Product product = getProduct(productId);
+        Long tenantId = product.getTenantId();
+        List<ProductOptionGroup> requested = groups == null ? List.of() : groups;
+        List<ProductOptionGroup> sanitized = new ArrayList<>();
+        for (ProductOptionGroup group : requested) {
+            if (group == null || group.option() == null) {
+                continue;
+            }
+            ProductOption incoming = group.option();
+            if (!incoming.isUsedForVariants()) {
+                continue;
+            }
+            String name = incoming.getName() == null ? "" : incoming.getName().trim();
+            if (name.isEmpty()) {
+                continue;
+            }
+            List<ProductOptionValue> incomingValues = group.values() == null ? List.of() : group.values();
+            List<ProductOptionValue> cleanedValues = new ArrayList<>();
+            int order = 0;
+            for (ProductOptionValue value : incomingValues) {
+                if (value == null) {
+                    continue;
+                }
+                String val = value.getValue() == null ? "" : value.getValue().trim();
+                if (val.isEmpty()) {
+                    continue;
+                }
+                ProductOptionValue cleaned = new ProductOptionValue();
+                cleaned.setValue(val);
+                cleaned.setHexColor(value.getHexColor());
+                cleaned.setDisplayOrder(value.getDisplayOrder() == null ? order : value.getDisplayOrder());
+                cleanedValues.add(cleaned);
+                order += 1;
+            }
+            if (cleanedValues.isEmpty()) {
+                continue;
+            }
+            ProductOption cleanedOption = new ProductOption();
+            cleanedOption.setName(name);
+            cleanedOption.setType(incoming.getType());
+            cleanedOption.setRequired(incoming.isRequired());
+            cleanedOption.setUsedForVariants(true);
+            cleanedOption.setDisplayOrder(incoming.getDisplayOrder());
+            sanitized.add(new ProductOptionGroup(cleanedOption, cleanedValues));
+        }
+        requested = sanitized;
+
+        validateOptionGroups(requested);
+
+        deleteVariantsForProduct(productId);
+        deleteOptionsForProduct(productId);
+
+        if (requested.isEmpty()) {
+            return List.of();
+        }
+
+        List<ProductOption> optionsToSave = new ArrayList<>();
+        for (int i = 0; i < requested.size(); i++) {
+            ProductOption incoming = requested.get(i).option();
+            ProductOption option = new ProductOption();
+            option.setTenantId(tenantId);
+            option.setProductId(productId);
+            option.setName(incoming.getName().trim());
+            option.setType(incoming.getType() == null ? OptionType.TEXT : incoming.getType());
+            option.setRequired(incoming.isRequired());
+            option.setUsedForVariants(incoming.isUsedForVariants());
+            option.setDisplayOrder(resolveDisplayOrder(incoming.getDisplayOrder(), i));
+            option.setCreatedBy(currentUser.userId());
+            optionsToSave.add(option);
+        }
+        List<ProductOption> savedOptions = productOptionRepository.saveAll(optionsToSave);
+
+        List<ProductOptionValue> valuesToSave = new ArrayList<>();
+        for (int i = 0; i < savedOptions.size(); i++) {
+            ProductOption savedOption = savedOptions.get(i);
+            List<ProductOptionValue> incomingValues = requested.get(i).values();
+            int valueOrder = 0;
+            for (ProductOptionValue incomingValue : incomingValues) {
+                ProductOptionValue value = new ProductOptionValue();
+                value.setTenantId(tenantId);
+                value.setOptionId(savedOption.getId());
+                value.setValue(incomingValue.getValue().trim());
+                value.setHexColor(normalizeHex(incomingValue.getHexColor()));
+                value.setDisplayOrder(resolveDisplayOrder(incomingValue.getDisplayOrder(), valueOrder));
+                value.setCreatedBy(currentUser.userId());
+                valuesToSave.add(value);
+                valueOrder += 1;
+            }
+        }
+        List<ProductOptionValue> savedValues = valuesToSave.isEmpty()
+                ? List.of()
+                : productOptionValueRepository.saveAll(valuesToSave);
+
+        var valuesByOption = savedValues.stream()
+                .collect(Collectors.groupingBy(ProductOptionValue::getOptionId));
+
+        return savedOptions.stream()
+                .map(option -> new ProductOptionGroup(
+                        option,
+                        valuesByOption.getOrDefault(option.getId(), List.of())
+                ))
+                .toList();
+    }
+
+    public List<ProductVariantGroup> listProductVariants(Long productId) {
+        getProduct(productId);
+        List<ProductVariant> variants = productVariantRepository.findByProductId(productId);
+        if (variants.isEmpty()) {
+            return List.of();
+        }
+        List<Long> variantIds = variants.stream().map(ProductVariant::getId).toList();
+        List<VariantOptionValue> links = variantOptionValueRepository.findByVariantIds(variantIds);
+        var idsByVariant = links.stream()
+                .collect(Collectors.groupingBy(VariantOptionValue::getVariantId,
+                        Collectors.mapping(VariantOptionValue::getOptionValueId, Collectors.toList())));
+
+        return variants.stream()
+                .map(variant -> new ProductVariantGroup(
+                        variant,
+                        idsByVariant.getOrDefault(variant.getId(), List.of())
+                ))
+                .toList();
+    }
+
+    public List<ProductVariantGroup> replaceProductVariants(Long productId, List<ProductVariantGroup> groups) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        Product product = getProduct(productId);
+        Long tenantId = product.getTenantId();
+        List<ProductVariantGroup> requested = groups == null ? List.of() : groups;
+
+        validateVariantGroups(productId, tenantId, requested);
+
+        deleteVariantsForProduct(productId);
+
+        if (requested.isEmpty()) {
+            return List.of();
+        }
+
+        List<ProductVariant> savedVariants = new ArrayList<>();
+        for (ProductVariantGroup group : requested) {
+            ProductVariant incoming = group.variant();
+            ProductVariant variant = new ProductVariant();
+            variant.setTenantId(tenantId);
+            variant.setProductId(productId);
+            variant.setSku(normalizeSku(incoming.getSku()));
+            variant.setPriceOverride(incoming.getPriceOverride());
+            variant.setStockQuantity(incoming.getStockQuantity());
+            variant.setLowStockThreshold(incoming.getLowStockThreshold());
+            variant.setStatus(incoming.getStatus() == null ? VariantStatus.ACTIVE : incoming.getStatus());
+            variant.setDefaultVariant(incoming.isDefaultVariant());
+            variant.setContinueSellingOverride(incoming.getContinueSellingOverride());
+            variant.setProductImageId(incoming.getProductImageId());
+            variant.setCreatedBy(currentUser.userId());
+            variant.setUpdatedBy(currentUser.userId());
+            savedVariants.add(productVariantRepository.save(variant));
+        }
+
+        List<VariantOptionValue> linksToSave = new ArrayList<>();
+        for (int i = 0; i < savedVariants.size(); i++) {
+            ProductVariant savedVariant = savedVariants.get(i);
+            List<Long> optionValueIds = requested.get(i).optionValueIds();
+            if (optionValueIds == null || optionValueIds.isEmpty()) {
+                continue;
+            }
+            Set<Long> uniqueOptionIds = new LinkedHashSet<>(optionValueIds);
+            for (Long optionValueId : uniqueOptionIds) {
+                VariantOptionValue link = new VariantOptionValue();
+                link.setTenantId(tenantId);
+                link.setVariantId(savedVariant.getId());
+                link.setOptionValueId(optionValueId);
+                linksToSave.add(link);
+            }
+        }
+        if (!linksToSave.isEmpty()) {
+            variantOptionValueRepository.saveAll(linksToSave);
+        }
+
+        return listProductVariants(productId);
     }
 
     public String suggestProductDescription(
@@ -378,6 +610,9 @@ public class ProductUseCase {
         if (product == null) {
             return false;
         }
+        if (productVariantRepository.existsByProductId(product.getId())) {
+            return productVariantRepository.existsLowStockByProductId(product.getId());
+        }
         if (!product.isTrackStock()) {
             Integer threshold = product.getLowStockThreshold();
             Integer quantity = product.getStockQuantity();
@@ -395,6 +630,8 @@ public class ProductUseCase {
         if (!isSuperAdmin && !product.getTenantId().equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
         }
+        deleteVariantsForProduct(id);
+        deleteOptionsForProduct(id);
         productCategoryRepository.deleteByProductId(id);
         productImageRepository.deleteByProductId(id);
         inventoryRepository.deleteByProductId(id);
@@ -464,6 +701,7 @@ public class ProductUseCase {
         if (!productId.equals(image.getProductId())) {
             throw new ForbiddenException("Image does not belong to product");
         }
+        productVariantRepository.clearProductImage(productId, imageId);
         productImageRepository.delete(image);
     }
 
@@ -848,5 +1086,159 @@ public class ProductUseCase {
             guard += 1;
         }
         return parts.isEmpty() ? null : String.join(" > ", parts);
+    }
+
+    private void deleteVariantsForProduct(Long productId) {
+        List<ProductVariant> existing = productVariantRepository.findByProductId(productId);
+        if (existing.isEmpty()) {
+            return;
+        }
+        List<Long> variantIds = existing.stream()
+                .map(ProductVariant::getId)
+                .toList();
+        variantOptionValueRepository.deleteByVariantIds(variantIds);
+        productVariantRepository.deleteByProductId(productId);
+    }
+
+    private void deleteOptionsForProduct(Long productId) {
+        List<ProductOption> options = productOptionRepository.findByProductId(productId);
+        if (options.isEmpty()) {
+            return;
+        }
+        List<Long> optionIds = options.stream()
+                .map(ProductOption::getId)
+                .toList();
+        productOptionValueRepository.deleteByOptionIds(optionIds);
+        productOptionRepository.deleteByProductId(productId);
+    }
+
+    private void validateOptionGroups(List<ProductOptionGroup> groups) {
+        if (groups == null || groups.isEmpty()) {
+            return;
+        }
+        Set<String> optionNames = new LinkedHashSet<>();
+        for (ProductOptionGroup group : groups) {
+            if (group == null || group.option() == null) {
+                throw new BadRequestException("Option is required");
+            }
+            ProductOption option = group.option();
+            String name = option.getName() == null ? "" : option.getName().trim();
+            if (name.isEmpty()) {
+                throw new BadRequestException("Option name is required");
+            }
+            String key = name.toLowerCase();
+            if (!optionNames.add(key)) {
+                throw new BadRequestException("Option name already exists: " + name);
+            }
+            List<ProductOptionValue> values = group.values() == null ? List.of() : group.values();
+            if (Boolean.TRUE.equals(option.isUsedForVariants()) && values.isEmpty()) {
+                throw new BadRequestException("Option values are required for: " + name);
+            }
+            Set<String> valueNames = new LinkedHashSet<>();
+            for (ProductOptionValue value : values) {
+                if (value == null) {
+                    throw new BadRequestException("Option value is required");
+                }
+                String val = value.getValue() == null ? "" : value.getValue().trim();
+                if (val.isEmpty()) {
+                    throw new BadRequestException("Option value is required for: " + name);
+                }
+                String valKey = val.toLowerCase();
+                if (!valueNames.add(valKey)) {
+                    throw new BadRequestException("Duplicate value '" + val + "' in option: " + name);
+                }
+                normalizeHex(value.getHexColor());
+            }
+        }
+    }
+
+    private void validateVariantGroups(Long productId, Long tenantId, List<ProductVariantGroup> groups) {
+        if (groups == null || groups.isEmpty()) {
+            return;
+        }
+        List<ProductOption> options = productOptionRepository.findByProductId(productId);
+        List<Long> optionIds = options.stream().map(ProductOption::getId).toList();
+        List<ProductOptionValue> values = optionIds.isEmpty()
+                ? List.of()
+                : productOptionValueRepository.findByOptionIds(optionIds);
+        var valueById = values.stream()
+                .collect(Collectors.toMap(ProductOptionValue::getId, value -> value));
+        var optionById = options.stream()
+                .collect(Collectors.toMap(ProductOption::getId, option -> option));
+        Set<Long> requiredOptionIds = options.stream()
+                .filter(ProductOption::isUsedForVariants)
+                .map(ProductOption::getId)
+                .collect(Collectors.toSet());
+
+        Set<String> skus = new LinkedHashSet<>();
+        int defaultCount = 0;
+        for (ProductVariantGroup group : groups) {
+            if (group == null || group.variant() == null) {
+                throw new BadRequestException("Variant is required");
+            }
+            ProductVariant variant = group.variant();
+            String sku = normalizeSku(variant.getSku());
+            if (sku != null) {
+                String key = sku.toLowerCase();
+                if (!skus.add(key)) {
+                    throw new BadRequestException("Duplicate variant SKU: " + sku);
+                }
+                if (productVariantRepository.existsByTenantIdAndSkuAndProductIdNot(tenantId, sku, productId)) {
+                    throw new ConflictException("Variant SKU already exists");
+                }
+            }
+            if (variant.isDefaultVariant()) {
+                defaultCount += 1;
+                if (defaultCount > 1) {
+                    throw new BadRequestException("Only one default variant is allowed");
+                }
+            }
+            if (variant.getProductImageId() != null) {
+                ProductImage image = productImageRepository.findById(variant.getProductImageId()).orElse(null);
+                if (image == null || !productId.equals(image.getProductId())) {
+                    throw new BadRequestException("Variant image must belong to the product");
+                }
+            }
+
+            List<Long> optionValueIds = group.optionValueIds() == null ? List.of() : group.optionValueIds();
+            Set<Long> optionIdsUsed = new LinkedHashSet<>();
+            for (Long optionValueId : optionValueIds) {
+                ProductOptionValue value = valueById.get(optionValueId);
+                if (value == null) {
+                    throw new BadRequestException("Invalid option value for variant");
+                }
+                ProductOption option = optionById.get(value.getOptionId());
+                if (option != null) {
+                    optionIdsUsed.add(option.getId());
+                }
+            }
+            if (!requiredOptionIds.isEmpty() && !optionIdsUsed.containsAll(requiredOptionIds)) {
+                throw new BadRequestException("Variant must include all variant options");
+            }
+        }
+    }
+
+    private int resolveDisplayOrder(Integer value, int fallback) {
+        return value == null ? fallback : value;
+    }
+
+    private String normalizeHex(String hex) {
+        if (hex == null || hex.isBlank()) {
+            return null;
+        }
+        String trimmed = hex.trim();
+        String normalized = trimmed.startsWith("#") ? trimmed : "#" + trimmed;
+        if (!normalized.matches("^#[0-9a-fA-F]{6}$")) {
+            throw new BadRequestException("Invalid hex color: " + hex);
+        }
+        return normalized.toUpperCase();
+    }
+
+    private String normalizeSku(String sku) {
+        if (sku == null) {
+            return null;
+        }
+        String trimmed = sku.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
