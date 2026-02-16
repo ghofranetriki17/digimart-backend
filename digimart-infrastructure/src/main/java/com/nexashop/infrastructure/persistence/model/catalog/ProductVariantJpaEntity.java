@@ -32,6 +32,24 @@ public class ProductVariantJpaEntity extends TenantScopedJpaEntity {
     @Column(name = "price_override")
     private BigDecimal priceOverride;
 
+    @Column(name = "initial_price_override")
+    private BigDecimal initialPriceOverride;
+
+    @Column(name = "final_price_override")
+    private BigDecimal finalPriceOverride;
+
+    @Column(name = "cost_price_override")
+    private BigDecimal costPriceOverride;
+
+    @Column(name = "shipping_price_override")
+    private BigDecimal shippingPriceOverride;
+
+    @Column(name = "shipping_cost_price_override")
+    private BigDecimal shippingCostPriceOverride;
+
+    @Column(name = "track_stock", nullable = false)
+    private boolean trackStock = false;
+
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
 

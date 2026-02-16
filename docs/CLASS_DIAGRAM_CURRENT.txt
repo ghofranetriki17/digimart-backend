@@ -175,6 +175,7 @@ direction TB
         +ProductStatus status
         +ProductAvailability availability
         +String availabilityText
+        +boolean continueSelling
         +boolean showLowestPrice
         +Long createdBy FK
         +Long updatedBy FK
@@ -194,6 +195,103 @@ direction TB
         IN_STOCK
         ON_ORDER
         PRE_ORDER
+    }
+
+    class ProductOption {
+        ~~ [NEW - CATALOG]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +String name
+        +OptionType type
+        +boolean required
+        +boolean usedForVariants
+        +Integer displayOrder
+        +Long createdBy FK
+        +LocalDateTime createdAt
+        ---
+        UNIQUE(tenantId,productId,name)
+    }
+
+    class OptionType {
+        ~~ [NEW]
+        TEXT
+        COLOR
+        NUMBER
+        DROPDOWN
+        MULTISELECT
+    }
+
+    class ProductOptionValue {
+        ~~ [NEW - CATALOG]
+        +Long id PK
+        +Long tenantId FK
+        +Long optionId FK
+        +String value
+        +String hexColor
+        +Integer displayOrder
+        +Long createdBy FK
+        +LocalDateTime createdAt
+        ---
+        UNIQUE(tenantId,optionId,value)
+    }
+
+    class ProductVariant {
+        ~~ [NEW - CATALOG]
+        +Long id PK
+        +Long tenantId FK
+        +Long productId FK
+        +String sku NULLABLE
+        +BigDecimal priceOverride NULLABLE
+        +BigDecimal initialPriceOverride NULLABLE
+        +BigDecimal finalPriceOverride NULLABLE
+        +BigDecimal costPriceOverride NULLABLE
+        +BigDecimal shippingPriceOverride NULLABLE
+        +BigDecimal shippingCostPriceOverride NULLABLE
+        +boolean trackStock
+        +Integer stockQuantity
+        +Integer lowStockThreshold
+        +VariantStatus status
+        +boolean defaultVariant
+        +Boolean continueSellingOverride NULLABLE
+        +Long productImageId FK NULLABLE
+        +Long createdBy FK
+        +Long updatedBy FK
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+        ---
+        UNIQUE(tenantId,productId,sku)
+    }
+
+    class VariantStatus {
+        ~~ [NEW]
+        ACTIVE
+        DISABLED
+    }
+
+    class VariantOptionValue {
+        ~~ [NEW - JUNCTION TABLE]
+        +Long id PK
+        +Long tenantId FK
+        +Long variantId FK
+        +Long optionValueId FK
+        ---
+        UNIQUE(tenantId,variantId,optionValueId)
+    }
+
+    class VariantStoreInventory {
+        ~~ [NEW]
+        +Long id PK
+        +Long tenantId FK
+        +Long variantId FK
+        +Long storeId FK
+        +Integer quantity
+        +Integer lowStockThreshold
+        +boolean activeInStore
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+        ---
+        UNIQUE(tenantId,variantId,storeId)
     }
 
     class ProductCategory {
@@ -459,20 +557,32 @@ direction TB
 
     class ProductUseCase {
         +CurrentUserProvider currentUserProvider
+        +AiTextProvider aiTextProvider
         +ProductRepository productRepository
         +ProductCategoryRepository productCategoryRepository
         +ProductImageRepository productImageRepository
+        +ProductOptionRepository productOptionRepository
+        +ProductOptionValueRepository productOptionValueRepository
         +ProductPriceHistoryRepository priceHistoryRepository
         +ProductStoreInventoryRepository inventoryRepository
+        +ProductVariantRepository productVariantRepository
+        +VariantOptionValueRepository variantOptionValueRepository
+        +VariantStoreInventoryRepository variantStoreInventoryRepository
         +TenantRepository tenantRepository
         +CategoryRepository categoryRepository
         +StoreRepository storeRepository
         --
-        +createProduct(product, slug, sku, categoryIds, primaryCategoryId, inventories)
+        +createProduct(product, targetTenantId, categoryIds, primaryCategoryId, inventories)
         +updateProduct(id, slug, sku, updates, categoryIds, primaryCategoryId, inventories)
         +getProduct(id)
         +getProductDetails(id)
+        +listProductOptions(productId)
+        +replaceProductOptions(productId, groups)
+        +listProductVariants(productId)
+        +replaceProductVariants(productId, groups)
+        +suggestProductDescription(id, language, maxSentences, tone)
         +listProducts(tenantId)
+        +listProducts(pageRequest, tenantId)
         +listProducts(pageRequest, tenantId, status, availability, stockLow, minPrice, maxPrice, search, categoryId)
         +listPriceHistory(pageRequest, productId)
         +addProductImage(productId, image)
@@ -681,8 +791,10 @@ direction TB
     note for PremiumFeature "Seeded by developers\nAdmin cannot create features\nOnly assign to plans"
     note for WalletTransaction "For now: manual credit/debit only\nFuture: auto-deduction from orders"
     note for Category "Hierarchical structure via parentCategoryId\nSlug auto-generated from name\nSupports AI description generation"
-    note for Product "Slug auto-generated from name\navailabilityText: free text like 'Delai 2-3 semaines'\nshowLowestPrice: affichage du prix le plus bas"
+    note for Product "Slug auto-generated from name\navailabilityText: free text like 'Delai 2-3 semaines'\ncontinueSelling: permet la vente meme si stock=0\nshowLowestPrice: affichage du prix le plus bas"
+    note for ProductVariant "SKU optionnel (cache dans l'UI)\npriceOverride: alias du prix final\ninitial/final/cost/shipping overrides: si null, utiliser le prix du produit\ntrackStock: si true, utiliser le stock par magasin\ncontinueSellingOverride: si null, utiliser le produit\nproductImageId: image associee a la variante"
     note for ProductStoreInventory "Used ONLY when product has NO variants\nTracks inventory per store"
+    note for VariantStoreInventory "Used when product has variants\nTracks variant stock per store (if enabled)"
 
     Tenant "many" --> "1" ActivitySector : belongsTo
     Tenant "1" --o "0..*" Store : owns
@@ -707,6 +819,17 @@ direction TB
     Category "1" --o "0..*" ProductCategory : contains
     ProductCategory "0..*" --> "1" Product : product
     ProductCategory "0..*" --> "1" Category : category
+    Product "1" --o "0..*" ProductOption : hasOptions
+    ProductOption "1" --> "1" OptionType : type
+    ProductOption "1" --o "0..*" ProductOptionValue : values
+    Product "1" --o "0..*" ProductVariant : hasVariants
+    ProductVariant "1" --> "1" VariantStatus : status
+    ProductVariant "1" --o "0..*" VariantOptionValue : optionValues
+    VariantOptionValue "0..*" --> "1" ProductOptionValue : value
+    VariantOptionValue "0..*" --> "1" ProductVariant : variant
+    ProductVariant "0..1" --> "1" ProductImage : image
+    ProductVariant "1" --o "0..*" VariantStoreInventory : inventory
+    VariantStoreInventory "0..*" --> "1" Store : store
     Product "1" --> "1" ProductStatus : status
     Product "1" --> "1" ProductAvailability : availability
     Product "1" --o "0..*" ProductImage : images
@@ -742,9 +865,16 @@ direction TB
     style Product fill:#00897B,stroke:#004D40,color:#fff,stroke-width:4px
     style ProductCategory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
     style ProductImage fill:#00897B,stroke:#004D40,color:#fff
+    style ProductOption fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+    style ProductOptionValue fill:#00897B,stroke:#004D40,color:#fff
+    style ProductVariant fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+    style VariantOptionValue fill:#00897B,stroke:#004D40,color:#fff
     style ProductStatus fill:#00897B,stroke:#004D40,color:#fff
     style ProductAvailability fill:#00897B,stroke:#004D40,color:#fff
+    style OptionType fill:#00897B,stroke:#004D40,color:#fff
+    style VariantStatus fill:#00897B,stroke:#004D40,color:#fff
     style ProductStoreInventory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
+    style VariantStoreInventory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
     style ProductPriceHistory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
 
     style Role fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px

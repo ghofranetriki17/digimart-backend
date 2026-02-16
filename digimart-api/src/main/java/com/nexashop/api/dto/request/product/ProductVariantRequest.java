@@ -14,6 +14,18 @@ public class ProductVariantRequest {
 
     private BigDecimal priceOverride;
 
+    private BigDecimal initialPriceOverride;
+
+    private BigDecimal finalPriceOverride;
+
+    private BigDecimal costPriceOverride;
+
+    private BigDecimal shippingPriceOverride;
+
+    private BigDecimal shippingCostPriceOverride;
+
+    private Boolean trackStock;
+
     private Integer stockQuantity;
 
     private Integer lowStockThreshold;
@@ -27,4 +39,6 @@ public class ProductVariantRequest {
     private Long productImageId;
 
     private List<Long> optionValueIds;
+
+    private List<VariantInventoryRequest> inventories;
 }

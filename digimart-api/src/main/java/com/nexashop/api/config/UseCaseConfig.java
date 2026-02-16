@@ -28,6 +28,7 @@ import com.nexashop.application.port.out.TenantWalletRepository;
 import com.nexashop.application.port.out.UserRepository;
 import com.nexashop.application.port.out.UserRoleAssignmentRepository;
 import com.nexashop.application.port.out.VariantOptionValueRepository;
+import com.nexashop.application.port.out.VariantStoreInventoryRepository;
 import com.nexashop.application.port.out.WalletTransactionRepository;
 import com.nexashop.application.service.AuthTokenService;
 import com.nexashop.application.service.TenantProvisioningService;
@@ -201,6 +202,7 @@ public class UseCaseConfig {
             ProductStoreInventoryRepository inventoryRepository,
             ProductVariantRepository productVariantRepository,
             VariantOptionValueRepository variantOptionValueRepository,
+            VariantStoreInventoryRepository variantStoreInventoryRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
             StoreRepository storeRepository
@@ -217,6 +219,7 @@ public class UseCaseConfig {
                 inventoryRepository,
                 productVariantRepository,
                 variantOptionValueRepository,
+                variantStoreInventoryRepository,
                 tenantRepository,
                 categoryRepository,
                 storeRepository

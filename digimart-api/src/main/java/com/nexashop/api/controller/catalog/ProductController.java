@@ -9,6 +9,7 @@ import com.nexashop.api.dto.request.product.ProductInventoryRequest;
 import com.nexashop.api.dto.request.product.ProductOptionRequest;
 import com.nexashop.api.dto.request.product.ProductOptionValueRequest;
 import com.nexashop.api.dto.request.product.ProductVariantRequest;
+import com.nexashop.api.dto.request.product.VariantInventoryRequest;
 import com.nexashop.api.dto.request.product.UpdateProductRequest;
 import com.nexashop.api.dto.request.product.UpdateProductImageOrderRequest;
 import com.nexashop.api.dto.request.product.UpdateProductOptionsRequest;
@@ -27,6 +28,7 @@ import com.nexashop.api.dto.response.product.ProductPriceHistoryResponse;
 import com.nexashop.api.dto.response.product.ProductResponse;
 import com.nexashop.api.dto.response.product.ProductStoreRefResponse;
 import com.nexashop.api.dto.response.product.ProductVariantResponse;
+import com.nexashop.api.dto.response.product.VariantInventoryResponse;
 import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.ProductUseCase;
@@ -38,6 +40,7 @@ import com.nexashop.domain.catalog.entity.ProductOptionValue;
 import com.nexashop.domain.catalog.entity.ProductStoreInventory;
 import com.nexashop.domain.catalog.entity.ProductVariant;
 import com.nexashop.domain.catalog.entity.ProductStatus;
+import com.nexashop.domain.catalog.entity.VariantStoreInventory;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -666,16 +669,50 @@ public class ProductController {
             }
             ProductVariant variant = new ProductVariant();
             variant.setSku(request.getSku());
-            variant.setPriceOverride(request.getPriceOverride());
+            BigDecimal resolvedFinalOverride = request.getFinalPriceOverride() != null
+                    ? request.getFinalPriceOverride()
+                    : request.getPriceOverride();
+            variant.setPriceOverride(resolvedFinalOverride);
+            variant.setInitialPriceOverride(request.getInitialPriceOverride());
+            variant.setFinalPriceOverride(resolvedFinalOverride);
+            variant.setCostPriceOverride(request.getCostPriceOverride());
+            variant.setShippingPriceOverride(request.getShippingPriceOverride());
+            variant.setShippingCostPriceOverride(request.getShippingCostPriceOverride());
+            variant.setTrackStock(Boolean.TRUE.equals(request.getTrackStock()));
             variant.setStockQuantity(request.getStockQuantity());
             variant.setLowStockThreshold(request.getLowStockThreshold());
             variant.setStatus(request.getStatus());
             variant.setDefaultVariant(Boolean.TRUE.equals(request.getIsDefault()));
             variant.setContinueSellingOverride(request.getContinueSellingOverride());
             variant.setProductImageId(request.getProductImageId());
-            groups.add(new ProductUseCase.ProductVariantGroup(variant, request.getOptionValueIds()));
+            List<VariantStoreInventory> inventories = new ArrayList<>();
+            if (request.getInventories() != null) {
+                for (VariantInventoryRequest inventoryRequest : request.getInventories()) {
+                    VariantStoreInventory inventory = toVariantInventory(inventoryRequest);
+                    if (inventory != null) {
+                        inventories.add(inventory);
+                    }
+                }
+            }
+            groups.add(new ProductUseCase.ProductVariantGroup(
+                    variant,
+                    request.getOptionValueIds(),
+                    inventories
+            ));
         }
         return groups;
+    }
+
+    private VariantStoreInventory toVariantInventory(VariantInventoryRequest request) {
+        if (request == null || request.getStoreId() == null) {
+            return null;
+        }
+        VariantStoreInventory inventory = new VariantStoreInventory();
+        inventory.setStoreId(request.getStoreId());
+        inventory.setQuantity(request.getQuantity());
+        inventory.setLowStockThreshold(request.getLowStockThreshold());
+        inventory.setActiveInStore(request.getActiveInStore() == null || request.getActiveInStore());
+        return inventory;
     }
 
     private List<ProductVariantResponse> mapVariantResponses(
@@ -725,7 +762,15 @@ public class ProductController {
                     .id(variant.getId())
                     .productId(variant.getProductId())
                     .sku(variant.getSku())
-                    .priceOverride(variant.getPriceOverride())
+                    .priceOverride(variant.getFinalPriceOverride() != null
+                            ? variant.getFinalPriceOverride()
+                            : variant.getPriceOverride())
+                    .initialPriceOverride(variant.getInitialPriceOverride())
+                    .finalPriceOverride(variant.getFinalPriceOverride())
+                    .costPriceOverride(variant.getCostPriceOverride())
+                    .shippingPriceOverride(variant.getShippingPriceOverride())
+                    .shippingCostPriceOverride(variant.getShippingCostPriceOverride())
+                    .trackStock(variant.isTrackStock())
                     .stockQuantity(variant.getStockQuantity())
                     .lowStockThreshold(variant.getLowStockThreshold())
                     .status(variant.getStatus())
@@ -734,6 +779,11 @@ public class ProductController {
                     .productImageId(variant.getProductImageId())
                     .productImageUrl(imageUrl)
                     .optionValueIds(sortedIds)
+                    .inventories(group.inventories() == null
+                            ? List.of()
+                            : group.inventories().stream()
+                                    .map(this::toVariantInventoryResponse)
+                                    .toList())
                     .displayName(displayName)
                     .createdBy(variant.getCreatedBy())
                     .updatedBy(variant.getUpdatedBy())
@@ -753,6 +803,22 @@ public class ProductController {
                 .displayOrder(image.getDisplayOrder())
                 .primary(image.isPrimary())
                 .createdAt(image.getCreatedAt())
+                .build();
+    }
+
+    private VariantInventoryResponse toVariantInventoryResponse(VariantStoreInventory inventory) {
+        if (inventory == null) {
+            return null;
+        }
+        return VariantInventoryResponse.builder()
+                .id(inventory.getId())
+                .variantId(inventory.getVariantId())
+                .storeId(inventory.getStoreId())
+                .quantity(inventory.getQuantity())
+                .lowStockThreshold(inventory.getLowStockThreshold())
+                .activeInStore(inventory.isActiveInStore())
+                .createdAt(inventory.getCreatedAt())
+                .updatedAt(inventory.getUpdatedAt())
                 .build();
     }
 

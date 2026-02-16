@@ -20,6 +20,7 @@ import com.nexashop.application.port.out.ProductVariantRepository;
 import com.nexashop.application.port.out.StoreRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.VariantOptionValueRepository;
+import com.nexashop.application.port.out.VariantStoreInventoryRepository;
 import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.catalog.entity.Category;
 import com.nexashop.domain.catalog.entity.OptionType;
@@ -35,6 +36,7 @@ import com.nexashop.domain.catalog.entity.ProductStoreInventory;
 import com.nexashop.domain.catalog.entity.ProductVariant;
 import com.nexashop.domain.catalog.entity.VariantOptionValue;
 import com.nexashop.domain.catalog.entity.VariantStatus;
+import com.nexashop.domain.catalog.entity.VariantStoreInventory;
 import com.nexashop.domain.store.entity.Store;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -58,6 +60,7 @@ public class ProductUseCase {
     private final ProductStoreInventoryRepository inventoryRepository;
     private final ProductVariantRepository productVariantRepository;
     private final VariantOptionValueRepository variantOptionValueRepository;
+    private final VariantStoreInventoryRepository variantStoreInventoryRepository;
     private final TenantRepository tenantRepository;
     private final CategoryRepository categoryRepository;
     private final StoreRepository storeRepository;
@@ -74,6 +77,7 @@ public class ProductUseCase {
             ProductStoreInventoryRepository inventoryRepository,
             ProductVariantRepository productVariantRepository,
             VariantOptionValueRepository variantOptionValueRepository,
+            VariantStoreInventoryRepository variantStoreInventoryRepository,
             TenantRepository tenantRepository,
             CategoryRepository categoryRepository,
             StoreRepository storeRepository
@@ -89,6 +93,7 @@ public class ProductUseCase {
         this.inventoryRepository = inventoryRepository;
         this.productVariantRepository = productVariantRepository;
         this.variantOptionValueRepository = variantOptionValueRepository;
+        this.variantStoreInventoryRepository = variantStoreInventoryRepository;
         this.tenantRepository = tenantRepository;
         this.categoryRepository = categoryRepository;
         this.storeRepository = storeRepository;
@@ -106,7 +111,11 @@ public class ProductUseCase {
     public record ProductOptionGroup(ProductOption option, List<ProductOptionValue> values) {
     }
 
-    public record ProductVariantGroup(ProductVariant variant, List<Long> optionValueIds) {
+    public record ProductVariantGroup(
+            ProductVariant variant,
+            List<Long> optionValueIds,
+            List<VariantStoreInventory> inventories
+    ) {
     }
 
     public record StoreRef(Long id, String name) {
@@ -435,11 +444,15 @@ public class ProductUseCase {
         var idsByVariant = links.stream()
                 .collect(Collectors.groupingBy(VariantOptionValue::getVariantId,
                         Collectors.mapping(VariantOptionValue::getOptionValueId, Collectors.toList())));
+        List<VariantStoreInventory> inventories = variantStoreInventoryRepository.findByVariantIds(variantIds);
+        var inventoriesByVariant = inventories.stream()
+                .collect(Collectors.groupingBy(VariantStoreInventory::getVariantId));
 
         return variants.stream()
                 .map(variant -> new ProductVariantGroup(
                         variant,
-                        idsByVariant.getOrDefault(variant.getId(), List.of())
+                        idsByVariant.getOrDefault(variant.getId(), List.of()),
+                        inventoriesByVariant.getOrDefault(variant.getId(), List.of())
                 ))
                 .toList();
     }
@@ -465,16 +478,35 @@ public class ProductUseCase {
             variant.setTenantId(tenantId);
             variant.setProductId(productId);
             variant.setSku(normalizeSku(incoming.getSku()));
-            variant.setPriceOverride(incoming.getPriceOverride());
-            variant.setStockQuantity(incoming.getStockQuantity());
-            variant.setLowStockThreshold(incoming.getLowStockThreshold());
+            BigDecimal resolvedFinalOverride = incoming.getFinalPriceOverride() != null
+                    ? incoming.getFinalPriceOverride()
+                    : incoming.getPriceOverride();
+            variant.setPriceOverride(resolvedFinalOverride);
+            variant.setInitialPriceOverride(incoming.getInitialPriceOverride());
+            variant.setFinalPriceOverride(resolvedFinalOverride);
+            variant.setCostPriceOverride(incoming.getCostPriceOverride());
+            variant.setShippingPriceOverride(incoming.getShippingPriceOverride());
+            variant.setShippingCostPriceOverride(incoming.getShippingCostPriceOverride());
+            boolean trackStock = incoming.isTrackStock();
+            variant.setTrackStock(trackStock);
+            if (trackStock) {
+                variant.setStockQuantity(null);
+                variant.setLowStockThreshold(null);
+            } else {
+                variant.setStockQuantity(incoming.getStockQuantity());
+                variant.setLowStockThreshold(incoming.getLowStockThreshold());
+            }
             variant.setStatus(incoming.getStatus() == null ? VariantStatus.ACTIVE : incoming.getStatus());
             variant.setDefaultVariant(incoming.isDefaultVariant());
             variant.setContinueSellingOverride(incoming.getContinueSellingOverride());
             variant.setProductImageId(incoming.getProductImageId());
             variant.setCreatedBy(currentUser.userId());
             variant.setUpdatedBy(currentUser.userId());
-            savedVariants.add(productVariantRepository.save(variant));
+            ProductVariant savedVariant = productVariantRepository.save(variant);
+            savedVariants.add(savedVariant);
+            if (trackStock) {
+                replaceVariantInventory(savedVariant.getId(), tenantId, group.inventories());
+            }
         }
 
         List<VariantOptionValue> linksToSave = new ArrayList<>();
@@ -677,6 +709,28 @@ public class ProductUseCase {
 
     public List<StoreRef> listActiveStores(Long productId) {
         Product product = getProduct(productId);
+        if (productVariantRepository.existsByProductId(productId)) {
+            List<ProductVariant> variants = productVariantRepository.findByProductId(productId);
+            List<Long> variantIds = variants.stream()
+                    .filter(ProductVariant::isTrackStock)
+                    .map(ProductVariant::getId)
+                    .toList();
+            if (variantIds.isEmpty()) {
+                return List.of();
+            }
+            List<VariantStoreInventory> inventories = variantStoreInventoryRepository.findByVariantIds(variantIds);
+            List<StoreRef> stores = new ArrayList<>();
+            for (VariantStoreInventory inventory : inventories) {
+                if (inventory == null || inventory.getStoreId() == null || !inventory.isActiveInStore()) {
+                    continue;
+                }
+                Store store = storeRepository.findById(inventory.getStoreId()).orElse(null);
+                if (store != null) {
+                    stores.add(new StoreRef(store.getId(), store.getName()));
+                }
+            }
+            return stores;
+        }
         if (!product.isTrackStock()) {
             return List.of();
         }
@@ -944,6 +998,39 @@ public class ProductUseCase {
         }
     }
 
+    private void replaceVariantInventory(
+            Long variantId,
+            Long tenantId,
+            List<VariantStoreInventory> inventories
+    ) {
+        variantStoreInventoryRepository.deleteByVariantId(variantId);
+        if (inventories == null || inventories.isEmpty()) {
+            return;
+        }
+        List<VariantStoreInventory> toSave = new ArrayList<>();
+        for (VariantStoreInventory inventory : inventories) {
+            if (inventory == null || inventory.getStoreId() == null) {
+                continue;
+            }
+            Store store = storeRepository.findById(inventory.getStoreId())
+                    .orElseThrow(() -> new NotFoundException("Store not found"));
+            if (!tenantId.equals(store.getTenantId())) {
+                throw new ForbiddenException("Store belongs to another tenant");
+            }
+            VariantStoreInventory entry = new VariantStoreInventory();
+            entry.setTenantId(tenantId);
+            entry.setVariantId(variantId);
+            entry.setStoreId(inventory.getStoreId());
+            entry.setQuantity(inventory.getQuantity() == null ? 0 : inventory.getQuantity());
+            entry.setLowStockThreshold(inventory.getLowStockThreshold());
+            entry.setActiveInStore(inventory.isActiveInStore());
+            toSave.add(entry);
+        }
+        if (!toSave.isEmpty()) {
+            variantStoreInventoryRepository.saveAll(toSave);
+        }
+    }
+
     private void recordPriceHistory(Product product, Long changedBy) {
         if (product == null || product.getId() == null) {
             return;
@@ -1096,6 +1183,7 @@ public class ProductUseCase {
         List<Long> variantIds = existing.stream()
                 .map(ProductVariant::getId)
                 .toList();
+        variantStoreInventoryRepository.deleteByVariantIds(variantIds);
         variantOptionValueRepository.deleteByVariantIds(variantIds);
         productVariantRepository.deleteByProductId(productId);
     }

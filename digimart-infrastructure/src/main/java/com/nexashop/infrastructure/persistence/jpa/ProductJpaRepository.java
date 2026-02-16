@@ -44,19 +44,49 @@ public interface ProductJpaRepository extends JpaRepository<ProductJpaEntity, Lo
                 :stockLow is null
                 or :stockLow = false
                 or (
-                  p.trackStock = false
-                  and p.lowStockThreshold is not null
-                  and p.stockQuantity is not null
-                  and p.stockQuantity <= p.lowStockThreshold
-                )
-                or (
-                  p.trackStock = true
-                  and exists (
-                    select 1 from ProductStoreInventoryJpaEntity inv
-                    where inv.productId = p.id
-                      and inv.lowStockThreshold is not null
-                      and inv.quantity <= inv.lowStockThreshold
+                  not exists (
+                    select 1 from ProductVariantJpaEntity v
+                    where v.productId = p.id
                   )
+                  and (
+                    (
+                      p.trackStock = false
+                      and p.lowStockThreshold is not null
+                      and p.stockQuantity is not null
+                      and p.stockQuantity <= p.lowStockThreshold
+                    )
+                    or (
+                      p.trackStock = true
+                      and exists (
+                        select 1 from ProductStoreInventoryJpaEntity inv
+                        where inv.productId = p.id
+                          and inv.lowStockThreshold is not null
+                          and inv.quantity <= inv.lowStockThreshold
+                      )
+                    )
+                  )
+                )
+                or exists (
+                  select 1
+                  from ProductVariantJpaEntity v
+                  where v.productId = p.id
+                    and (
+                      (
+                        (v.trackStock = false or v.trackStock is null)
+                        and v.stockQuantity is not null
+                        and v.lowStockThreshold is not null
+                        and v.stockQuantity <= v.lowStockThreshold
+                      )
+                      or (
+                        v.trackStock = true
+                        and exists (
+                          select 1 from VariantStoreInventoryJpaEntity vinv
+                          where vinv.variantId = v.id
+                            and vinv.lowStockThreshold is not null
+                            and vinv.quantity <= vinv.lowStockThreshold
+                        )
+                      )
+                    )
                 )
               )
             """)

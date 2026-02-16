@@ -17,6 +17,12 @@ public final class ProductVariantMapper {
         domain.setProductId(entity.getProductId());
         domain.setSku(entity.getSku());
         domain.setPriceOverride(entity.getPriceOverride());
+        domain.setInitialPriceOverride(entity.getInitialPriceOverride());
+        domain.setFinalPriceOverride(entity.getFinalPriceOverride());
+        domain.setCostPriceOverride(entity.getCostPriceOverride());
+        domain.setShippingPriceOverride(entity.getShippingPriceOverride());
+        domain.setShippingCostPriceOverride(entity.getShippingCostPriceOverride());
+        domain.setTrackStock(entity.isTrackStock());
         domain.setStockQuantity(entity.getStockQuantity());
         domain.setLowStockThreshold(entity.getLowStockThreshold());
         domain.setStatus(entity.getStatus());
@@ -37,6 +43,12 @@ public final class ProductVariantMapper {
         entity.setProductId(domain.getProductId());
         entity.setSku(domain.getSku());
         entity.setPriceOverride(domain.getPriceOverride());
+        entity.setInitialPriceOverride(domain.getInitialPriceOverride());
+        entity.setFinalPriceOverride(domain.getFinalPriceOverride());
+        entity.setCostPriceOverride(domain.getCostPriceOverride());
+        entity.setShippingPriceOverride(domain.getShippingPriceOverride());
+        entity.setShippingCostPriceOverride(domain.getShippingCostPriceOverride());
+        entity.setTrackStock(domain.isTrackStock());
         entity.setStockQuantity(domain.getStockQuantity());
         entity.setLowStockThreshold(domain.getLowStockThreshold());
         entity.setStatus(domain.getStatus());

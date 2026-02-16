@@ -23,9 +23,24 @@ public interface ProductVariantJpaRepository extends JpaRepository<ProductVarian
             select case when count(v) > 0 then true else false end
             from ProductVariantJpaEntity v
             where v.productId = :productId
-              and v.stockQuantity is not null
-              and v.lowStockThreshold is not null
-              and v.stockQuantity <= v.lowStockThreshold
+              and (
+                (
+                  (v.trackStock = false or v.trackStock is null)
+                  and v.stockQuantity is not null
+                  and v.lowStockThreshold is not null
+                  and v.stockQuantity <= v.lowStockThreshold
+                )
+                or (
+                  v.trackStock = true
+                  and exists (
+                    select 1
+                    from VariantStoreInventoryJpaEntity inv
+                    where inv.variantId = v.id
+                      and inv.lowStockThreshold is not null
+                      and inv.quantity <= inv.lowStockThreshold
+                  )
+                )
+              )
             """)
     boolean existsLowStockByProductId(@Param("productId") Long productId);
 

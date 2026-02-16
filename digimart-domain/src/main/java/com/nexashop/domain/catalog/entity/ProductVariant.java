@@ -15,6 +15,18 @@ public class ProductVariant extends TenantEntity {
 
     private BigDecimal priceOverride;
 
+    private BigDecimal initialPriceOverride;
+
+    private BigDecimal finalPriceOverride;
+
+    private BigDecimal costPriceOverride;
+
+    private BigDecimal shippingPriceOverride;
+
+    private BigDecimal shippingCostPriceOverride;
+
+    private boolean trackStock = false;
+
     private Integer stockQuantity;
 
     private Integer lowStockThreshold;

@@ -15,6 +15,12 @@ public class ProductVariantResponse {
     private Long productId;
     private String sku;
     private BigDecimal priceOverride;
+    private BigDecimal initialPriceOverride;
+    private BigDecimal finalPriceOverride;
+    private BigDecimal costPriceOverride;
+    private BigDecimal shippingPriceOverride;
+    private BigDecimal shippingCostPriceOverride;
+    private boolean trackStock;
     private Integer stockQuantity;
     private Integer lowStockThreshold;
     private VariantStatus status;
@@ -23,6 +29,7 @@ public class ProductVariantResponse {
     private Long productImageId;
     private String productImageUrl;
     private List<Long> optionValueIds;
+    private List<VariantInventoryResponse> inventories;
     private String displayName;
     private Long createdBy;
     private Long updatedBy;

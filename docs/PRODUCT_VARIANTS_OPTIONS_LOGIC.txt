@@ -1,7 +1,7 @@
 ﻿DIGIMART – VARIANTS & OPTIONS (V1)
 
 1) OBJECTIF
-Permettre des variantes de produit (ex: Couleur/Taille) avec stock global, prix override, image liee.
+Permettre des variantes de produit (ex: Couleur/Taille) avec stock global ou par magasin, prix override (tous les prix), image liee.
 Les options et valeurs n'existent QUE si elles servent aux variantes. Pas de variantes = pas d'options.
 
 2) ENTITES & CHAMPS PRINCIPAUX
@@ -25,7 +25,13 @@ B) ProductOptionValue
 C) ProductVariant
 - productId (FK)
 - sku (OPTIONNEL, cache en UI V1)
-- priceOverride (nullable, sinon prix du produit)
+- priceOverride (alias du prix final, nullable)
+- initialPriceOverride (nullable)
+- finalPriceOverride (nullable)
+- costPriceOverride (nullable)
+- shippingPriceOverride (nullable)
+- shippingCostPriceOverride (nullable)
+- trackStock (bool)
 - stockQuantity (global)
 - lowStockThreshold
 - status (ACTIVE | DISABLED)
@@ -59,8 +65,9 @@ B) Variantes
   - false => bloquer quand stock 0
 
 C) Stock
-- V1 = stock global uniquement (pas par magasin sur variantes).
-- La logique low stock s'applique sur stockQuantity vs lowStockThreshold.
+- Stock global si trackStock = false.
+- Stock par magasin si trackStock = true (table VariantStoreInventory).
+- La logique low stock s'applique sur stockQuantity vs lowStockThreshold (global) OU sur VariantStoreInventory (par magasin).
 
 4) ENDPOINTS API
 
@@ -93,6 +100,5 @@ C) Preview
 - Si aucune variante: options = []
 
 7) NOTE FUTURE (NON V1)
-- Stock par magasin pour variantes
 - Historique prix par variante
 - SKU visible si besoin logistique
