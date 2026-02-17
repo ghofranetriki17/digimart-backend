@@ -1,0 +1,619 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] digimart-backend                                                   [pom]
+[INFO] digimart-domain                                                    [jar]
+[INFO] digimart-application                                               [jar]
+[INFO] digimart-infrastructure                                            [jar]
+[INFO] digimart-api                                                       [jar]
+[INFO] 
+[INFO] -------------------< com.digimart:digimart-backend >--------------------
+[INFO] Building digimart-backend 0.0.1-SNAPSHOT                           [1/5]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-backend >>>
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-backend ---
+[INFO] 
+[INFO] --------------------< com.digimart:digimart-domain >--------------------
+[INFO] Building digimart-domain 0.0.1-SNAPSHOT                            [2/5]
+[INFO]   from digimart-domain\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-domain >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-domain ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-domain ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-domain ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-domain ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-domain <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-domain ---
+[INFO] 
+[INFO] -----------------< com.digimart:digimart-application >------------------
+[INFO] Building digimart-application 0.0.1-SNAPSHOT                       [3/5]
+[INFO]   from digimart-application\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-application >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-application ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-application ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-application ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-application ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-application <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-application ---
+[INFO] 
+[INFO] ----------------< com.digimart:digimart-infrastructure >----------------
+[INFO] Building digimart-infrastructure 0.0.1-SNAPSHOT                    [4/5]
+[INFO]   from digimart-infrastructure\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-infrastructure >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-infrastructure ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-infrastructure ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-infrastructure ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-infrastructure ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-infrastructure <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-infrastructure ---
+[INFO] 
+[INFO] ---------------------< com.digimart:digimart-api >----------------------
+[INFO] Building digimart-api 0.0.1-SNAPSHOT                               [5/5]
+[INFO]   from digimart-api\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-api >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-api ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-api ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-api ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-api ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-api <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-api ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-02-17T08:49:43.556+01:00  INFO 21172 --- [  restartedMain] com.nexashop.NexaShopApplication         : Starting NexaShopApplication using Java 21.0.10 with PID 21172 (C:\Dev\digimart-backend\digimart-api\target\classes started by agence digilab in C:\Dev\digimart-backend\digimart-api)
+2026-02-17T08:49:43.559+01:00  INFO 21172 --- [  restartedMain] com.nexashop.NexaShopApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-02-17T08:49:43.601+01:00  INFO 21172 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-02-17T08:49:43.601+01:00  INFO 21172 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-02-17T08:49:44.389+01:00  INFO 21172 --- [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-17T08:49:44.535+01:00  INFO 21172 --- [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 138 ms. Found 28 JPA repository interfaces.
+2026-02-17T08:49:45.023+01:00  INFO 21172 --- [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-02-17T08:49:45.036+01:00  INFO 21172 --- [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-17T08:49:45.036+01:00  INFO 21172 --- [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-02-17T08:49:45.070+01:00  INFO 21172 --- [  restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1467 ms
+2026-02-17T08:49:45.182+01:00  INFO 21172 --- [  restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-02-17T08:49:45.238+01:00  INFO 21172 --- [  restartedMain] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.1.Final
+2026-02-17T08:49:45.701+01:00  INFO 21172 --- [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-17T08:49:45.732+01:00  INFO 21172 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-02-17T08:49:45.865+01:00  INFO 21172 --- [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5fe93240
+2026-02-17T08:49:45.867+01:00  INFO 21172 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-02-17T08:49:45.895+01:00  WARN 21172 --- [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-02-17T08:49:45.918+01:00  INFO 21172 --- [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/digimart_db]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.11
+	Default catalog/schema: digimart_db/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-02-17T08:49:47.193+01:00  INFO 21172 --- [  restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-17T08:49:47.268+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    alter table if exists tenant_subscriptions 
+       drop constraint if exists UK95qmxu4fmg66ya57qb1gxbno3
+Hibernate: 
+    alter table if exists tenant_subscriptions 
+       drop constraint if exists UK95qmxu4fmg66ya57qb1gxbno3
+2026-02-17T08:49:47.271+01:00  WARN 21172 --- [  restartedMain] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-02-17T08:49:47.271+01:00  WARN 21172 --- [  restartedMain] org.hibernate.orm.jdbc.warn              : la contrainte « uk95qmxu4fmg66ya57qb1gxbno3 » de la relation « tenant_subscriptions » n'existe pas, ignore
+2026-02-17T08:49:47.271+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    alter table if exists tenant_subscriptions 
+       add constraint UK95qmxu4fmg66ya57qb1gxbno3 unique (tenant_id, status)
+Hibernate: 
+    alter table if exists tenant_subscriptions 
+       add constraint UK95qmxu4fmg66ya57qb1gxbno3 unique (tenant_id, status)
+2026-02-17T08:49:47.278+01:00  INFO 21172 --- [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-17T08:49:47.340+01:00  INFO 21172 --- [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-17T08:49:51.399+01:00  INFO 21172 --- [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-02-17T08:49:51.875+01:00  INFO 21172 --- [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-02-17T08:49:51.879+01:00  INFO 21172 --- [  restartedMain] com.nexashop.NexaShopApplication         : Started NexaShopApplication in 8.676 seconds (process running for 9.041)
+2026-02-17T08:49:51.980+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+Hibernate: 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+2026-02-17T08:49:52.008+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+Hibernate: 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+2026-02-17T08:49:52.010+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+Hibernate: 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+2026-02-17T08:49:52.011+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+Hibernate: 
+    select
+        pcje1_0.id,
+        pcje1_0.config_key,
+        pcje1_0.config_value,
+        pcje1_0.created_at,
+        pcje1_0.description,
+        pcje1_0.updated_at,
+        pcje1_0.updated_by 
+    from
+        platform_config pcje1_0 
+    where
+        pcje1_0.config_key=?
+2026-02-17T08:49:52.013+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.017+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.019+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.021+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.023+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.025+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.027+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.028+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.030+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.active,
+        pfje1_0.category,
+        pfje1_0.code,
+        pfje1_0.created_at,
+        pfje1_0.description,
+        pfje1_0.display_order,
+        pfje1_0.name,
+        pfje1_0.updated_at 
+    from
+        premium_features pfje1_0 
+    where
+        pfje1_0.code=?
+2026-02-17T08:49:52.033+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        spje1_0.id,
+        spje1_0.is_active,
+        spje1_0.billing_cycle,
+        spje1_0.code,
+        spje1_0.created_at,
+        spje1_0.created_by,
+        spje1_0.currency,
+        spje1_0.description,
+        spje1_0.discount_percentage,
+        spje1_0.end_date,
+        spje1_0.name,
+        spje1_0.price,
+        spje1_0.is_standard,
+        spje1_0.start_date,
+        spje1_0.updated_at 
+    from
+        subscription_plans spje1_0 
+    where
+        spje1_0.code=?
+Hibernate: 
+    select
+        spje1_0.id,
+        spje1_0.is_active,
+        spje1_0.billing_cycle,
+        spje1_0.code,
+        spje1_0.created_at,
+        spje1_0.created_by,
+        spje1_0.currency,
+        spje1_0.description,
+        spje1_0.discount_percentage,
+        spje1_0.end_date,
+        spje1_0.name,
+        spje1_0.price,
+        spje1_0.is_standard,
+        spje1_0.start_date,
+        spje1_0.updated_at 
+    from
+        subscription_plans spje1_0 
+    where
+        spje1_0.code=?
+2026-02-17T08:49:52.038+01:00 DEBUG 21172 --- [  restartedMain] org.hibernate.SQL                        : 
+    select
+        pfje1_0.id,
+        pfje1_0.created_at,
+        pfje1_0.feature_id,
+        pfje1_0.plan_id,
+        pfje1_0.updated_at 
+    from
+        plan_features pfje1_0 
+    where
+        pfje1_0.plan_id=?
+Hibernate: 
+    select
+        pfje1_0.id,
+        pfje1_0.created_at,
+        pfje1_0.feature_id,
+        pfje1_0.plan_id,
+        pfje1_0.updated_at 
+    from
+        plan_features pfje1_0 
+    where
+        pfje1_0.plan_id=?

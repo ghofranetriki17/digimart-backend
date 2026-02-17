@@ -12,6 +12,8 @@ import com.nexashop.domain.billing.entity.SubscriptionPlan;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -106,6 +108,12 @@ public class SubscriptionPlanController {
         return toResponse(planUseCase.setPlanActive(id, false));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePlan(@PathVariable Long id) {
+        planUseCase.deletePlan(id);
+        return ResponseEntity.noContent().build();
+    }
+
     private SubscriptionPlanResponse toResponse(SubscriptionPlanUseCase.PlanDetails details) {
         List<PremiumFeatureResponse> features = details.features().stream()
                 .map(this::toFeatureResponse)
@@ -127,6 +135,7 @@ public class SubscriptionPlanController {
                 .endDate(plan.getEndDate())
                 .createdAt(plan.getCreatedAt())
                 .updatedAt(plan.getUpdatedAt())
+                .tenantSubscriptionsCount(details.tenantSubscriptionsCount())
                 .features(features)
                 .build();
     }

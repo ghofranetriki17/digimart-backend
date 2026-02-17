@@ -6,4 +6,6 @@ import java.util.List;
 public interface PlanFeatureRepository extends CrudRepositoryPort<PlanFeature, Long> {
 
     List<PlanFeature> findByPlanId(Long planId);
+
+    boolean existsByFeatureId(Long featureId);
 }

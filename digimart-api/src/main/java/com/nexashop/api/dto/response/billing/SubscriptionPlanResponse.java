@@ -24,5 +24,6 @@ public class SubscriptionPlanResponse {
     private LocalDateTime endDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private long tenantSubscriptionsCount;
     private List<PremiumFeatureResponse> features;
 }

@@ -9,6 +9,10 @@ public interface TenantSubscriptionRepository extends CrudRepositoryPort<TenantS
 
     List<TenantSubscription> findByTenantId(Long tenantId);
 
+    boolean existsByPlanId(Long planId);
+
+    long countByPlanId(Long planId);
+
     Optional<TenantSubscription> findByTenantIdAndStatus(Long tenantId, SubscriptionStatus status);
 
     <S extends TenantSubscription> S saveAndFlush(S entity);

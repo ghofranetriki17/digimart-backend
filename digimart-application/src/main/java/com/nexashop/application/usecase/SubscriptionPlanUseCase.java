@@ -7,6 +7,7 @@ import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PlanFeatureRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.SubscriptionPlanRepository;
+import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.security.CurrentUser;
 import com.nexashop.domain.billing.entity.PlanFeature;
 import com.nexashop.domain.billing.entity.PremiumFeature;
@@ -20,7 +21,11 @@ import java.util.stream.Collectors;
 
 public class SubscriptionPlanUseCase {
 
-    public record PlanDetails(SubscriptionPlan plan, List<PremiumFeature> features) {}
+    public record PlanDetails(
+            SubscriptionPlan plan,
+            List<PremiumFeature> features,
+            long tenantSubscriptionsCount
+    ) {}
 
     public record PlanUpdate(
             String name,
@@ -39,17 +44,20 @@ public class SubscriptionPlanUseCase {
     private final SubscriptionPlanRepository planRepository;
     private final PremiumFeatureRepository featureRepository;
     private final PlanFeatureRepository planFeatureRepository;
+    private final TenantSubscriptionRepository tenantSubscriptionRepository;
 
     public SubscriptionPlanUseCase(
             CurrentUserProvider currentUserProvider,
             SubscriptionPlanRepository planRepository,
             PremiumFeatureRepository featureRepository,
-            PlanFeatureRepository planFeatureRepository
+            PlanFeatureRepository planFeatureRepository,
+            TenantSubscriptionRepository tenantSubscriptionRepository
     ) {
         this.currentUserProvider = currentUserProvider;
         this.planRepository = planRepository;
         this.featureRepository = featureRepository;
         this.planFeatureRepository = planFeatureRepository;
+        this.tenantSubscriptionRepository = tenantSubscriptionRepository;
     }
 
     public List<PlanDetails> listPlans(boolean onlyActive) {
@@ -122,6 +130,23 @@ public class SubscriptionPlanUseCase {
         return toDetails(planRepository.save(plan));
     }
 
+    public void deletePlan(Long id) {
+        currentUserProvider.requireAdminAny();
+        SubscriptionPlan plan = planRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Plan not found"));
+        if (plan.isStandard()) {
+            throw new ConflictException("Standard plan cannot be deleted");
+        }
+        if (tenantSubscriptionRepository.countByPlanId(id) > 0) {
+            throw new ConflictException("Plan has tenant subscriptions and cannot be deleted");
+        }
+        List<PlanFeature> links = planFeatureRepository.findByPlanId(id);
+        if (!links.isEmpty()) {
+            planFeatureRepository.deleteAll(links);
+        }
+        planRepository.delete(plan);
+    }
+
     private void savePlanFeatures(Long planId, List<Long> featureIds) {
         List<PlanFeature> existing = planFeatureRepository.findByPlanId(planId);
         planFeatureRepository.deleteAll(existing);
@@ -150,7 +175,8 @@ public class SubscriptionPlanUseCase {
                 .filter(f -> f != null && f.isActive())
                 .sorted(Comparator.comparing(PremiumFeature::getDisplayOrder))
                 .collect(Collectors.toList());
-        return new PlanDetails(plan, features);
+        long tenantSubscriptionsCount = tenantSubscriptionRepository.countByPlanId(plan.getId());
+        return new PlanDetails(plan, features, tenantSubscriptionsCount);
     }
 }
 

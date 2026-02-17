@@ -34,4 +34,9 @@ public class PlanFeatureRepositoryAdapter
     public List<PlanFeature> findByPlanId(Long planId) {
         return toDomainList(repository.findByPlanId(planId));
     }
+
+    @Override
+    public boolean existsByFeatureId(Long featureId) {
+        return repository.existsByFeatureId(featureId);
+    }
 }

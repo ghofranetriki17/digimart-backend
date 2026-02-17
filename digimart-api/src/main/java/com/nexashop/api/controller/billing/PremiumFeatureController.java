@@ -7,9 +7,12 @@ import com.nexashop.api.dto.response.billing.PremiumFeatureResponse;
 import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.PremiumFeatureUseCase;
 import com.nexashop.domain.billing.entity.PremiumFeature;
+import com.nexashop.domain.billing.enums.FeatureCategory;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,8 +33,11 @@ public class PremiumFeatureController {
     }
 
     @GetMapping
-    public List<PremiumFeatureResponse> list(@RequestParam(defaultValue = "false") boolean includeInactive) {
-        return featureUseCase.list(includeInactive).stream()
+    public List<PremiumFeatureResponse> list(
+            @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(required = false) FeatureCategory category
+    ) {
+        return featureUseCase.list(includeInactive, category).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -39,12 +45,13 @@ public class PremiumFeatureController {
     @GetMapping("/paged")
     public PageResponse<PremiumFeatureResponse> listPaged(
             @RequestParam(defaultValue = "false") boolean includeInactive,
+            @RequestParam(required = false) FeatureCategory category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "8") int size
     ) {
         PageRequest request = PageRequest.of(page, size);
         return PageResponse.from(
-                featureUseCase.list(request, includeInactive),
+                featureUseCase.list(request, includeInactive, category),
                 this::toResponse
         );
     }
@@ -75,6 +82,12 @@ public class PremiumFeatureController {
                 request.getDisplayOrder()
         );
         return toResponse(featureUseCase.update(id, update));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        featureUseCase.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     private PremiumFeatureResponse toResponse(PremiumFeature f) {

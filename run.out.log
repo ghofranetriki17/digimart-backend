@@ -1,0 +1,238 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] digimart-backend                                                   [pom]
+[INFO] digimart-domain                                                    [jar]
+[INFO] digimart-application                                               [jar]
+[INFO] digimart-infrastructure                                            [jar]
+[INFO] digimart-api                                                       [jar]
+[INFO] 
+[INFO] -------------------< com.digimart:digimart-backend >--------------------
+[INFO] Building digimart-backend 0.0.1-SNAPSHOT                           [1/5]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-backend >>>
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-backend ---
+[INFO] 
+[INFO] --------------------< com.digimart:digimart-domain >--------------------
+[INFO] Building digimart-domain 0.0.1-SNAPSHOT                            [2/5]
+[INFO]   from digimart-domain\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-domain >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-domain ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-domain ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-domain ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-domain\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-domain ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-domain <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-domain ---
+[INFO] 
+[INFO] -----------------< com.digimart:digimart-application >------------------
+[INFO] Building digimart-application 0.0.1-SNAPSHOT                       [3/5]
+[INFO]   from digimart-application\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-application >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-application ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-application ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-application ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-application\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-application ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-application <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-application ---
+[INFO] 
+[INFO] ----------------< com.digimart:digimart-infrastructure >----------------
+[INFO] Building digimart-infrastructure 0.0.1-SNAPSHOT                    [4/5]
+[INFO]   from digimart-infrastructure\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-infrastructure >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-infrastructure ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\main\resources
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-infrastructure ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-infrastructure ---
+[INFO] skip non existing resourceDirectory C:\Dev\digimart-backend\digimart-infrastructure\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-infrastructure ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-infrastructure <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-infrastructure ---
+[INFO] 
+[INFO] ---------------------< com.digimart:digimart-api >----------------------
+[INFO] Building digimart-api 0.0.1-SNAPSHOT                               [5/5]
+[INFO]   from digimart-api\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.2:run (default-cli) > test-compile @ digimart-api >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ digimart-api ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ digimart-api ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ digimart-api ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ digimart-api ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.2:run (default-cli) < test-compile @ digimart-api <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.2:run (default-cli) @ digimart-api ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.2)
+
+2026-02-17T08:48:53.339+01:00  INFO 13132 --- [  restartedMain] com.nexashop.NexaShopApplication         : Starting NexaShopApplication using Java 21.0.10 with PID 13132 (C:\Dev\digimart-backend\digimart-api\target\classes started by agence digilab in C:\Dev\digimart-backend\digimart-api)
+2026-02-17T08:48:53.342+01:00  INFO 13132 --- [  restartedMain] com.nexashop.NexaShopApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-02-17T08:48:53.382+01:00  INFO 13132 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-02-17T08:48:53.383+01:00  INFO 13132 --- [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-02-17T08:48:54.105+01:00  INFO 13132 --- [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-02-17T08:48:54.244+01:00  INFO 13132 --- [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 130 ms. Found 28 JPA repository interfaces.
+2026-02-17T08:48:54.712+01:00  INFO 13132 --- [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-02-17T08:48:54.724+01:00  INFO 13132 --- [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-02-17T08:48:54.724+01:00  INFO 13132 --- [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-02-17T08:48:54.756+01:00  INFO 13132 --- [  restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1373 ms
+2026-02-17T08:48:54.863+01:00  INFO 13132 --- [  restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-02-17T08:48:54.919+01:00  INFO 13132 --- [  restartedMain] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.1.Final
+2026-02-17T08:48:55.366+01:00  INFO 13132 --- [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-02-17T08:48:55.394+01:00  INFO 13132 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-02-17T08:48:55.625+01:00  INFO 13132 --- [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7a655878
+2026-02-17T08:48:55.626+01:00  INFO 13132 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-02-17T08:48:55.652+01:00  WARN 13132 --- [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-02-17T08:48:55.674+01:00  INFO 13132 --- [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/digimart_db]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.11
+	Default catalog/schema: digimart_db/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-02-17T08:48:56.910+01:00  INFO 13132 --- [  restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-02-17T08:48:56.980+01:00 DEBUG 13132 --- [  restartedMain] org.hibernate.SQL                        : 
+    alter table if exists tenant_subscriptions 
+       drop constraint if exists UK95qmxu4fmg66ya57qb1gxbno3
+Hibernate: 
+    alter table if exists tenant_subscriptions 
+       drop constraint if exists UK95qmxu4fmg66ya57qb1gxbno3
+2026-02-17T08:48:56.984+01:00  WARN 13132 --- [  restartedMain] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-02-17T08:48:56.984+01:00  WARN 13132 --- [  restartedMain] org.hibernate.orm.jdbc.warn              : la contrainte « uk95qmxu4fmg66ya57qb1gxbno3 » de la relation « tenant_subscriptions » n'existe pas, ignore
+2026-02-17T08:48:56.985+01:00 DEBUG 13132 --- [  restartedMain] org.hibernate.SQL                        : 
+    alter table if exists tenant_subscriptions 
+       add constraint UK95qmxu4fmg66ya57qb1gxbno3 unique (tenant_id, status)
+Hibernate: 
+    alter table if exists tenant_subscriptions 
+       add constraint UK95qmxu4fmg66ya57qb1gxbno3 unique (tenant_id, status)
+2026-02-17T08:48:56.992+01:00  INFO 13132 --- [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-02-17T08:48:57.051+01:00  INFO 13132 --- [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-02-17T08:49:00.961+01:00  INFO 13132 --- [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-02-17T08:49:01.406+01:00  WARN 13132 --- [  restartedMain] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-02-17T08:49:01.412+01:00  INFO 13132 --- [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-02-17T08:49:01.414+01:00  INFO 13132 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-02-17T08:49:01.415+01:00  INFO 13132 --- [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-02-17T08:49:01.424+01:00  INFO 13132 --- [  restartedMain] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-02-17T08:49:01.442+01:00 ERROR 13132 --- [  restartedMain] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for digimart-backend 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] digimart-backend ................................... SUCCESS [  0.283 s]
+[INFO] digimart-domain .................................... SUCCESS [  0.207 s]
+[INFO] digimart-application ............................... SUCCESS [  0.050 s]
+[INFO] digimart-infrastructure ............................ SUCCESS [  0.226 s]
+[INFO] digimart-api ....................................... SUCCESS [  9.633 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  10.660 s
+[INFO] Finished at: 2026-02-17T08:49:01+01:00
+[INFO] ------------------------------------------------------------------------
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     [INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for digimart-backend 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] digimart-backend ................................... SUCCESS [  0.299 s]
+[INFO] digimart-domain .................................... SUCCESS [  0.212 s]
+[INFO] digimart-application ............................... SUCCESS [  0.056 s]
+[INFO] digimart-infrastructure ............................ SUCCESS [  0.236 s]
+[INFO] digimart-api ....................................... FAILURE [ 59.730 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  01:00 min
+[INFO] Finished at: 2026-02-17T08:49:29+01:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.2:run (default-cli) on project digimart-api: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :digimart-api

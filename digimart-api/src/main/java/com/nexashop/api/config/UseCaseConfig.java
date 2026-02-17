@@ -184,9 +184,10 @@ public class UseCaseConfig {
     @Bean
     public PremiumFeatureUseCase premiumFeatureUseCase(
             CurrentUserProvider currentUserProvider,
-            PremiumFeatureRepository featureRepository
+            PremiumFeatureRepository featureRepository,
+            PlanFeatureRepository planFeatureRepository
     ) {
-        return new PremiumFeatureUseCase(currentUserProvider, featureRepository);
+        return new PremiumFeatureUseCase(currentUserProvider, featureRepository, planFeatureRepository);
     }
 
     @Bean
@@ -257,9 +258,16 @@ public class UseCaseConfig {
             CurrentUserProvider currentUserProvider,
             SubscriptionPlanRepository planRepository,
             PremiumFeatureRepository featureRepository,
-            PlanFeatureRepository planFeatureRepository
+            PlanFeatureRepository planFeatureRepository,
+            TenantSubscriptionRepository tenantSubscriptionRepository
     ) {
-        return new SubscriptionPlanUseCase(currentUserProvider, planRepository, featureRepository, planFeatureRepository);
+        return new SubscriptionPlanUseCase(
+                currentUserProvider,
+                planRepository,
+                featureRepository,
+                planFeatureRepository,
+                tenantSubscriptionRepository
+        );
     }
 
     @Bean

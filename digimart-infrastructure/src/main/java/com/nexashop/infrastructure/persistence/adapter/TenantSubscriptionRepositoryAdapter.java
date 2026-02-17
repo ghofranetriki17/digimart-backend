@@ -38,6 +38,16 @@ public class TenantSubscriptionRepositoryAdapter
     }
 
     @Override
+    public boolean existsByPlanId(Long planId) {
+        return repository.existsByPlanId(planId);
+    }
+
+    @Override
+    public long countByPlanId(Long planId) {
+        return repository.countByPlanId(planId);
+    }
+
+    @Override
     public Optional<TenantSubscription> findByTenantIdAndStatus(Long tenantId, SubscriptionStatus status) {
         return repository.findByTenantIdAndStatus(tenantId, status).map(BillingMapper::toDomain);
     }

@@ -4,6 +4,7 @@ import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.common.PageResult;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.domain.billing.entity.PremiumFeature;
+import com.nexashop.domain.billing.enums.FeatureCategory;
 import com.nexashop.infrastructure.persistence.jpa.PremiumFeatureJpaRepository;
 import com.nexashop.infrastructure.persistence.mapper.BillingMapper;
 import com.nexashop.infrastructure.persistence.model.billing.PremiumFeatureJpaEntity;
@@ -40,8 +41,46 @@ public class PremiumFeatureRepositoryAdapter
     }
 
     @Override
+    public List<PremiumFeature> findByCategoryOrderByDisplayOrderAsc(FeatureCategory category) {
+        return toDomainList(repository.findByCategoryOrderByDisplayOrderAsc(category));
+    }
+
+    @Override
+    public List<PremiumFeature> findByCategoryAndActiveTrueOrderByDisplayOrderAsc(FeatureCategory category) {
+        return toDomainList(repository.findByCategoryAndActiveTrueOrderByDisplayOrderAsc(category));
+    }
+
+    @Override
     public List<PremiumFeature> findByActiveTrueOrderByDisplayOrderAsc() {
         return toDomainList(repository.findByActiveTrueOrderByDisplayOrderAsc());
+    }
+
+    @Override
+    public PageResult<PremiumFeature> findByCategoryOrderByDisplayOrderAsc(PageRequest request, FeatureCategory category) {
+        Page<PremiumFeatureJpaEntity> page = repository.findByCategoryOrderByDisplayOrderAsc(
+                category,
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
+    }
+
+    @Override
+    public PageResult<PremiumFeature> findByCategoryAndActiveTrueOrderByDisplayOrderAsc(PageRequest request, FeatureCategory category) {
+        Page<PremiumFeatureJpaEntity> page = repository.findByCategoryAndActiveTrueOrderByDisplayOrderAsc(
+                category,
+                org.springframework.data.domain.PageRequest.of(request.page(), request.size())
+        );
+        return PageResult.of(
+                toDomainList(page.getContent()),
+                request.page(),
+                request.size(),
+                page.getTotalElements()
+        );
     }
 
     @Override
