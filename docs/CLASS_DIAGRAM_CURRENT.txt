@@ -1,35 +1,43 @@
-Current Class Diagram (Domain + Billing + Catalog)
-===============================================
+﻿Current Class Diagram (Exact from digimart-domain)
+==================================================
 
 Mermaid (classDiagram)
 ----------------------
 classDiagram
 direction TB
+
+    class BaseEntity {
+        +Long id
+    }
+
+    class AuditableEntity {
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class TenantEntity {
+        +Long tenantId
+    }
+
     class ActivitySector {
-        ~~ [EXISTING]
-        +Long id PK
-        +String label UNIQUE
+        +String label
         +String description
         +boolean active
     }
 
     class Tenant {
-        ~~ [EXISTING]
-        +Long id PK
         +String name
-        +String subdomain UNIQUE
+        +String subdomain
         +String contactEmail
         +String contactPhone
         +String logoUrl
         +TenantStatus status
         +Locale defaultLocale
-        +Long sectorId FK
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
+        +Long sectorId
     }
 
     class TenantStatus {
-        ~~ [EXISTING]
+        <<enumeration>>
         ACTIVE
         SUSPENDED
         TRIAL
@@ -37,9 +45,6 @@ direction TB
     }
 
     class Store {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
         +String name
         +String code
         +String address
@@ -48,13 +53,14 @@ direction TB
         +String country
         +String phone
         +String email
+        +String imageUrl
+        +BigDecimal latitude
+        +BigDecimal longitude
         +boolean active
     }
 
     class User {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
+        +String email
         +String passwordHash
         +String firstName
         +String lastName
@@ -62,14 +68,10 @@ direction TB
         +String imageUrl
         +boolean enabled
         +LocalDateTime lastLogin
-        +String email UNIQUE
     }
 
     class RefreshToken {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
-        +Long userId FK
+        +Long userId
         +String tokenHash
         +LocalDateTime expiresAt
         +LocalDateTime revokedAt
@@ -77,48 +79,35 @@ direction TB
     }
 
     class Role {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
+        +String code
         +String label
         +boolean systemRole
-        +String code UNIQUE(tenant)
     }
 
     class Permission {
-        ~~ [EXISTING]
-        +Long id PK
-        +String code UNIQUE
+        +String code
         +String domain
         +String description
     }
 
     class UserRoleAssignment {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
-        +Long userId FK
-        +Long roleId FK
+        +Long userId
+        +Long roleId
+        +boolean active
     }
 
     class RolePermission {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
-        +Long roleId FK
-        +Long permissionId FK
+        +Long roleId
+        +Long permissionId
     }
 
     class AuditEvent {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
         +String entityType
         +Long entityId
         +AuditAction action
         +String beforeJson
         +String afterJson
-        +Long actorUserId FK
+        +Long actorUserId
         +String ipAddress
         +String userAgent
         +String correlationId
@@ -126,7 +115,7 @@ direction TB
     }
 
     class AuditAction {
-        ~~ [EXISTING]
+        <<enumeration>>
         CREATE
         UPDATE
         DELETE
@@ -134,35 +123,27 @@ direction TB
     }
 
     class Locale {
-        ~~ [EXISTING]
+        <<enumeration>>
         FR
         AR
         EN
     }
 
     class Category {
-        ~~ [EXISTING - CATALOG]
-        +Long id PK
-        +Long tenantId FK
         +String name
-        +String slug UNIQUE(tenant)
+        +String slug
         +String description
-        +Long parentCategoryId FK
+        +Long parentCategoryId
         +Integer displayOrder
         +boolean active
-        +Long createdBy FK
-        +Long updatedBy FK
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
+        +Long createdBy
+        +Long updatedBy
     }
 
     class Product {
-        ~~ [NEW - CATALOG]
-        +Long id PK
-        +Long tenantId FK
         +String name
-        +String slug UNIQUE(tenant)
-        +String sku UNIQUE(tenant)
+        +String slug
+        +String sku
         +String description
         +BigDecimal initialPrice
         +BigDecimal finalPrice
@@ -177,142 +158,34 @@ direction TB
         +String availabilityText
         +boolean continueSelling
         +boolean showLowestPrice
-        +Long createdBy FK
-        +Long updatedBy FK
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
+        +Long createdBy
+        +Long updatedBy
     }
 
     class ProductStatus {
-        ~~ [NEW]
+        <<enumeration>>
         ACTIVE
         HIDDEN
         OUT_OF_STOCK
     }
 
     class ProductAvailability {
-        ~~ [NEW]
+        <<enumeration>>
         IN_STOCK
         ON_ORDER
         PRE_ORDER
     }
 
-    class ProductOption {
-        ~~ [NEW - CATALOG]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
-        +String name
-        +OptionType type
-        +boolean required
-        +boolean usedForVariants
-        +Integer displayOrder
-        +Long createdBy FK
-        +LocalDateTime createdAt
-        ---
-        UNIQUE(tenantId,productId,name)
-    }
-
-    class OptionType {
-        ~~ [NEW]
-        TEXT
-        COLOR
-        NUMBER
-        DROPDOWN
-        MULTISELECT
-    }
-
-    class ProductOptionValue {
-        ~~ [NEW - CATALOG]
-        +Long id PK
-        +Long tenantId FK
-        +Long optionId FK
-        +String value
-        +String hexColor
-        +Integer displayOrder
-        +Long createdBy FK
-        +LocalDateTime createdAt
-        ---
-        UNIQUE(tenantId,optionId,value)
-    }
-
-    class ProductVariant {
-        ~~ [NEW - CATALOG]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
-        +String sku NULLABLE
-        +BigDecimal priceOverride NULLABLE
-        +BigDecimal initialPriceOverride NULLABLE
-        +BigDecimal finalPriceOverride NULLABLE
-        +BigDecimal costPriceOverride NULLABLE
-        +BigDecimal shippingPriceOverride NULLABLE
-        +BigDecimal shippingCostPriceOverride NULLABLE
-        +boolean trackStock
-        +Integer stockQuantity
-        +Integer lowStockThreshold
-        +VariantStatus status
-        +boolean defaultVariant
-        +Boolean continueSellingOverride NULLABLE
-        +Long productImageId FK NULLABLE
-        +Long createdBy FK
-        +Long updatedBy FK
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
-        ---
-        UNIQUE(tenantId,productId,sku)
-    }
-
-    class VariantStatus {
-        ~~ [NEW]
-        ACTIVE
-        DISABLED
-    }
-
-    class VariantOptionValue {
-        ~~ [NEW - JUNCTION TABLE]
-        +Long id PK
-        +Long tenantId FK
-        +Long variantId FK
-        +Long optionValueId FK
-        ---
-        UNIQUE(tenantId,variantId,optionValueId)
-    }
-
-    class VariantStoreInventory {
-        ~~ [NEW]
-        +Long id PK
-        +Long tenantId FK
-        +Long variantId FK
-        +Long storeId FK
-        +Integer quantity
-        +Integer lowStockThreshold
-        +boolean activeInStore
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
-        ---
-        UNIQUE(tenantId,variantId,storeId)
-    }
-
     class ProductCategory {
-        ~~ [NEW - JUNCTION TABLE]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
-        +Long categoryId FK
+        +Long productId
+        +Long categoryId
         +boolean primary
         +Integer displayOrder
-        +Long createdBy FK
-        +LocalDateTime createdAt
-        ---
-        UNIQUE(tenantId,productId,categoryId)
+        +Long createdBy
     }
 
     class ProductImage {
-        ~~ [NEW]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
+        +Long productId
         +String imageUrl
         +String altText
         +Integer displayOrder
@@ -320,84 +193,123 @@ direction TB
     }
 
     class ProductStoreInventory {
-        ~~ [NEW]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
-        +Long storeId FK
+        +Long productId
+        +Long storeId
         +Integer quantity
         +Integer lowStockThreshold
         +boolean activeInStore
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
-        ---
-        UNIQUE(tenantId,productId,storeId)
+    }
+
+    class ProductOption {
+        +Long productId
+        +String name
+        +OptionType type
+        +boolean required
+        +boolean usedForVariants
+        +Integer displayOrder
+        +Long createdBy
+    }
+
+    class OptionType {
+        <<enumeration>>
+        TEXT
+        COLOR
+        IMAGE
+        NUMBER
+        DROPDOWN
+        MULTISELECT
+    }
+
+    class ProductOptionValue {
+        +Long optionId
+        +String value
+        +String hexColor
+        +Integer displayOrder
+        +Long createdBy
+    }
+
+    class ProductVariant {
+        +Long productId
+        +String sku
+        +BigDecimal priceOverride
+        +BigDecimal initialPriceOverride
+        +BigDecimal finalPriceOverride
+        +BigDecimal costPriceOverride
+        +BigDecimal shippingPriceOverride
+        +BigDecimal shippingCostPriceOverride
+        +boolean trackStock
+        +Integer stockQuantity
+        +Integer lowStockThreshold
+        +VariantStatus status
+        +boolean defaultVariant
+        +Boolean continueSellingOverride
+        +Long productImageId
+        +Long createdBy
+        +Long updatedBy
+    }
+
+    class VariantStatus {
+        <<enumeration>>
+        ACTIVE
+        DISABLED
+    }
+
+    class VariantOptionValue {
+        +Long variantId
+        +Long optionValueId
+    }
+
+    class VariantStoreInventory {
+        +Long variantId
+        +Long storeId
+        +Integer quantity
+        +Integer lowStockThreshold
+        +boolean activeInStore
     }
 
     class ProductPriceHistory {
-        ~~ [NEW]
-        +Long id PK
-        +Long tenantId FK
-        +Long productId FK
+        +Long productId
         +BigDecimal initialPrice
         +BigDecimal finalPrice
         +LocalDateTime changedAt
-        +Long changedBy FK
+        +Long changedBy
     }
 
     class PlatformConfig {
-        ~~ [EXISTING]
-        +Long id PK
-        +String configKey UNIQUE
+        +String configKey
         +String configValue
         +String description
-        +LocalDateTime updatedAt
-        +Long updatedBy FK
-        ---
-        Examples:
-        - COMMISSION_PERCENTAGE = "2.5"
-        - INITIAL_WALLET_BALANCE = "500"
-        - LOW_BALANCE_THRESHOLD = "50"
-        - DEFAULT_CURRENCY = "TND"
+        +Long updatedBy
     }
 
     class TenantWallet {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK UNIQUE
         +BigDecimal balance
         +String currency
         +WalletStatus status
         +LocalDateTime lastTransactionAt
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
     }
 
     class WalletStatus {
-        ~~ [EXISTING]
+        <<enumeration>>
         ACTIVE
         SUSPENDED
         FROZEN
     }
 
     class WalletTransaction {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
-        +Long walletId FK
+        +Long walletId
         +WalletTxnType type
         +BigDecimal amount
         +BigDecimal balanceBefore
         +BigDecimal balanceAfter
         +String reason
         +String reference
-        +Long processedBy FK
+        +Long processedBy
         +LocalDateTime transactionDate
-        +LocalDateTime createdAt
     }
 
     class WalletTxnType {
-        ~~ [EXISTING]
+        <<enumeration>>
         INITIAL_CREDIT
         MANUAL_CREDIT
         MANUAL_DEBIT
@@ -406,30 +318,16 @@ direction TB
     }
 
     class PremiumFeature {
-        ~~ [EXISTING - SEEDED BY DEVS]
-        +Long id PK
-        +String code UNIQUE
+        +String code
         +String name
         +String description
         +FeatureCategory category
         +boolean active
         +Integer displayOrder
-        +LocalDateTime createdAt
-        ---
-        - ADVANCED_ANALYTICS
-        - MULTI_STORE
-        - CUSTOM_THEMES
-        - API_ACCESS
-        - BULK_OPERATIONS
-        - PRIORITY_SUPPORT
-        - CUSTOM_DOMAIN
-        - LOYALTY_PROGRAM
-        - AI_DESCRIPTION_GENERATION
-        Examples(seeded) :
     }
 
     class FeatureCategory {
-        ~~ [EXISTING]
+        <<enumeration>>
         ANALYTICS
         SALES
         MARKETING
@@ -438,9 +336,7 @@ direction TB
     }
 
     class SubscriptionPlan {
-        ~~ [EXISTING - CREATED BY ADMIN]
-        +Long id PK
-        +String code UNIQUE
+        +String code
         +String name
         +String description
         +BigDecimal price
@@ -451,19 +347,11 @@ direction TB
         +boolean active
         +LocalDateTime startDate
         +LocalDateTime endDate
-        +Long createdBy FK
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
-        ---
-        Standard Plan:
-        - code: "STANDARD"
-        - standard: true
-        - price: 0
-        - Commission-based only
+        +Long createdBy
     }
 
     class BillingCycle {
-        ~~ [EXISTING]
+        <<enumeration>>
         MONTHLY
         QUARTERLY
         YEARLY
@@ -471,37 +359,26 @@ direction TB
     }
 
     class PlanFeature {
-        ~~ [EXISTING - JUNCTION TABLE]
-        +Long id PK
-        +Long planId FK
-        +Long featureId FK
-        +LocalDateTime createdAt
-        ---
-        Links plans to features
-        UNIQUE(planId, featureId)
+        +Long planId
+        +Long featureId
     }
 
     class TenantSubscription {
-        ~~ [EXISTING]
-        +Long id PK
-        +Long tenantId FK
-        +Long planId FK
+        +Long planId
         +SubscriptionStatus status
         +LocalDateTime startDate
         +LocalDateTime endDate
         +LocalDateTime nextBillingDate
         +BigDecimal pricePaid
         +String paymentReference
-        +Long activatedBy FK
+        +Long activatedBy
         +LocalDateTime activatedAt
         +LocalDateTime cancelledAt
         +String cancellationReason
-        +LocalDateTime createdAt
-        +LocalDateTime updatedAt
     }
 
     class SubscriptionStatus {
-        ~~ [EXISTING]
+        <<enumeration>>
         ACTIVE
         PENDING_ACTIVATION
         EXPIRED
@@ -510,20 +387,17 @@ direction TB
     }
 
     class SubscriptionHistory {
-        ~~ [EXISTING - AUDIT TRAIL]
-        +Long id PK
-        +Long tenantId FK
-        +Long subscriptionId FK
-        +Long oldPlanId FK
-        +Long newPlanId FK
+        +Long subscriptionId
+        +Long oldPlanId
+        +Long newPlanId
         +SubscriptionAction action
         +String notes
-        +Long performedBy FK
+        +Long performedBy
         +LocalDateTime performedAt
     }
 
     class SubscriptionAction {
-        ~~ [EXISTING]
+        <<enumeration>>
         CREATED
         ACTIVATED
         UPGRADED
@@ -534,383 +408,95 @@ direction TB
         EXPIRED
     }
 
-    %% ============================
-    %% USE CASES (METHODES UTILES)
-    %% ============================
-    class CategoryUseCase {
-        +CurrentUserProvider currentUserProvider
-        +CategoryRepository categoryRepository
-        +TenantRepository tenantRepository
-        +AiTextProvider aiTextProvider
-        +TenantSubscriptionRepository subscriptionRepository
-        +PlanFeatureRepository planFeatureRepository
-        +PremiumFeatureRepository featureRepository
-        --
-        +createCategory(category, tenantId)
-        +getCategory(id)
-        +listCategories(tenantId, parentId, rootOnly)
-        +updateCategory(id, slug, updates, active)
-        +setCategoryActive(id, active)
-        +deleteCategory(id)
-        +suggestCategoryDescription(id, language, maxSentences, tone)
-    }
+    AuditableEntity --|> BaseEntity
+    TenantEntity --|> AuditableEntity
 
-    class ProductUseCase {
-        +CurrentUserProvider currentUserProvider
-        +AiTextProvider aiTextProvider
-        +ProductRepository productRepository
-        +ProductCategoryRepository productCategoryRepository
-        +ProductImageRepository productImageRepository
-        +ProductOptionRepository productOptionRepository
-        +ProductOptionValueRepository productOptionValueRepository
-        +ProductPriceHistoryRepository priceHistoryRepository
-        +ProductStoreInventoryRepository inventoryRepository
-        +ProductVariantRepository productVariantRepository
-        +VariantOptionValueRepository variantOptionValueRepository
-        +VariantStoreInventoryRepository variantStoreInventoryRepository
-        +TenantRepository tenantRepository
-        +CategoryRepository categoryRepository
-        +StoreRepository storeRepository
-        --
-        +createProduct(product, targetTenantId, categoryIds, primaryCategoryId, inventories)
-        +updateProduct(id, slug, sku, updates, categoryIds, primaryCategoryId, inventories)
-        +getProduct(id)
-        +getProductDetails(id)
-        +listProductOptions(productId)
-        +replaceProductOptions(productId, groups)
-        +listProductVariants(productId)
-        +replaceProductVariants(productId, groups)
-        +suggestProductDescription(id, language, maxSentences, tone)
-        +listProducts(tenantId)
-        +listProducts(pageRequest, tenantId)
-        +listProducts(pageRequest, tenantId, status, availability, stockLow, minPrice, maxPrice, search, categoryId)
-        +listPriceHistory(pageRequest, productId)
-        +addProductImage(productId, image)
-        +listProductImages(productId)
-        +reorderProductImages(productId, imageIds)
-        +deleteProductImage(productId, imageId)
-        +bulkUpdatePricing(productIds, initialPrice, finalPrice, shippingPrice, shippingCostPrice)
-        +bulkUpdateStatus(productIds, status)
-        +bulkDeleteProducts(productIds)
-        +listActiveStores(productId)
-        +getLowestPrice(productId)
-    }
+    ActivitySector --|> AuditableEntity
+    Tenant --|> AuditableEntity
+    Permission --|> BaseEntity
+    PlatformConfig --|> AuditableEntity
+    PremiumFeature --|> AuditableEntity
+    SubscriptionPlan --|> AuditableEntity
+    PlanFeature --|> AuditableEntity
 
-    class ActivitySectorUseCase {
-        +ActivitySectorRepository sectorRepository
-        +TenantRepository tenantRepository
-        --
-        +listSectors(includeInactive)
-        +listSectors(pageRequest, includeInactive)
-        +createSector(label, description, active)
-        +updateSector(id, label, description, active)
-        +listSectorTenants(id)
-        +deleteSector(id)
-    }
+    Store --|> TenantEntity
+    User --|> TenantEntity
+    RefreshToken --|> TenantEntity
+    Role --|> TenantEntity
+    UserRoleAssignment --|> TenantEntity
+    RolePermission --|> TenantEntity
+    AuditEvent --|> TenantEntity
+    Category --|> TenantEntity
+    Product --|> TenantEntity
+    ProductCategory --|> TenantEntity
+    ProductImage --|> TenantEntity
+    ProductStoreInventory --|> TenantEntity
+    ProductOption --|> TenantEntity
+    ProductOptionValue --|> TenantEntity
+    ProductVariant --|> TenantEntity
+    VariantOptionValue --|> TenantEntity
+    VariantStoreInventory --|> TenantEntity
+    ProductPriceHistory --|> TenantEntity
+    TenantWallet --|> TenantEntity
+    WalletTransaction --|> TenantEntity
+    TenantSubscription --|> TenantEntity
+    SubscriptionHistory --|> TenantEntity
 
-    class AdminProvisionUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantRepository tenantRepository
-        +TenantProvisioningService provisioningService
-        --
-        +provisionAllTenants()
-    }
+    TenantEntity ..> Tenant : tenantId FK
 
-    class AdminTenantSubscriptionUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantSubscriptionRepository subscriptionRepository
-        +SubscriptionPlanRepository planRepository
-        +SubscriptionHistoryRepository historyRepository
-        +TenantRepository tenantRepository
-        +TenantProvisioningService provisioningService
-        --
-        +getCurrent(tenantId)
-        +history(tenantId)
-        +activate(tenantId, planId, pricePaid, paymentReference)
-        +deactivate(tenantId)
-    }
+    Tenant --> TenantStatus : status
+    Tenant --> Locale : defaultLocale
+    Tenant --> ActivitySector : sectorId
 
-    class AiTextUseCase {
-        +CurrentUserProvider currentUserProvider
-        +AiTextProvider aiTextProvider
-        --
-        +generateText(prompt)
-    }
+    RefreshToken --> User : userId
+    UserRoleAssignment --> User : userId
+    UserRoleAssignment --> Role : roleId
+    RolePermission --> Role : roleId
+    RolePermission --> Permission : permissionId
+    AuditEvent --> AuditAction : action
+    AuditEvent --> User : actorUserId
 
-    class AuthUseCase {
-        +UserRepository userRepository
-        +UserRoleAssignmentRepository assignmentRepository
-        +RoleRepository roleRepository
-        +TenantRepository tenantRepository
-        +ActivitySectorRepository sectorRepository
-        +AuthTokenService tokenService
-        +TenantProvisioningService provisioningService
-        --
-        +login(email, password, userAgent)
-        +registerTenantStep1(tenantName, contactEmail, contactPhone, logoUrl, status, defaultLocale, sectorId)
-        +registerTenantStep2(tenantId, ownerEmail, ownerPassword, ownerFirstName, ownerLastName, ownerPhone)
-    }
+    Category --> Category : parentCategoryId
 
-    class PermissionUseCase {
-        +CurrentUserProvider currentUserProvider
-        +PermissionRepository permissionRepository
-        --
-        +listPermissions()
-        +createPermission(code, domain, description)
-    }
+    Product --> ProductStatus : status
+    Product --> ProductAvailability : availability
+    ProductCategory --> Product : productId
+    ProductCategory --> Category : categoryId
+    ProductImage --> Product : productId
+    ProductStoreInventory --> Product : productId
+    ProductStoreInventory --> Store : storeId
 
-    class PlatformConfigUseCase {
-        +CurrentUserProvider currentUserProvider
-        +PlatformConfigRepository configRepository
-        --
-        +listConfigs()
-        +updateConfig(configKey, configValue, description)
-    }
+    ProductOption --> Product : productId
+    ProductOption --> OptionType : type
+    ProductOptionValue --> ProductOption : optionId
 
-    class PremiumFeatureUseCase {
-        +CurrentUserProvider currentUserProvider
-        +PremiumFeatureRepository featureRepository
-        --
-        +list(includeInactive)
-        +list(pageRequest, includeInactive)
-        +create(feature)
-        +update(id, update)
-    }
+    ProductVariant --> Product : productId
+    ProductVariant --> VariantStatus : status
+    ProductVariant --> ProductImage : productImageId
+    VariantOptionValue --> ProductVariant : variantId
+    VariantOptionValue --> ProductOptionValue : optionValueId
+    VariantStoreInventory --> ProductVariant : variantId
+    VariantStoreInventory --> Store : storeId
 
-    class RoleUseCase {
-        +CurrentUserProvider currentUserProvider
-        +RoleRepository roleRepository
-        +RolePermissionRepository rolePermissionRepository
-        +PermissionRepository permissionRepository
-        +UserRoleAssignmentRepository userRoleAssignmentRepository
-        --
-        +listRoles(tenantId)
-        +cloneRole(templateRoleId, code, label, targetTenantId)
-        +createRole(code, label, tenantId)
-        +createTemplate(code, label)
-        +updateRole(id, label)
-        +updateRolePermissions(id, permissionCodes)
-        +listRolePermissions(id)
-        +deleteRole(id)
-    }
+    ProductPriceHistory --> Product : productId
+    ProductPriceHistory --> User : changedBy
 
-    class StoreUseCase {
-        +CurrentUserProvider currentUserProvider
-        +StoreRepository storeRepository
-        +TenantRepository tenantRepository
-        --
-        +createStore(store, tenantId)
-        +getStore(id)
-        +listStores(tenantId)
-        +listStores(pageRequest, tenantId)
-        +updateStore(id, updates)
-        +updateStoreImage(id, imageUrl)
-        +setStoreActive(id, active)
-        +deleteStore(id)
-    }
+    TenantWallet --> WalletStatus : status
+    WalletTransaction --> TenantWallet : walletId
+    WalletTransaction --> WalletTxnType : type
+    WalletTransaction --> User : processedBy
 
-    class SubscriptionPlanUseCase {
-        +CurrentUserProvider currentUserProvider
-        +SubscriptionPlanRepository planRepository
-        +PremiumFeatureRepository featureRepository
-        +PlanFeatureRepository planFeatureRepository
-        --
-        +listPlans(onlyActive)
-        +listPlans(pageRequest, onlyActive)
-        +getPlan(id)
-        +createPlan(plan, featureIds)
-        +updatePlan(id, update)
-        +setPlanActive(id, active)
-    }
+    PremiumFeature --> FeatureCategory : category
+    SubscriptionPlan --> BillingCycle : billingCycle
+    PlanFeature --> SubscriptionPlan : planId
+    PlanFeature --> PremiumFeature : featureId
 
-    class TenantSubscriptionUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantSubscriptionRepository subscriptionRepository
-        +SubscriptionPlanRepository planRepository
-        +SubscriptionHistoryRepository historyRepository
-        +TenantRepository tenantRepository
-        +TenantProvisioningService provisioningService
-        --
-        +getCurrent(tenantId)
-        +history(tenantId)
-        +activate(tenantId, planId, pricePaid, paymentReference)
-    }
+    TenantSubscription --> SubscriptionPlan : planId
+    TenantSubscription --> SubscriptionStatus : status
+    TenantSubscription --> User : activatedBy
 
-    class TenantUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantRepository tenantRepository
-        +ActivitySectorRepository sectorRepository
-        +TenantProvisioningService provisioningService
-        --
-        +createTenant(tenant)
-        +getTenant(id)
-        +listTenants()
-        +listTenants(pageRequest)
-        +updateTenant(id, updates)
-        +updateLogo(id, logoUrl)
-    }
-
-    class UserUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantRepository tenantRepository
-        +UserRepository userRepository
-        +RoleRepository roleRepository
-        +UserRoleAssignmentRepository assignmentRepository
-        --
-        +createUser(user, tenantId)
-        +listUsers(tenantId)
-        +listUsers(pageRequest, tenantId)
-        +getUser(id)
-        +updateUser(id, updates)
-        +updateUserImage(id, imageUrl)
-        +getCurrentUser()
-        +updateCurrentUserProfile(firstName, lastName, phone)
-        +updateCurrentUserImage(imageUrl)
-        +changePassword(currentPassword, newPassword)
-        +updateUserRoles(id, roles)
-        +grantAdmin(id)
-        +grantSuperAdmin(id)
-        +resolveUserRoleCodes(user)
-    }
-
-    class WalletUseCase {
-        +CurrentUserProvider currentUserProvider
-        +TenantWalletRepository walletRepository
-        +WalletTransactionRepository transactionRepository
-        +PlatformConfigRepository configRepository
-        +TenantRepository tenantRepository
-        --
-        +getWallet(tenantId)
-        +listTransactions(tenantId)
-        +credit(tenantId, amount, reason, reference)
-        +debit(tenantId, amount, reason, reference)
-    }
-
-    note for TenantWallet "Created automatically when\nTenant is created\nInitial balance from PlatformConfig"
-    note for SubscriptionPlan "Standard plan is pre-seeded\nwith standard=true\nAll new tenants start here"
-    note for PremiumFeature "Seeded by developers\nAdmin cannot create features\nOnly assign to plans"
-    note for WalletTransaction "For now: manual credit/debit only\nFuture: auto-deduction from orders"
-    note for Category "Hierarchical structure via parentCategoryId\nSlug auto-generated from name\nSupports AI description generation"
-    note for Product "Slug auto-generated from name\navailabilityText: free text like 'Delai 2-3 semaines'\ncontinueSelling: permet la vente meme si stock=0\nshowLowestPrice: affichage du prix le plus bas"
-    note for ProductVariant "SKU optionnel (cache dans l'UI)\npriceOverride: alias du prix final\ninitial/final/cost/shipping overrides: si null, utiliser le prix du produit\ntrackStock: si true, utiliser le stock par magasin\ncontinueSellingOverride: si null, utiliser le produit\nproductImageId: image associee a la variante"
-    note for ProductStoreInventory "Used ONLY when product has NO variants\nTracks inventory per store"
-    note for VariantStoreInventory "Used when product has variants\nTracks variant stock per store (if enabled)"
-
-    Tenant "many" --> "1" ActivitySector : belongsTo
-    Tenant "1" --o "0..*" Store : owns
-    Tenant "1" --o "0..*" User : has
-    Tenant "1" --o "0..*" Category : hasCategories
-    Tenant "1" --o "0..*" Product : hasProducts
-    User "1" --o "0..*" RefreshToken : tokens
-    Tenant "1" --o "0..*" Role : roles
-    Tenant "1" --o "0..*" RolePermission : rolePermissions
-    Tenant "1" --o "0..*" UserRoleAssignment : assignments
-    User "1" --o "0..*" UserRoleAssignment : assigned
-    Role "1" --o "0..*" UserRoleAssignment : has
-    Role "1" --o "0..*" RolePermission : grants
-    Permission "1" --o "0..*" RolePermission : usedBy
-    User "1" --o "0..*" AuditEvent : actor
-    User "1" --o "0..*" Category : creates
-    User "1" --o "0..*" Category : updates
-    User "1" --o "0..*" Product : creates
-    User "1" --o "0..*" Product : updates
-    Category "many" --> "0..1" Category : parent
-    Product "1" --o "0..*" ProductCategory : categorizedBy
-    Category "1" --o "0..*" ProductCategory : contains
-    ProductCategory "0..*" --> "1" Product : product
-    ProductCategory "0..*" --> "1" Category : category
-    Product "1" --o "0..*" ProductOption : hasOptions
-    ProductOption "1" --> "1" OptionType : type
-    ProductOption "1" --o "0..*" ProductOptionValue : values
-    Product "1" --o "0..*" ProductVariant : hasVariants
-    ProductVariant "1" --> "1" VariantStatus : status
-    ProductVariant "1" --o "0..*" VariantOptionValue : optionValues
-    VariantOptionValue "0..*" --> "1" ProductOptionValue : value
-    VariantOptionValue "0..*" --> "1" ProductVariant : variant
-    ProductVariant "0..1" --> "1" ProductImage : image
-    ProductVariant "1" --o "0..*" VariantStoreInventory : inventory
-    VariantStoreInventory "0..*" --> "1" Store : store
-    Product "1" --> "1" ProductStatus : status
-    Product "1" --> "1" ProductAvailability : availability
-    Product "1" --o "0..*" ProductImage : images
-    Product "1" --o "0..*" ProductStoreInventory : inventory
-    ProductStoreInventory "0..*" --> "1" Store : store
-    Product "1" --o "0..*" ProductPriceHistory : priceHistory
-    Tenant "1" --> "1" TenantStatus : status
-    Tenant "1" --o "1" TenantWallet : hasWallet
-    TenantWallet "1" --> "1" WalletStatus : status
-    TenantWallet "1" --o "0..*" WalletTransaction : transactions
-    WalletTransaction "1" --> "1" WalletTxnType : type
-    User "1" --o "0..*" WalletTransaction : processes
-    User "1" --o "0..*" PlatformConfig : manages
-    PremiumFeature "1" --> "1" FeatureCategory : category
-    SubscriptionPlan "1" --o "0..*" PlanFeature : includes
-    PremiumFeature "1" --o "0..*" PlanFeature : usedIn
-    SubscriptionPlan "1" --> "1" BillingCycle : cycle
-    User "1" --o "0..*" SubscriptionPlan : creates
-    Tenant "1" --o "0..*" TenantSubscription : subscriptions
-    SubscriptionPlan "1" --o "0..*" TenantSubscription : subscribedBy
-    TenantSubscription "1" --> "1" SubscriptionStatus : status
-    User "1" --o "0..*" TenantSubscription : activates
-    TenantSubscription "1" --o "0..*" SubscriptionHistory : history
-    SubscriptionHistory "1" --> "1" SubscriptionAction : action
-    User "1" --o "0..*" SubscriptionHistory : performs
-
-    style ActivitySector fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
-    style Tenant fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:4px
-
-    style Store fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
-    style User fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
-    style Category fill:#00897B,stroke:#004D40,color:#fff,stroke-width:4px
-    style Product fill:#00897B,stroke:#004D40,color:#fff,stroke-width:4px
-    style ProductCategory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-    style ProductImage fill:#00897B,stroke:#004D40,color:#fff
-    style ProductOption fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-    style ProductOptionValue fill:#00897B,stroke:#004D40,color:#fff
-    style ProductVariant fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-    style VariantOptionValue fill:#00897B,stroke:#004D40,color:#fff
-    style ProductStatus fill:#00897B,stroke:#004D40,color:#fff
-    style ProductAvailability fill:#00897B,stroke:#004D40,color:#fff
-    style OptionType fill:#00897B,stroke:#004D40,color:#fff
-    style VariantStatus fill:#00897B,stroke:#004D40,color:#fff
-    style ProductStoreInventory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-    style VariantStoreInventory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-    style ProductPriceHistory fill:#00897B,stroke:#004D40,color:#fff,stroke-width:3px
-
-    style Role fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
-    style Permission fill:#3F51B5,stroke:#1A237E,color:#fff,stroke-width:3px
-    style UserRoleAssignment fill:#3F51B5,stroke:#1A237E,color:#fff
-    style RolePermission fill:#3F51B5,stroke:#1A237E,color:#fff
-
-    style PlatformConfig fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
-    style TenantWallet fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:4px
-    style WalletTransaction fill:#FF6F00,stroke:#E65100,color:#fff,stroke-width:3px
-    style PremiumFeature fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
-    style FeatureCategory fill:#9C27B0,stroke:#4A148C,color:#fff
-    style SubscriptionPlan fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
-    style PlanFeature fill:#9C27B0,stroke:#4A148C,color:#fff
-    style TenantSubscription fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:4px
-    style SubscriptionHistory fill:#9C27B0,stroke:#4A148C,color:#fff,stroke-width:3px
-
-    style CategoryUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style ProductUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style ActivitySectorUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style AdminProvisionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style AdminTenantSubscriptionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style AiTextUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style AuthUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style PermissionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style PlatformConfigUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style PremiumFeatureUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style RoleUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style StoreUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style SubscriptionPlanUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style TenantSubscriptionUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style TenantUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style UserUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-    style WalletUseCase fill:#ECEFF1,stroke:#90A4AE,color:#263238,stroke-width:2px
-
-    class RefreshToken:::Pine
-    class AuditEvent:::Pine
-
-    classDef Pine :,stroke-width:1px,stroke-dasharray:none,stroke:#254336,fill:#27654A,color:#FFFFFF,stroke-width:1px,stroke-dasharray:none,stroke:#254336,fill:#27654A,color:#FFFFFF
+    SubscriptionHistory --> TenantSubscription : subscriptionId
+    SubscriptionHistory --> SubscriptionPlan : oldPlanId
+    SubscriptionHistory --> SubscriptionPlan : newPlanId
+    SubscriptionHistory --> SubscriptionAction : action
+    SubscriptionHistory --> User : performedBy
