@@ -17,7 +17,7 @@ import static org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE;
 
 public final class UploadUtil {
 
-    private static final long MAX_BYTES = 10L * 1024L * 1024L;
+    private static final long MAX_BYTES = 20L * 1024L * 1024L;
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/png",
             "image/jpeg",
@@ -46,26 +46,12 @@ public final class UploadUtil {
     }
 
     public static StoredFile storeImage(MultipartFile file, String configuredBaseDir, String folder) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
-        }
-        if (file.getSize() > MAX_BYTES) {
-            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Image exceeds 10MB limit");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType != null && !ALLOWED_TYPES.contains(contentType)) {
-            throw new ResponseStatusException(BAD_REQUEST, "Only PNG, JPG, WEBP, or GIF images are allowed");
-        }
+        validateImage(file);
 
         String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
-        String extension = extractExtension(originalName);
-        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension)) {
-            extension = contentType != null ? EXT_BY_TYPE.get(contentType) : null;
-        }
-        if (extension == null) {
-            throw new ResponseStatusException(BAD_REQUEST, "Image file extension is not supported");
-        }
+        String normalizedType = normalizeContentType(file.getContentType());
+        String extension = resolveExtension(originalName, normalizedType);
+        String storedContentType = normalizedType != null ? normalizedType : contentTypeFromExtension(extension);
 
         Path baseDir = resolveBaseDir(configuredBaseDir);
         Path uploadDir = baseDir.resolve(folder);
@@ -76,7 +62,46 @@ public final class UploadUtil {
         file.transferTo(target.toFile());
 
         String relativeUrl = "/uploads/" + folder + "/" + filename;
-        return new StoredFile(relativeUrl, filename, contentType, file.getSize());
+        return new StoredFile(relativeUrl, filename, storedContentType, file.getSize());
+    }
+
+    public static StoredFile storeImageBytes(
+            byte[] imageBytes,
+            String originalName,
+            String contentType,
+            String configuredBaseDir,
+            String folder
+    ) throws IOException {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Image content is required");
+        }
+
+        String normalizedType = normalizeContentType(contentType);
+        String safeName = originalName == null ? "" : originalName;
+        String extension = resolveExtension(safeName, normalizedType);
+        String storedContentType = normalizedType != null ? normalizedType : contentTypeFromExtension(extension);
+        validateImageMeta(imageBytes.length, storedContentType, extension);
+
+        Path baseDir = resolveBaseDir(configuredBaseDir);
+        Path uploadDir = baseDir.resolve(folder);
+        Files.createDirectories(uploadDir);
+
+        String filename = UUID.randomUUID() + extension;
+        Path target = uploadDir.resolve(filename);
+        Files.write(target, imageBytes);
+
+        String relativeUrl = "/uploads/" + folder + "/" + filename;
+        return new StoredFile(relativeUrl, filename, storedContentType, imageBytes.length);
+    }
+
+    public static void validateImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Image file is required");
+        }
+        String normalizedType = normalizeContentType(file.getContentType());
+        String originalName = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        String extension = resolveExtension(originalName, normalizedType);
+        validateImageMeta(file.getSize(), normalizedType, extension);
     }
 
     public static Path resolveBaseDir(String configuredBaseDir) {
@@ -103,6 +128,50 @@ public final class UploadUtil {
             return null;
         }
         return filename.substring(dotIndex).toLowerCase(Locale.ROOT);
+    }
+
+    private static String resolveExtension(String originalName, String contentType) {
+        String extension = extractExtension(originalName);
+        if (extension != null && ALLOWED_EXTENSIONS.contains(extension)) {
+            return extension;
+        }
+        if (contentType != null) {
+            extension = EXT_BY_TYPE.get(contentType);
+        }
+        if (extension == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "Image file extension is not supported");
+        }
+        return extension;
+    }
+
+    private static void validateImageMeta(long size, String contentType, String extension) {
+        if (size > MAX_BYTES) {
+            throw new ResponseStatusException(PAYLOAD_TOO_LARGE, "Image exceeds 20MB limit");
+        }
+        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Image file extension is not supported");
+        }
+        if (contentType != null && !ALLOWED_TYPES.contains(contentType)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Only PNG, JPG, WEBP, or GIF images are allowed");
+        }
+    }
+
+    private static String normalizeContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return null;
+        }
+        String normalized = contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private static String contentTypeFromExtension(String extension) {
+        return switch (extension) {
+            case ".png" -> "image/png";
+            case ".jpg", ".jpeg" -> "image/jpeg";
+            case ".webp" -> "image/webp";
+            case ".gif" -> "image/gif";
+            default -> null;
+        };
     }
 
     public record StoredFile(String relativeUrl, String filename, String contentType, long size) {

@@ -29,6 +29,7 @@ import com.nexashop.api.dto.response.product.ProductResponse;
 import com.nexashop.api.dto.response.product.ProductStoreRefResponse;
 import com.nexashop.api.dto.response.product.ProductVariantResponse;
 import com.nexashop.api.dto.response.product.VariantInventoryResponse;
+import com.nexashop.api.service.ProductImageBackgroundRemovalService;
 import com.nexashop.api.util.UploadUtil;
 import com.nexashop.application.common.PageRequest;
 import com.nexashop.application.usecase.ProductUseCase;
@@ -56,10 +57,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -87,13 +90,23 @@ public class ProductController {
 
     private final ProductUseCase productUseCase;
     private final String uploadBaseDir;
+    private final ProductImageBackgroundRemovalService imageBackgroundRemovalService;
 
+    @Autowired
     public ProductController(
             ProductUseCase productUseCase,
-            @Value("${app.upload.dir:}") String uploadBaseDir
+            @Value("${app.upload.dir:}") String uploadBaseDir,
+            ProductImageBackgroundRemovalService imageBackgroundRemovalService
     ) {
         this.productUseCase = productUseCase;
         this.uploadBaseDir = uploadBaseDir;
+        this.imageBackgroundRemovalService = imageBackgroundRemovalService;
+    }
+
+    public ProductController(ProductUseCase productUseCase, String uploadBaseDir) {
+        this.productUseCase = productUseCase;
+        this.uploadBaseDir = uploadBaseDir;
+        this.imageBackgroundRemovalService = null;
     }
 
     @PostMapping
@@ -277,6 +290,32 @@ public class ProductController {
         image.setPrimary(primary);
         ProductImage saved = productUseCase.addProductImage(id, image);
         return toImageResponse(saved);
+    }
+
+    @PostMapping(
+            value = "/images/remove-background",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_GIF_VALUE, "image/webp"}
+    )
+    public ResponseEntity<byte[]> removeProductImageBackground(
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        if (imageBackgroundRemovalService == null) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Background removal is not configured");
+        }
+        ProductImageBackgroundRemovalService.ProcessedImage result = imageBackgroundRemovalService
+                .removeBackground(file);
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(result.contentType());
+        } catch (IllegalArgumentException ex) {
+            mediaType = MediaType.IMAGE_PNG;
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .body(result.bytes());
     }
 
     @GetMapping("/{id}/images")
