@@ -56,7 +56,11 @@ public class BillingSeedConfig {
                 "COMMISSION_PERCENTAGE", "2.5",
                 "INITIAL_WALLET_BALANCE", "500",
                 "LOW_BALANCE_THRESHOLD", "50",
-                "DEFAULT_CURRENCY", "TND"
+                "DEFAULT_CURRENCY", "TND",
+                "PLATFORM_WATERMARK_ENABLED", "true",
+                "PLATFORM_WATERMARK_TEXT", "Digimart",
+                "PLATFORM_WATERMARK_KIND", "TEXT",
+                "PLATFORM_WATERMARK_LOGO_URL", ""
         );
         defaults.forEach((key, value) -> configRepository.findByConfigKey(key)
                 .or(() -> {
@@ -81,7 +85,7 @@ public class BillingSeedConfig {
                 new FeatureSeed("CUSTOM_DOMAIN", "Custom Domain", "Use your own domain name", FeatureCategory.TECHNICAL, 8),
                 new FeatureSeed("LOYALTY_PROGRAM", "Loyalty Program", "Customer rewards and points", FeatureCategory.MARKETING, 9),
                 new FeatureSeed("NO_PLATFORM_WATERMARK", "No Platform Watermark", "Remove Digimart watermark from background-removed images", FeatureCategory.MARKETING, 10),
-                new FeatureSeed("CUSTOM_WATERMARK", "Custom Watermark", "Use tenant name as watermark on background-removed images", FeatureCategory.MARKETING, 11)
+                new FeatureSeed("CUSTOM_WATERMARK", "Custom Watermark", "Apply tenant watermark (tenant logo if available, otherwise tenant name)", FeatureCategory.MARKETING, 11)
         );
 
         seeds.forEach(seed -> featureRepository.findByCode(seed.code()).orElseGet(() -> {

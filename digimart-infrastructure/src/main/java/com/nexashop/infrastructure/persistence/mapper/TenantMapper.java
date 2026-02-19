@@ -45,6 +45,7 @@ public final class TenantMapper {
         domain.setContactEmail(entity.getContactEmail());
         domain.setContactPhone(entity.getContactPhone());
         domain.setLogoUrl(entity.getLogoUrl());
+        domain.setStudioBackgroundUrl(entity.getStudioBackgroundUrl());
         domain.setStatus(entity.getStatus());
         domain.setDefaultLocale(entity.getDefaultLocale());
         domain.setSectorId(entity.getSectorId());
@@ -62,6 +63,7 @@ public final class TenantMapper {
         entity.setContactEmail(domain.getContactEmail());
         entity.setContactPhone(domain.getContactPhone());
         entity.setLogoUrl(domain.getLogoUrl());
+        entity.setStudioBackgroundUrl(domain.getStudioBackgroundUrl());
         entity.setStatus(domain.getStatus());
         entity.setDefaultLocale(domain.getDefaultLocale());
         entity.setSectorId(domain.getSectorId());

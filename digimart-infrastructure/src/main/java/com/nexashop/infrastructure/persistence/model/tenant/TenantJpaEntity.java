@@ -35,6 +35,9 @@ public class TenantJpaEntity extends AuditableJpaEntity {
 
     private String logoUrl;
 
+    @Column(name = "studio_background_url")
+    private String studioBackgroundUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TenantStatus status;

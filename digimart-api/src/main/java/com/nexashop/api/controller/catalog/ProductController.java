@@ -318,6 +318,65 @@ public class ProductController {
                 .body(result.bytes());
     }
 
+    @PostMapping(
+            value = "/images/change-background",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_GIF_VALUE, "image/webp"}
+    )
+    public ResponseEntity<byte[]> changeProductImageBackground(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "backgroundFile", required = false) MultipartFile backgroundFile,
+            @RequestParam(value = "fit", defaultValue = "COVER") String fit
+    ) throws IOException {
+        if (imageBackgroundRemovalService == null) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Image processing is not configured");
+        }
+        ProductImageBackgroundRemovalService.ProcessedImage result = imageBackgroundRemovalService
+                .changeBackground(
+                        file,
+                        backgroundFile,
+                        ProductImageBackgroundRemovalService.BackgroundFit.from(fit)
+                );
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(result.contentType());
+        } catch (IllegalArgumentException ex) {
+            mediaType = MediaType.IMAGE_PNG;
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .body(result.bytes());
+    }
+
+    @PostMapping(
+            value = "/images/add-watermark",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = {MediaType.IMAGE_PNG_VALUE, MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_GIF_VALUE, "image/webp"}
+    )
+    public ResponseEntity<byte[]> addProductImageWatermark(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "mode", defaultValue = "AUTO") String mode
+    ) throws IOException {
+        if (imageBackgroundRemovalService == null) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "Image processing is not configured");
+        }
+        ProductImageBackgroundRemovalService.ProcessedImage result = imageBackgroundRemovalService
+                .addWatermark(file, ProductImageBackgroundRemovalService.WatermarkMode.from(mode));
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(result.contentType());
+        } catch (IllegalArgumentException ex) {
+            mediaType = MediaType.IMAGE_PNG;
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .body(result.bytes());
+    }
+
     @GetMapping("/{id}/images")
     public List<ProductImageResponse> listProductImages(@PathVariable Long id) {
         return productUseCase.listProductImages(id).stream()

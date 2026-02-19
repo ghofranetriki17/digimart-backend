@@ -2,15 +2,18 @@ package com.nexashop.api.service;
 
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PlanFeatureRepository;
+import com.nexashop.application.port.out.PlatformConfigRepository;
 import com.nexashop.application.port.out.PremiumFeatureRepository;
 import com.nexashop.application.port.out.TenantRepository;
 import com.nexashop.application.port.out.TenantSubscriptionRepository;
 import com.nexashop.application.security.CurrentUser;
+import com.nexashop.domain.billing.entity.PlatformConfig;
 import com.nexashop.domain.billing.entity.PlanFeature;
 import com.nexashop.domain.billing.entity.PremiumFeature;
 import com.nexashop.domain.billing.entity.TenantSubscription;
 import com.nexashop.domain.billing.enums.SubscriptionStatus;
 import com.nexashop.domain.tenant.entity.Tenant;
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -21,11 +24,14 @@ import com.nexashop.api.util.UploadUtil;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -48,6 +54,12 @@ public class ProductImageBackgroundRemovalService {
     private static final String CRLF = "\r\n";
     private static final String NO_PLATFORM_WATERMARK_FEATURE_CODE = "NO_PLATFORM_WATERMARK";
     private static final String CUSTOM_WATERMARK_FEATURE_CODE = "CUSTOM_WATERMARK";
+    private static final String PLATFORM_WATERMARK_TEXT_CONFIG_KEY = "PLATFORM_WATERMARK_TEXT";
+    private static final String PLATFORM_WATERMARK_ENABLED_CONFIG_KEY = "PLATFORM_WATERMARK_ENABLED";
+    private static final String PLATFORM_WATERMARK_KIND_CONFIG_KEY = "PLATFORM_WATERMARK_KIND";
+    private static final String PLATFORM_WATERMARK_LOGO_URL_CONFIG_KEY = "PLATFORM_WATERMARK_LOGO_URL";
+    private static final String WATERMARK_KIND_TEXT = "TEXT";
+    private static final String WATERMARK_KIND_IMAGE = "IMAGE";
     private static final List<String> ALLOWED_IMAGE_TYPES = List.of(
             "image/png",
             "image/jpeg",
@@ -62,8 +74,10 @@ public class ProductImageBackgroundRemovalService {
     private final CurrentUserProvider currentUserProvider;
     private final TenantSubscriptionRepository subscriptionRepository;
     private final PlanFeatureRepository planFeatureRepository;
+    private final PlatformConfigRepository platformConfigRepository;
     private final PremiumFeatureRepository featureRepository;
     private final TenantRepository tenantRepository;
+    private final Path uploadBaseDir;
     private final boolean platformWatermarkEnabled;
     private final String platformWatermarkText;
 
@@ -74,9 +88,11 @@ public class ProductImageBackgroundRemovalService {
             @Value("${image.bg-removal.timeout-seconds:30}") long timeoutSeconds,
             @Value("${image.bg-removal.platform-watermark-enabled:true}") boolean platformWatermarkEnabled,
             @Value("${image.bg-removal.platform-watermark-text:Digimart}") String platformWatermarkText,
+            @Value("${app.upload.dir:}") String uploadBaseDir,
             CurrentUserProvider currentUserProvider,
             TenantSubscriptionRepository subscriptionRepository,
             PlanFeatureRepository planFeatureRepository,
+            PlatformConfigRepository platformConfigRepository,
             PremiumFeatureRepository featureRepository,
             TenantRepository tenantRepository
     ) {
@@ -92,11 +108,151 @@ public class ProductImageBackgroundRemovalService {
         this.currentUserProvider = currentUserProvider;
         this.subscriptionRepository = subscriptionRepository;
         this.planFeatureRepository = planFeatureRepository;
+        this.platformConfigRepository = platformConfigRepository;
         this.featureRepository = featureRepository;
         this.tenantRepository = tenantRepository;
+        this.uploadBaseDir = UploadUtil.resolveBaseDir(uploadBaseDir);
     }
 
     public ProcessedImage removeBackground(MultipartFile file) throws IOException {
+        ProcessedImage processed = removeBackgroundRaw(file);
+        WatermarkPayload payload = resolveAutoPlatformWatermarkPayload();
+        if (payload != null) {
+            return applyWatermark(processed.bytes(), processed.contentType(), payload);
+        }
+        return processed;
+    }
+
+    public ProcessedImage changeBackground(MultipartFile file, MultipartFile backgroundFile, BackgroundFit fit) throws IOException {
+        ProcessedImage foreground = removeBackgroundRaw(file);
+        BufferedImage background = resolveBackgroundImage(backgroundFile);
+        ProcessedImage composed = composeWithBackground(
+                foreground.bytes(),
+                foreground.contentType(),
+                background,
+                fit == null ? BackgroundFit.COVER : fit
+        );
+        WatermarkPayload payload = resolveAutoPlatformWatermarkPayload();
+        if (payload != null) {
+            return applyWatermark(composed.bytes(), composed.contentType(), payload);
+        }
+        return composed;
+    }
+
+    public ProcessedImage addWatermark(MultipartFile file, WatermarkMode mode) throws IOException {
+        UploadUtil.validateImage(file);
+        byte[] sourceBytes = file.getBytes();
+        String inputType = normalizeContentType(file.getContentType()).orElse(null);
+        String detectedType = detectContentType(sourceBytes);
+        String resolvedType = firstSupportedType(inputType, detectedType);
+        String contentType = resolvedType == null ? "image/png" : resolvedType;
+
+        WatermarkMode resolvedMode = mode == null ? WatermarkMode.AUTO : mode;
+        WatermarkPayload payload = resolveRequestedWatermarkPayload(resolvedMode);
+        return applyWatermark(sourceBytes, contentType, payload);
+    }
+
+    private BufferedImage resolveBackgroundImage(MultipartFile backgroundFile) throws IOException {
+        if (backgroundFile != null && !backgroundFile.isEmpty()) {
+            UploadUtil.validateImage(backgroundFile);
+            BufferedImage uploaded = ImageIO.read(new ByteArrayInputStream(backgroundFile.getBytes()));
+            if (uploaded == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uploaded background image is invalid");
+            }
+            return uploaded;
+        }
+
+        CurrentUser currentUser = currentUserProvider.getCurrentUser();
+        if (currentUser == null || currentUser.tenantId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Tenant context is required to use the configured studio background"
+            );
+        }
+        Tenant tenant = tenantRepository.findById(currentUser.tenantId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+        String backgroundUrl = Optional.ofNullable(tenant.getStudioBackgroundUrl()).orElse("").trim();
+        if (backgroundUrl.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No studio background configured for this tenant. Upload one in tenant settings."
+            );
+        }
+        BufferedImage studioBackground = loadManagedUploadImage(backgroundUrl);
+        if (studioBackground == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Configured studio background file is missing or invalid"
+            );
+        }
+        return studioBackground;
+    }
+
+    private ProcessedImage composeWithBackground(
+            byte[] foregroundBytes,
+            String fallbackContentType,
+            BufferedImage background,
+            BackgroundFit fit
+    ) {
+        try {
+            BufferedImage foreground = ImageIO.read(new ByteArrayInputStream(foregroundBytes));
+            if (foreground == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Background removal output is invalid");
+            }
+
+            int canvasWidth = background.getWidth();
+            int canvasHeight = background.getHeight();
+            if (canvasWidth <= 0 || canvasHeight <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Background image dimensions are invalid");
+            }
+
+            BufferedImage canvas = new BufferedImage(canvasWidth, canvasHeight, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = canvas.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.drawImage(background, 0, 0, canvasWidth, canvasHeight, null);
+
+            DrawSpec drawSpec = computeDrawSpec(
+                    foreground.getWidth(),
+                    foreground.getHeight(),
+                    canvasWidth,
+                    canvasHeight,
+                    fit == null ? BackgroundFit.COVER : fit
+            );
+            g2d.drawImage(foreground, drawSpec.x(), drawSpec.y(), drawSpec.width(), drawSpec.height(), null);
+            g2d.dispose();
+
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            ImageIO.write(canvas, "png", output);
+            return new ProcessedImage(output.toByteArray(), "image/png");
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.warn("Unable to compose foreground with background, returning original image", ex);
+            return new ProcessedImage(foregroundBytes, fallbackContentType == null ? "image/png" : fallbackContentType);
+        }
+    }
+
+    private DrawSpec computeDrawSpec(
+            int sourceWidth,
+            int sourceHeight,
+            int targetWidth,
+            int targetHeight,
+            BackgroundFit fit
+    ) {
+        float widthRatio = (float) targetWidth / Math.max(1, sourceWidth);
+        float heightRatio = (float) targetHeight / Math.max(1, sourceHeight);
+        float scale = fit == BackgroundFit.CONTAIN ? Math.min(widthRatio, heightRatio) : Math.max(widthRatio, heightRatio);
+
+        int drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+        int drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+        int x = Math.round((targetWidth - drawWidth) / 2f);
+        int y = Math.round((targetHeight - drawHeight) / 2f);
+        return new DrawSpec(x, y, drawWidth, drawHeight);
+    }
+
+    private ProcessedImage removeBackgroundRaw(MultipartFile file) throws IOException {
         if (!enabled) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
@@ -151,12 +307,6 @@ public class ProductImageBackgroundRemovalService {
         String detectedType = detectContentType(processedBytes);
         String resolvedType = firstSupportedType(headerType, detectedType, inputType);
         String contentType = resolvedType == null ? "image/png" : resolvedType;
-        if (shouldApplyPlatformWatermark()) {
-            String watermarkText = resolveWatermarkText();
-            if (!watermarkText.isBlank()) {
-                return applyPlatformWatermark(processedBytes, contentType, watermarkText);
-            }
-        }
         return new ProcessedImage(processedBytes, contentType);
     }
 
@@ -258,7 +408,7 @@ public class ProductImageBackgroundRemovalService {
     }
 
     private boolean shouldApplyPlatformWatermark() {
-        if (!platformWatermarkEnabled) {
+        if (!isPlatformWatermarkEnabled()) {
             return false;
         }
         CurrentUser currentUser = currentUserProvider.getCurrentUser();
@@ -293,27 +443,185 @@ public class ProductImageBackgroundRemovalService {
         return false;
     }
 
-    private String resolveWatermarkText() {
+    private WatermarkPayload resolveRequestedWatermarkPayload(WatermarkMode mode) {
+        WatermarkMode resolvedMode = mode == null ? WatermarkMode.AUTO : mode;
+        return switch (resolvedMode) {
+            case PLATFORM -> resolvePlatformWatermarkPayloadOrThrow();
+            case CUSTOM -> resolveCustomWatermarkPayloadOrThrow();
+            case AUTO -> {
+                WatermarkPayload custom = resolveCustomWatermarkPayload();
+                if (custom != null) {
+                    yield custom;
+                }
+                yield resolvePlatformWatermarkPayloadOrThrow();
+            }
+        };
+    }
+
+    private WatermarkPayload resolveAutoPlatformWatermarkPayload() {
+        if (!shouldApplyPlatformWatermark()) {
+            return null;
+        }
+        return resolvePlatformWatermarkPayloadOrNull();
+    }
+
+    private WatermarkPayload resolvePlatformWatermarkPayloadOrThrow() {
+        if (!isPlatformWatermarkEnabled()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Platform watermark is disabled");
+        }
+        WatermarkPayload payload = resolvePlatformWatermarkPayloadOrNull();
+        if (payload != null) {
+            return payload;
+        }
+        throw new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Platform watermark is not configured (missing text/logo)"
+        );
+    }
+
+    private WatermarkPayload resolveCustomWatermarkPayloadOrThrow() {
+        WatermarkPayload payload = resolveCustomWatermarkPayload();
+        if (payload != null) {
+            return payload;
+        }
+        throw new ResponseStatusException(
+                HttpStatus.FORBIDDEN,
+                "Custom watermark is unavailable for this tenant plan"
+        );
+    }
+
+    private WatermarkPayload resolveCustomWatermarkPayload() {
         CurrentUser currentUser = currentUserProvider.getCurrentUser();
         if (currentUser != null
                 && currentUser.tenantId() != null
                 && hasFeatureEnabled(currentUser.tenantId(), CUSTOM_WATERMARK_FEATURE_CODE)) {
-            String tenantName = tenantRepository.findById(currentUser.tenantId())
-                    .map(Tenant::getName)
-                    .map(String::trim)
-                    .orElse("");
-            if (!tenantName.isBlank()) {
-                return tenantName;
+            Tenant tenant = tenantRepository.findById(currentUser.tenantId()).orElse(null);
+            if (tenant != null) {
+                BufferedImage tenantLogo = loadManagedUploadImage(tenant.getLogoUrl());
+                if (tenantLogo != null) {
+                    return WatermarkPayload.image(tenantLogo);
+                }
             }
+            String tenantName = tenant == null ? "" : Optional.ofNullable(tenant.getName()).orElse("").trim();
+            if (!tenantName.isBlank()) {
+                return WatermarkPayload.text(tenantName);
+            }
+        }
+        return null;
+    }
+
+    private WatermarkPayload resolvePlatformWatermarkPayloadOrNull() {
+        String kind = resolveConfiguredPlatformWatermarkKind();
+        if (WATERMARK_KIND_IMAGE.equals(kind)) {
+            BufferedImage logo = resolveConfiguredPlatformWatermarkLogo();
+            if (logo != null) {
+                return WatermarkPayload.image(logo);
+            }
+            String textFallback = resolveConfiguredPlatformWatermarkText();
+            return textFallback.isBlank() ? null : WatermarkPayload.text(textFallback);
+        }
+        String text = resolveConfiguredPlatformWatermarkText();
+        if (!text.isBlank()) {
+            return WatermarkPayload.text(text);
+        }
+        BufferedImage logoFallback = resolveConfiguredPlatformWatermarkLogo();
+        if (logoFallback != null) {
+            return WatermarkPayload.image(logoFallback);
+        }
+        return null;
+    }
+
+    private boolean isPlatformWatermarkEnabled() {
+        String configuredValue = platformConfigRepository.findByConfigKey(PLATFORM_WATERMARK_ENABLED_CONFIG_KEY)
+                .map(PlatformConfig::getConfigValue)
+                .map(String::trim)
+                .orElse(null);
+        if (configuredValue == null || configuredValue.isBlank()) {
+            return platformWatermarkEnabled;
+        }
+        String normalized = configuredValue.toLowerCase(Locale.ROOT);
+        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized) || "on".equals(normalized)) {
+            return true;
+        }
+        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized) || "off".equals(normalized)) {
+            return false;
+        }
+        return platformWatermarkEnabled;
+    }
+
+    private String resolveConfiguredPlatformWatermarkKind() {
+        String kind = platformConfigRepository.findByConfigKey(PLATFORM_WATERMARK_KIND_CONFIG_KEY)
+                .map(PlatformConfig::getConfigValue)
+                .map(String::trim)
+                .orElse("");
+        if (kind.isBlank()) {
+            return WATERMARK_KIND_TEXT;
+        }
+        String normalized = kind.toUpperCase(Locale.ROOT);
+        if (WATERMARK_KIND_IMAGE.equals(normalized)) {
+            return WATERMARK_KIND_IMAGE;
+        }
+        return WATERMARK_KIND_TEXT;
+    }
+
+    private BufferedImage resolveConfiguredPlatformWatermarkLogo() {
+        String logoUrl = platformConfigRepository.findByConfigKey(PLATFORM_WATERMARK_LOGO_URL_CONFIG_KEY)
+                .map(PlatformConfig::getConfigValue)
+                .map(String::trim)
+                .orElse("");
+        return loadManagedUploadImage(logoUrl);
+    }
+
+    private BufferedImage loadManagedUploadImage(String logoUrl) {
+        String safeUrl = logoUrl == null ? "" : logoUrl.trim();
+        if (safeUrl.isBlank()) {
+            return null;
+        }
+
+        String relativePath;
+        if (safeUrl.startsWith("/uploads/")) {
+            relativePath = safeUrl.substring("/uploads/".length());
+        } else if (safeUrl.startsWith("uploads/")) {
+            relativePath = safeUrl.substring("uploads/".length());
+        } else {
+            return null;
+        }
+        if (relativePath.isBlank()) {
+            return null;
+        }
+
+        Path resolved = uploadBaseDir.resolve(relativePath).normalize();
+        if (!resolved.startsWith(uploadBaseDir)) {
+            return null;
+        }
+        if (!Files.exists(resolved)) {
+            return null;
+        }
+
+        try (InputStream in = Files.newInputStream(resolved)) {
+            return ImageIO.read(in);
+        } catch (IOException ex) {
+            log.warn("Unable to load managed upload image from {}", safeUrl, ex);
+            return null;
+        }
+    }
+
+    private String resolveConfiguredPlatformWatermarkText() {
+        String configured = platformConfigRepository.findByConfigKey(PLATFORM_WATERMARK_TEXT_CONFIG_KEY)
+                .map(PlatformConfig::getConfigValue)
+                .map(String::trim)
+                .orElse("");
+        if (!configured.isBlank()) {
+            return configured;
         }
         return platformWatermarkText == null ? "" : platformWatermarkText.trim();
     }
 
-    private ProcessedImage applyPlatformWatermark(byte[] bytes, String fallbackContentType, String watermarkText) {
+    private ProcessedImage applyWatermark(byte[] bytes, String fallbackContentType, WatermarkPayload watermarkPayload) {
         try {
             BufferedImage source = ImageIO.read(new ByteArrayInputStream(bytes));
             if (source == null) {
-                log.warn("Unable to decode image for platform watermark, returning original image");
+                log.warn("Unable to decode image for watermark, returning original image");
                 return new ProcessedImage(bytes, fallbackContentType);
             }
 
@@ -325,41 +633,157 @@ public class ProductImageBackgroundRemovalService {
             g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g2d.drawImage(source, 0, 0, null);
 
-            int base = Math.max(1, Math.min(width, height));
-            int fontSize = Math.max(12, Math.round(base * 0.06f));
-            Font font = new Font(Font.SANS_SERIF, Font.BOLD, fontSize);
-            g2d.setFont(font);
-
-            FontMetrics metrics = g2d.getFontMetrics();
-            int textWidth = metrics.stringWidth(watermarkText);
-            int x = Math.max(0, (width - textWidth) / 2);
-            int y = Math.max(metrics.getAscent(), (height + metrics.getAscent()) / 2);
-
-            int paddingX = Math.max(6, Math.round(base * 0.015f));
-            int paddingY = Math.max(4, Math.round(base * 0.01f));
-            int rectX = Math.max(0, x - paddingX);
-            int rectY = Math.max(0, y - metrics.getAscent() - paddingY);
-            int rectWidth = Math.min(width - rectX, textWidth + (paddingX * 2));
-            int rectHeight = Math.min(height - rectY, metrics.getHeight() + (paddingY * 2));
-            g2d.setColor(new Color(0, 0, 0, 118));
-            g2d.fillRoundRect(rectX, rectY, rectWidth, rectHeight, Math.max(8, paddingX), Math.max(8, paddingX));
-
-            g2d.setColor(new Color(0, 0, 0, 120));
-            g2d.drawString(watermarkText, x + 1, y + 1);
-            g2d.setColor(new Color(255, 255, 255, 176));
-            g2d.drawString(watermarkText, x, y);
+            if (watermarkPayload.logo() != null) {
+                drawLogoWatermark(g2d, width, height, watermarkPayload.logo());
+            } else if (watermarkPayload.text() != null && !watermarkPayload.text().isBlank()) {
+                drawTextWatermark(g2d, width, height, watermarkPayload.text());
+            }
             g2d.dispose();
 
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             ImageIO.write(canvas, "png", output);
             return new ProcessedImage(output.toByteArray(), "image/png");
         } catch (Exception ex) {
-            log.warn("Unable to apply platform watermark, returning original image", ex);
+            log.warn("Unable to apply watermark, returning original image", ex);
             return new ProcessedImage(bytes, fallbackContentType);
         }
     }
 
+    private void drawTextWatermark(Graphics2D g2d, int width, int height, String watermarkText) {
+        int base = Math.max(1, Math.min(width, height));
+        int fontSize = Math.max(12, Math.round(base * 0.06f));
+        Font font = new Font(Font.SANS_SERIF, Font.BOLD, fontSize);
+        g2d.setFont(font);
+
+        FontMetrics metrics = g2d.getFontMetrics();
+        int textWidth = metrics.stringWidth(watermarkText);
+
+        int edgePaddingX = Math.max(8, Math.round(base * 0.02f));
+        int edgePaddingY = Math.max(8, Math.round(base * 0.02f));
+        int cropSafeInsetX = Math.max(edgePaddingX, Math.round(width * 0.18f));
+        int cropSafeInsetY = Math.max(edgePaddingY, Math.round(height * 0.18f));
+
+        int preferredX = width - cropSafeInsetX - textWidth;
+        int minX = edgePaddingX;
+        int maxX = Math.max(minX, width - edgePaddingX - textWidth);
+        int x = Math.max(minX, Math.min(preferredX, maxX));
+
+        int preferredY = height - cropSafeInsetY - metrics.getDescent();
+        int minY = metrics.getAscent() + edgePaddingY;
+        int maxY = Math.max(minY, height - edgePaddingY - metrics.getDescent());
+        int y = Math.max(minY, Math.min(preferredY, maxY));
+
+        int paddingX = Math.max(6, Math.round(base * 0.015f));
+        int paddingY = Math.max(4, Math.round(base * 0.01f));
+        int rectX = Math.max(0, x - paddingX);
+        int rectY = Math.max(0, y - metrics.getAscent() - paddingY);
+        int rectWidth = Math.min(width - rectX, textWidth + (paddingX * 2));
+        int rectHeight = Math.min(height - rectY, metrics.getHeight() + (paddingY * 2));
+        g2d.setColor(new Color(0, 0, 0, 118));
+        g2d.fillRoundRect(rectX, rectY, rectWidth, rectHeight, Math.max(8, paddingX), Math.max(8, paddingX));
+
+        g2d.setColor(new Color(0, 0, 0, 120));
+        g2d.drawString(watermarkText, x + 1, y + 1);
+        g2d.setColor(new Color(255, 255, 255, 176));
+        g2d.drawString(watermarkText, x, y);
+    }
+
+    private void drawLogoWatermark(Graphics2D g2d, int width, int height, BufferedImage logo) {
+        int base = Math.max(1, Math.min(width, height));
+        int edgePaddingX = Math.max(8, Math.round(base * 0.02f));
+        int edgePaddingY = Math.max(8, Math.round(base * 0.02f));
+        int cropSafeInsetX = Math.max(edgePaddingX, Math.round(width * 0.18f));
+        int cropSafeInsetY = Math.max(edgePaddingY, Math.round(height * 0.18f));
+
+        int maxWidth = Math.max(28, Math.round(width * 0.24f));
+        int maxHeight = Math.max(28, Math.round(height * 0.24f));
+        float scale = Math.min(
+                (float) maxWidth / Math.max(1, logo.getWidth()),
+                (float) maxHeight / Math.max(1, logo.getHeight())
+        );
+        int drawWidth = Math.max(24, Math.round(logo.getWidth() * scale));
+        int drawHeight = Math.max(24, Math.round(logo.getHeight() * scale));
+
+        int preferredX = width - cropSafeInsetX - drawWidth;
+        int minX = edgePaddingX;
+        int maxX = Math.max(minX, width - edgePaddingX - drawWidth);
+        int x = Math.max(minX, Math.min(preferredX, maxX));
+
+        int preferredY = height - cropSafeInsetY - drawHeight;
+        int minY = edgePaddingY;
+        int maxY = Math.max(minY, height - edgePaddingY - drawHeight);
+        int y = Math.max(minY, Math.min(preferredY, maxY));
+
+        int bgPadding = Math.max(4, Math.round(base * 0.008f));
+        g2d.setColor(new Color(0, 0, 0, 92));
+        g2d.fillRoundRect(
+                x - bgPadding,
+                y - bgPadding,
+                drawWidth + (bgPadding * 2),
+                drawHeight + (bgPadding * 2),
+                Math.max(8, bgPadding * 2),
+                Math.max(8, bgPadding * 2)
+        );
+
+        var previousComposite = g2d.getComposite();
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.9f));
+        g2d.drawImage(logo, x, y, drawWidth, drawHeight, null);
+        g2d.setComposite(previousComposite);
+    }
+
+    public enum BackgroundFit {
+        COVER,
+        CONTAIN;
+
+        public static BackgroundFit from(String rawValue) {
+            if (rawValue == null || rawValue.isBlank()) {
+                return COVER;
+            }
+            try {
+                return BackgroundFit.valueOf(rawValue.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Unsupported background fit. Allowed: COVER, CONTAIN"
+                );
+            }
+        }
+    }
+
+    public enum WatermarkMode {
+        AUTO,
+        PLATFORM,
+        CUSTOM;
+
+        public static WatermarkMode from(String rawValue) {
+            if (rawValue == null || rawValue.isBlank()) {
+                return AUTO;
+            }
+            try {
+                return WatermarkMode.valueOf(rawValue.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Unsupported watermark mode. Allowed: AUTO, PLATFORM, CUSTOM"
+                );
+            }
+        }
+    }
+
     private record MultipartPayload(String boundary, byte[] body) {
+    }
+
+    private record DrawSpec(int x, int y, int width, int height) {
+    }
+
+    private record WatermarkPayload(String text, BufferedImage logo) {
+        private static WatermarkPayload text(String text) {
+            return new WatermarkPayload(text, null);
+        }
+
+        private static WatermarkPayload image(BufferedImage logo) {
+            return new WatermarkPayload(null, logo);
+        }
     }
 
     public record ProcessedImage(byte[] bytes, String contentType) {

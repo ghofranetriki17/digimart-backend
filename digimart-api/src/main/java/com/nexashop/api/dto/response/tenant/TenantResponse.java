@@ -16,6 +16,7 @@ public class TenantResponse {
     private String contactEmail;
     private String contactPhone;
     private String logoUrl;
+    private String studioBackgroundUrl;
     private TenantStatus status;
     private Locale defaultLocale;
     private Long sectorId;

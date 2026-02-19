@@ -19,6 +19,8 @@ public class Tenant extends AuditableEntity {
 
     private String logoUrl;
 
+    private String studioBackgroundUrl;
+
     private TenantStatus status;
 
     private Locale defaultLocale;

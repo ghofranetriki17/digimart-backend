@@ -20,6 +20,8 @@ public class UpdateTenantRequest {
 
     private String logoUrl;
 
+    private String studioBackgroundUrl;
+
     @NotNull
     private TenantStatus status;
 

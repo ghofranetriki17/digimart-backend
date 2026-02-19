@@ -68,6 +68,9 @@ public class TenantUseCase {
         if (updates.getLogoUrl() != null && !updates.getLogoUrl().isBlank()) {
             tenant.setLogoUrl(updates.getLogoUrl());
         }
+        if (updates.getStudioBackgroundUrl() != null && !updates.getStudioBackgroundUrl().isBlank()) {
+            tenant.setStudioBackgroundUrl(updates.getStudioBackgroundUrl());
+        }
         tenant.setStatus(updates.getStatus());
         tenant.setDefaultLocale(updates.getDefaultLocale());
         tenant.setSectorId(resolveSectorId(updates.getSectorId()));
@@ -79,6 +82,14 @@ public class TenantUseCase {
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Tenant not found"));
         tenant.setLogoUrl(logoUrl);
+        return tenantRepository.save(tenant);
+    }
+
+    public Tenant updateStudioBackground(Long id, String backgroundUrl) {
+        currentUserProvider.requireOwnerOrAdmin(id);
+        Tenant tenant = tenantRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Tenant not found"));
+        tenant.setStudioBackgroundUrl(backgroundUrl);
         return tenantRepository.save(tenant);
     }
 

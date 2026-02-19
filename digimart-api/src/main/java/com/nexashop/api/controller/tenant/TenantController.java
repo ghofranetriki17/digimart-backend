@@ -12,6 +12,8 @@ import jakarta.validation.Valid;
 import com.nexashop.api.util.UploadUtil;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +56,7 @@ public class TenantController {
         tenant.setContactEmail(request.getContactEmail());
         tenant.setContactPhone(request.getContactPhone());
         tenant.setLogoUrl(request.getLogoUrl());
+        tenant.setStudioBackgroundUrl(request.getStudioBackgroundUrl());
         tenant.setStatus(request.getStatus());
         tenant.setDefaultLocale(request.getDefaultLocale());
         tenant.setSectorId(request.getSectorId());
@@ -96,6 +99,7 @@ public class TenantController {
         updates.setContactEmail(request.getContactEmail());
         updates.setContactPhone(request.getContactPhone());
         updates.setLogoUrl(request.getLogoUrl());
+        updates.setStudioBackgroundUrl(request.getStudioBackgroundUrl());
         updates.setStatus(request.getStatus());
         updates.setDefaultLocale(request.getDefaultLocale());
         updates.setSectorId(request.getSectorId());
@@ -114,6 +118,22 @@ public class TenantController {
         return toResponse(saved);
     }
 
+    @PostMapping(value = "/{id}/studio-background", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TenantResponse uploadTenantStudioBackground(
+            @PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestParam("file") MultipartFile file
+    ) throws IOException {
+        Tenant existing = tenantUseCase.getTenant(id);
+        String previousBackgroundUrl = existing.getStudioBackgroundUrl();
+
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "tenants");
+        Tenant saved = tenantUseCase.updateStudioBackground(id, stored.relativeUrl());
+
+        // Keep only one background per tenant in DB and cleanup previous file when possible.
+        deleteManagedUploadIfExists(previousBackgroundUrl, stored.relativeUrl());
+        return toResponse(saved);
+    }
+
     private TenantResponse toResponse(Tenant tenant) {
         return TenantResponse.builder()
                 .id(tenant.getId())
@@ -122,11 +142,37 @@ public class TenantController {
                 .contactEmail(tenant.getContactEmail())
                 .contactPhone(tenant.getContactPhone())
                 .logoUrl(tenant.getLogoUrl())
+                .studioBackgroundUrl(tenant.getStudioBackgroundUrl())
                 .status(tenant.getStatus())
                 .defaultLocale(tenant.getDefaultLocale())
                 .sectorId(tenant.getSectorId())
                 .createdAt(tenant.getCreatedAt())
                 .updatedAt(tenant.getUpdatedAt())
                 .build();
+    }
+
+    private void deleteManagedUploadIfExists(String candidateUrl, String keepUrl) {
+        if (candidateUrl == null || candidateUrl.isBlank()) {
+            return;
+        }
+        if (candidateUrl.equals(keepUrl)) {
+            return;
+        }
+        if (!candidateUrl.startsWith("/uploads/")) {
+            return;
+        }
+        String relative = candidateUrl.substring("/uploads/".length());
+        if (relative.isBlank()) {
+            return;
+        }
+        try {
+            Path baseDir = UploadUtil.resolveBaseDir(uploadBaseDir);
+            Path target = baseDir.resolve(relative).normalize();
+            if (target.startsWith(baseDir)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (Exception ex) {
+            // Best effort cleanup only.
+        }
     }
 }
