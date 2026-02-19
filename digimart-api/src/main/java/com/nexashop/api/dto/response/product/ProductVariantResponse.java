@@ -28,6 +28,8 @@ public class ProductVariantResponse {
     private Boolean continueSellingOverride;
     private Long productImageId;
     private String productImageUrl;
+    private Integer productImageFocusX;
+    private Integer productImageFocusY;
     private List<Long> optionValueIds;
     private List<VariantInventoryResponse> inventories;
     private String displayName;

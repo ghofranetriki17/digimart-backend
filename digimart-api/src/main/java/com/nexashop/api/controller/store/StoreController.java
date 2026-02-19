@@ -193,7 +193,10 @@ public class StoreController {
     }
 
     private ProductResponse toProductResponse(Product product) {
-        String imageUrl = resolvePrimaryImageUrl(product.getId());
+        ProductImage primaryImage = resolvePrimaryImage(product.getId());
+        String imageUrl = primaryImage == null ? null : primaryImage.getImageUrl();
+        Integer imageFocusX = primaryImage == null ? null : primaryImage.getFocusX();
+        Integer imageFocusY = primaryImage == null ? null : primaryImage.getFocusY();
         List<ProductUseCase.StoreRef> storeRefs = productUseCase.listActiveStores(product.getId());
         List<ProductStoreRefResponse> storeResponses = new ArrayList<>();
         List<String> storeNames = new ArrayList<>();
@@ -228,6 +231,8 @@ public class StoreController {
                 .availability(product.getAvailability())
                 .availabilityText(product.getAvailabilityText())
                 .imageUrl(imageUrl)
+                .imageFocusX(imageFocusX)
+                .imageFocusY(imageFocusY)
                 .stores(storeResponses)
                 .storeNames(storeNames)
                 .createdBy(product.getCreatedBy())
@@ -237,22 +242,22 @@ public class StoreController {
                 .build();
     }
 
-    private String resolvePrimaryImageUrl(Long productId) {
+    private ProductImage resolvePrimaryImage(Long productId) {
         if (productId == null) {
             return null;
         }
-        return resolvePrimaryImageUrl(productUseCase.listProductImages(productId));
+        return resolvePrimaryImage(productUseCase.listProductImages(productId));
     }
 
-    private String resolvePrimaryImageUrl(List<ProductImage> images) {
+    private ProductImage resolvePrimaryImage(List<ProductImage> images) {
         if (images == null || images.isEmpty()) {
             return null;
         }
         for (ProductImage image : images) {
             if (image.isPrimary()) {
-                return image.getImageUrl();
+                return image;
             }
         }
-        return images.get(0).getImageUrl();
+        return images.get(0);
     }
 }

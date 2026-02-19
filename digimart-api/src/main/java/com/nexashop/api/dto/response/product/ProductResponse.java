@@ -34,6 +34,8 @@ public class ProductResponse {
     private BigDecimal lowestPrice;
     private boolean lowStock;
     private String imageUrl;
+    private Integer imageFocusX;
+    private Integer imageFocusY;
     private List<ProductStoreRefResponse> stores;
     private List<String> storeNames;
     private Long createdBy;

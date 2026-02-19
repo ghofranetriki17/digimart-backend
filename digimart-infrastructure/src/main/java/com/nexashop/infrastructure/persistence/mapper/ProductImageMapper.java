@@ -19,6 +19,8 @@ public final class ProductImageMapper {
         domain.setAltText(entity.getAltText());
         domain.setDisplayOrder(entity.getDisplayOrder());
         domain.setPrimary(entity.isPrimary());
+        domain.setFocusX(entity.getFocusX());
+        domain.setFocusY(entity.getFocusY());
         return domain;
     }
 
@@ -33,6 +35,8 @@ public final class ProductImageMapper {
         entity.setAltText(domain.getAltText());
         entity.setDisplayOrder(domain.getDisplayOrder());
         entity.setPrimary(domain.isPrimary());
+        entity.setFocusX(domain.getFocusX());
+        entity.setFocusY(domain.getFocusY());
         return entity;
     }
 }

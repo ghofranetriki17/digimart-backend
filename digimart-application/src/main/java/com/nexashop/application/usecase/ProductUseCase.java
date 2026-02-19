@@ -683,6 +683,8 @@ public class ProductUseCase {
         }
         image.setTenantId(product.getTenantId());
         image.setProductId(productId);
+        image.setFocusX(normalizeImageFocus(image.getFocusX()));
+        image.setFocusY(normalizeImageFocus(image.getFocusY()));
 
         if (image.isPrimary()) {
             List<ProductImage> toUpdate = new ArrayList<>();
@@ -699,6 +701,18 @@ public class ProductUseCase {
             image.setPrimary(true);
         }
 
+        return productImageRepository.save(image);
+    }
+
+    public ProductImage updateProductImageFocus(Long productId, Long imageId, Integer focusX, Integer focusY) {
+        getProduct(productId);
+        ProductImage image = productImageRepository.findById(imageId)
+                .orElseThrow(() -> new NotFoundException("Image not found"));
+        if (!productId.equals(image.getProductId())) {
+            throw new ForbiddenException("Image does not belong to product");
+        }
+        image.setFocusX(normalizeImageFocus(focusX));
+        image.setFocusY(normalizeImageFocus(focusY));
         return productImageRepository.save(image);
     }
 
@@ -788,6 +802,13 @@ public class ProductUseCase {
             }
         }
         return productImageRepository.saveAll(existing);
+    }
+
+    private Integer normalizeImageFocus(Integer value) {
+        if (value == null) {
+            return 50;
+        }
+        return Math.max(0, Math.min(100, value));
     }
 
     public List<Product> listProductsForStore(Long storeId) {

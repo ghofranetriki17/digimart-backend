@@ -12,6 +12,7 @@ import com.nexashop.api.dto.request.product.ProductVariantRequest;
 import com.nexashop.api.dto.request.product.VariantInventoryRequest;
 import com.nexashop.api.dto.request.product.UpdateProductRequest;
 import com.nexashop.api.dto.request.product.UpdateProductImageOrderRequest;
+import com.nexashop.api.dto.request.product.UpdateProductImageFocusRequest;
 import com.nexashop.api.dto.request.product.UpdateProductOptionsRequest;
 import com.nexashop.api.dto.request.product.UpdateProductVariantsRequest;
 import com.nexashop.api.dto.response.PageResponse;
@@ -148,8 +149,8 @@ public class ProductController {
     @GetMapping("/{id}")
     public ProductDetailsResponse getProduct(@PathVariable Long id) {
         ProductUseCase.ProductDetails details = productUseCase.getProductDetails(id);
-        String primaryImageUrl = resolvePrimaryImageUrl(details.images());
-        return toDetailsResponse(details, primaryImageUrl);
+        ProductImage primaryImage = resolvePrimaryImage(details.images());
+        return toDetailsResponse(details, primaryImage);
     }
 
     @GetMapping("/{id}/price-history")
@@ -195,7 +196,7 @@ public class ProductController {
         return productUseCase.listProducts(tenantId).stream()
                 .map(product -> toResponse(
                         product,
-                        resolvePrimaryImageUrl(product.getId()),
+                        resolvePrimaryImage(product.getId()),
                         productUseCase.listActiveStores(product.getId())
                 ))
                 .collect(Collectors.toList());
@@ -229,7 +230,7 @@ public class ProductController {
                 ),
                 product -> toResponse(
                         product,
-                        resolvePrimaryImageUrl(product.getId()),
+                        resolvePrimaryImage(product.getId()),
                         productUseCase.listActiveStores(product.getId())
                 )
         );
@@ -268,7 +269,7 @@ public class ProductController {
         );
         return toResponse(
                 saved,
-                resolvePrimaryImageUrl(saved.getId()),
+                resolvePrimaryImage(saved.getId()),
                 productUseCase.listActiveStores(saved.getId())
         );
     }
@@ -279,7 +280,9 @@ public class ProductController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "altText", required = false) String altText,
             @RequestParam(value = "displayOrder", required = false) Integer displayOrder,
-            @RequestParam(value = "primary", defaultValue = "false") boolean primary
+            @RequestParam(value = "primary", defaultValue = "false") boolean primary,
+            @RequestParam(value = "focusX", required = false) Integer focusX,
+            @RequestParam(value = "focusY", required = false) Integer focusY
     ) throws IOException {
         productUseCase.getProduct(id);
         UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "products");
@@ -288,6 +291,8 @@ public class ProductController {
         image.setAltText(altText);
         image.setDisplayOrder(displayOrder);
         image.setPrimary(primary);
+        image.setFocusX(focusX);
+        image.setFocusY(focusY);
         ProductImage saved = productUseCase.addProductImage(id, image);
         return toImageResponse(saved);
     }
@@ -425,6 +430,21 @@ public class ProductController {
         return productUseCase.reorderProductImages(id, request.getImageIds()).stream()
                 .map(this::toImageResponse)
                 .collect(Collectors.toList());
+    }
+
+    @PutMapping("/{id}/images/{imageId}/focus")
+    public ProductImageResponse updateProductImageFocus(
+            @PathVariable Long id,
+            @PathVariable Long imageId,
+            @Valid @RequestBody UpdateProductImageFocusRequest request
+    ) {
+        ProductImage saved = productUseCase.updateProductImageFocus(
+                id,
+                imageId,
+                request.getFocusX(),
+                request.getFocusY()
+        );
+        return toImageResponse(saved);
     }
 
     @DeleteMapping("/{id}/images/{imageId}")
@@ -601,7 +621,7 @@ public class ProductController {
 
     private ProductResponse toResponse(
             Product product,
-            String imageUrl,
+            ProductImage primaryImage,
             List<ProductUseCase.StoreRef> storeRefs
     ) {
         List<ProductStoreRefResponse> storeResponses = new ArrayList<>();
@@ -622,6 +642,9 @@ public class ProductController {
                 ? productUseCase.getLowestPrice(product.getId())
                 : null;
         boolean lowStock = productUseCase.isLowStock(product);
+        String imageUrl = primaryImage == null ? null : primaryImage.getImageUrl();
+        Integer imageFocusX = primaryImage == null ? null : primaryImage.getFocusX();
+        Integer imageFocusY = primaryImage == null ? null : primaryImage.getFocusY();
         return ProductResponse.builder()
                 .id(product.getId())
                 .tenantId(product.getTenantId())
@@ -645,6 +668,8 @@ public class ProductController {
                 .lowestPrice(lowestPrice)
                 .lowStock(lowStock)
                 .imageUrl(imageUrl)
+                .imageFocusX(imageFocusX)
+                .imageFocusY(imageFocusY)
                 .stores(storeResponses)
                 .storeNames(storeNames)
                 .createdBy(product.getCreatedBy())
@@ -654,12 +679,15 @@ public class ProductController {
                 .build();
     }
 
-    private ProductDetailsResponse toDetailsResponse(ProductUseCase.ProductDetails details, String imageUrl) {
+    private ProductDetailsResponse toDetailsResponse(ProductUseCase.ProductDetails details, ProductImage primaryImage) {
         Product product = details.product();
         BigDecimal lowestPrice = product.isShowLowestPrice()
                 ? productUseCase.getLowestPrice(product.getId())
                 : null;
         boolean lowStock = productUseCase.isLowStock(product);
+        String imageUrl = primaryImage == null ? null : primaryImage.getImageUrl();
+        Integer imageFocusX = primaryImage == null ? null : primaryImage.getFocusX();
+        Integer imageFocusY = primaryImage == null ? null : primaryImage.getFocusY();
         return ProductDetailsResponse.builder()
                 .id(product.getId())
                 .tenantId(product.getTenantId())
@@ -683,6 +711,8 @@ public class ProductController {
                 .lowestPrice(lowestPrice)
                 .lowStock(lowStock)
                 .imageUrl(imageUrl)
+                .imageFocusX(imageFocusX)
+                .imageFocusY(imageFocusY)
                 .createdBy(product.getCreatedBy())
                 .updatedBy(product.getUpdatedBy())
                 .createdAt(product.getCreatedAt())
@@ -833,8 +863,8 @@ public class ProductController {
                 optionByValueId.put(value.getId(), group.option().getId());
             }
         }
-        var imageUrlById = images.stream()
-                .collect(Collectors.toMap(ProductImage::getId, ProductImage::getImageUrl));
+        var imageById = images.stream()
+                .collect(Collectors.toMap(ProductImage::getId, image -> image));
 
         List<ProductVariantResponse> responses = new ArrayList<>();
         for (ProductUseCase.ProductVariantGroup group : groups) {
@@ -852,9 +882,12 @@ public class ProductController {
                     .filter(value -> value != null && value.getValue() != null)
                     .map(ProductOptionValue::getValue)
                     .collect(Collectors.joining(" / "));
-            String imageUrl = variant.getProductImageId() == null
+            ProductImage variantImage = variant.getProductImageId() == null
                     ? null
-                    : imageUrlById.get(variant.getProductImageId());
+                    : imageById.get(variant.getProductImageId());
+            String imageUrl = variantImage == null ? null : variantImage.getImageUrl();
+            Integer imageFocusX = variantImage == null ? null : variantImage.getFocusX();
+            Integer imageFocusY = variantImage == null ? null : variantImage.getFocusY();
 
             responses.add(ProductVariantResponse.builder()
                     .id(variant.getId())
@@ -876,6 +909,8 @@ public class ProductController {
                     .continueSellingOverride(variant.getContinueSellingOverride())
                     .productImageId(variant.getProductImageId())
                     .productImageUrl(imageUrl)
+                    .productImageFocusX(imageFocusX)
+                    .productImageFocusY(imageFocusY)
                     .optionValueIds(sortedIds)
                     .inventories(group.inventories() == null
                             ? List.of()
@@ -900,6 +935,8 @@ public class ProductController {
                 .altText(image.getAltText())
                 .displayOrder(image.getDisplayOrder())
                 .primary(image.isPrimary())
+                .focusX(image.getFocusX())
+                .focusY(image.getFocusY())
                 .createdAt(image.getCreatedAt())
                 .build();
     }
@@ -949,23 +986,23 @@ public class ProductController {
                 .collect(Collectors.toList());
     }
 
-    private String resolvePrimaryImageUrl(Long productId) {
+    private ProductImage resolvePrimaryImage(Long productId) {
         if (productId == null) {
             return null;
         }
-        return resolvePrimaryImageUrl(productUseCase.listProductImages(productId));
+        return resolvePrimaryImage(productUseCase.listProductImages(productId));
     }
 
-    private String resolvePrimaryImageUrl(List<ProductImage> images) {
+    private ProductImage resolvePrimaryImage(List<ProductImage> images) {
         if (images == null || images.isEmpty()) {
             return null;
         }
         for (ProductImage image : images) {
             if (image.isPrimary()) {
-                return image.getImageUrl();
+                return image;
             }
         }
-        return images.get(0).getImageUrl();
+        return images.get(0);
     }
 
     private static String safe(String value) {

@@ -27,4 +27,10 @@ public class ProductImageJpaEntity extends TenantScopedJpaEntity {
 
     @Column(name = "is_primary", nullable = false)
     private boolean primary = false;
+
+    @Column(name = "focus_x", nullable = false)
+    private Integer focusX = 50;
+
+    @Column(name = "focus_y", nullable = false)
+    private Integer focusY = 50;
 }

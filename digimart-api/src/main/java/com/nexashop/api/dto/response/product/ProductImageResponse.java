@@ -14,5 +14,7 @@ public class ProductImageResponse {
     private String altText;
     private Integer displayOrder;
     private boolean primary;
+    private Integer focusX;
+    private Integer focusY;
     private LocalDateTime createdAt;
 }

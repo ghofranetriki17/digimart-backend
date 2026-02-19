@@ -34,6 +34,8 @@ public class ProductDetailsResponse {
     private BigDecimal lowestPrice;
     private boolean lowStock;
     private String imageUrl;
+    private Integer imageFocusX;
+    private Integer imageFocusY;
     private Long createdBy;
     private Long updatedBy;
     private LocalDateTime createdAt;

@@ -17,4 +17,8 @@ public class ProductImage extends TenantEntity {
     private Integer displayOrder = 0;
 
     private boolean primary = false;
+
+    private Integer focusX = 50;
+
+    private Integer focusY = 50;
 }
