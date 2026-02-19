@@ -1,304 +1,213 @@
-Product Images - Background Removal (rembg Self-Hosted)
-========================================================
+Product Images - Background Removal + Watermark + Focus (Current Setup)
+=================================================================
 
 Objectif
 --------
-Ajouter la suppression d'arriere-plan pour les images produit, de facon propre:
-- backend: proxy vers rembg (feature toggle + timeout + validation)
-- frontend: bouton par image dans le ProductForm
-- flux de sauvegarde existant conserve (upload final au submit)
+Documenter la version actuelle de l image studio produit:
+- remove background (rembg self-hosted)
+- change background (studio tenant ou upload one-shot)
+- add watermark (platform ou custom)
+- focus image X/Y (partie visible) applique dans les cards
 
 
-Architecture retenue
+1) Architecture actuelle
+------------------------
+Flux image processing:
+1. Front envoie un fichier vers une API /api/products/images/*
+2. Backend valide type/size
+3. Backend appelle rembg si necessaire
+4. Backend retourne des bytes image (pas de save immediate)
+5. Front ajoute le resultat dans imageQueue (sans ecraser l originale)
+6. Save final du produit => upload/reorder pipeline existant
+
+Principes:
+- originale conservee
+- derivee ajoutee a cote
+- pas de fichier orphan si user annule avant submit
+
+
+2) Endpoints backend
 --------------------
-1) Frontend envoie un fichier a /api/products/images/remove-background
-2) Backend valide l'image puis appelle rembg (self-hosted)
-3) Backend retourne l'image traitee en binaire (pas de persistence immediate)
-4) Frontend peut aussi envoyer:
-   - /api/products/images/change-background (remove-bg + composition sur fond)
-   - /api/products/images/add-watermark (sans remove-bg)
-5) Le fond peut venir:
-   - de la bibliotheque tenant (1 seule image "studio background")
-   - d'un upload one-shot (fallback)
-6) Frontend ajoute l'image traitee a cote de l'image source (sans ecraser l'originale)
-7) A l'enregistrement produit, pipeline upload existant est reutilise
+A) Remove background
+POST /api/products/images/remove-background
+Body multipart:
+- file=<png|jpg|webp|gif, max 20MB>
+Retour: bytes image (image/*)
 
-Pourquoi ce choix:
-- pas de fichiers orphelins si l'utilisateur annule le formulaire
-- aucune rupture du flux actuel de creation/modification produit
-- migration facile vers fallback cloud plus tard
+B) Change background
+POST /api/products/images/change-background
+Body multipart:
+- file=<png|jpg|webp|gif, max 20MB>
+- fit=COVER|CONTAIN (optional, default COVER)
+- backgroundFile=<optional>
+Retour: bytes image (image/*)
+
+C) Add watermark only (sans remove-bg)
+POST /api/products/images/add-watermark
+Body multipart:
+- file=<png|jpg|webp|gif, max 20MB>
+- mode=AUTO|PLATFORM|CUSTOM
+Retour: bytes image (image/*)
+
+D) Upload studio background (1 background par tenant)
+POST /api/tenants/{id}/studio-background
+Body multipart:
+- file=<png|jpg|webp|gif, max 20MB>
+Retour: TenantResponse avec studioBackgroundUrl
+
+E) Focus image (partie visible)
+PUT /api/products/{id}/images/{imageId}/focus
+Body JSON:
+{
+  "focusX": 0..100,
+  "focusY": 0..100
+}
+Retour: ProductImageResponse
 
 
-Ce qui a ete implemente
------------------------
+3) Watermark rules (important)
+------------------------------
+Feature codes utilises:
+- NO_PLATFORM_WATERMARK
+- CUSTOM_WATERMARK
+- BACKGROUND_REMOVAL
+- BACKGROUND_CHANGE
+
+Regles:
+- remove-background: applique watermark platforme automatiquement
+  sauf si tenant a NO_PLATFORM_WATERMARK.
+- add-watermark mode=CUSTOM: autorise seulement si CUSTOM_WATERMARK actif.
+- Une seule couche watermark appliquee a la fois:
+  texte OU logo (jamais les deux).
+
+Config platform watermark (admin/billing config):
+- PLATFORM_WATERMARK_ENABLED=true|false
+- PLATFORM_WATERMARK_KIND=TEXT|IMAGE
+- PLATFORM_WATERMARK_TEXT=<texte>
+- PLATFORM_WATERMARK_LOGO_URL=/uploads/...
+
+
+4) Focus X/Y (partie visible)
+-----------------------------
+Stockage:
+- product_images.focus_x (default 50)
+- product_images.focus_y (default 50)
+
+Expose API:
+- ProductImageResponse.focusX/focusY
+- ProductResponse.imageFocusX/imageFocusY
+- ProductDetailsResponse.imageFocusX/imageFocusY
+- ProductVariantResponse.productImageFocusX/productImageFocusY
+
+Comportement front:
+- Si X/Y absent => fallback centre 50/50
+- X/Y utilise object-position
+- Product cards: zoom hover image retire pour eviter perception fausse de Y
+- Lors fermeture form produit, focus des images existantes est persiste
+  (pas uniquement au submit)
+
+
+5) Fichiers principaux modifies
+-------------------------------
 Backend:
-1) Endpoint API:
-   POST /api/products/images/remove-background
-   consumes: multipart/form-data
-   param: file
-   retourne: image binaire (png/jpg/webp/gif)
-
-   POST /api/products/images/change-background
-   consumes: multipart/form-data
-   params: file, fit=COVER|CONTAIN, backgroundFile(optionnel)
-   retourne: image binaire (png/jpg/webp/gif)
-
-   POST /api/products/images/add-watermark
-   consumes: multipart/form-data
-   params: file, mode=AUTO|PLATFORM|CUSTOM
-   retourne: image binaire (png/jpg/webp/gif)
-
-   POST /api/tenants/{id}/studio-background
-   consumes: multipart/form-data
-   param: file
-   retourne: tenant mis a jour (studioBackgroundUrl)
-   note: un seul background actif par tenant (ancien fichier supprime si gere par /uploads)
-
-2) Service dedie:
-   digimart-api/src/main/java/com/nexashop/api/service/ProductImageBackgroundRemovalService.java
-   - feature toggle: image.bg-removal.enabled
-   - timeout configurable
-   - appel HTTP multipart vers rembg
-   - validation forte sur type/size
-   - remove-bg: watermark plateforme auto si le plan n'a pas NO_PLATFORM_WATERMARK
-   - remove-bg: CUSTOM_WATERMARK n'est plus applique automatiquement
-   - add-watermark: operation separee (possible sans remove-bg)
-   - add-watermark mode=CUSTOM: logo tenant si disponible, sinon nom du tenant
-     (seulement si feature CUSTOM_WATERMARK active)
-   - add-watermark mode=PLATFORM: watermark plateforme (Digimart)
-   - une seule couche watermark appliquee (texte OU logo, jamais les deux)
-   - change-background: remove-bg puis composition sur fond (fit COVER/CONTAIN)
-   - si aucun backgroundFile envoye: utilise tenant.studioBackgroundUrl
-
-3) Renforcement utilitaire upload:
-   digimart-api/src/main/java/com/nexashop/api/util/UploadUtil.java
-   - validation image centralisee (validateImage)
-   - stockage bytes disponible (storeImageBytes) pour evolutions futures
-
-4) Config:
-   digimart-api/src/main/resources/application.properties
-   - image.bg-removal.enabled=false
-   - image.bg-removal.rembg-url=http://localhost:5000
-   - image.bg-removal.rembg-endpoint=/api/remove
-   - image.bg-removal.timeout-seconds=30
-   - image.bg-removal.platform-watermark-enabled=true
-   - image.bg-removal.platform-watermark-text=Digimart
-   - override dynamique via admin (Billing config):
-     * PLATFORM_WATERMARK_ENABLED (true/false)
-     * PLATFORM_WATERMARK_TEXT (texte du watermark)
-     * PLATFORM_WATERMARK_KIND (TEXT/IMAGE)
-     * PLATFORM_WATERMARK_LOGO_URL (/uploads/... vers un logo image)
+- digimart-api/src/main/java/com/nexashop/api/service/ProductImageBackgroundRemovalService.java
+- digimart-api/src/main/java/com/nexashop/api/controller/catalog/ProductController.java
+- digimart-api/src/main/java/com/nexashop/api/controller/store/StoreController.java
+- digimart-api/src/main/java/com/nexashop/api/dto/request/product/UpdateProductImageFocusRequest.java
+- digimart-api/src/main/java/com/nexashop/api/dto/response/product/ProductImageResponse.java
+- digimart-api/src/main/java/com/nexashop/api/dto/response/product/ProductResponse.java
+- digimart-api/src/main/java/com/nexashop/api/dto/response/product/ProductDetailsResponse.java
+- digimart-api/src/main/java/com/nexashop/api/dto/response/product/ProductVariantResponse.java
+- digimart-application/src/main/java/com/nexashop/application/usecase/ProductUseCase.java
+- digimart-domain/src/main/java/com/nexashop/domain/catalog/entity/ProductImage.java
+- digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/model/catalog/ProductImageJpaEntity.java
+- digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/mapper/ProductImageMapper.java
 
 Frontend:
-1) Boutons par image dans ProductForm:
-   src/components/organisms/ProductFormModal/ProductFormModal.jsx
-   src/components/organisms/ProductFormModal/ProductFormModal.css
-   - magic: remove background
-   - image stack: change background (via fond studio tenant)
-   - stamp: add watermark (AUTO)
-
-2) Integration pipeline:
-   src/pages/catalog/ProductsPage.jsx
-   - call API remove-background
-   - call API change-background
-   - ajout local de l'image traitee dans imageQueue
-   - support image "existing" et "new"
-   - gestion du cas "existing remplacee": pending delete propre avant reorder/save
-
-3) Parametrage tenant (fond studio):
-   src/components/organisms/TenantSidebar/TenantSidebar.jsx
-   - action "Fond studio" pour uploader 1 image de fond reutilisable
-   - statut visuel "Fond studio configure"
+- C:/Dev/nexashop-frontend/src/pages/catalog/ProductsPage.jsx
+- C:/Dev/nexashop-frontend/src/components/organisms/ProductFormModal/ProductFormModal.jsx
+- C:/Dev/nexashop-frontend/src/components/organisms/ProductFormModal/ProductFormModal.css
+- C:/Dev/nexashop-frontend/src/components/molecules/ProductCard/ProductCard.jsx
+- C:/Dev/nexashop-frontend/src/components/molecules/ProductCard/ProductCard.css
+- C:/Dev/nexashop-frontend/src/pages/pos/PosPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/stores/StoresPage.jsx
+- C:/Dev/nexashop-frontend/src/components/organisms/ProductDetailsModal/ProductDetailsModal.jsx
 
 
-Pre-requis local
-----------------
-1) Python 3.10+ installe
-2) rembg installe:
-   pip install rembg
-3) Lancer rembg server:
-   rembg s --port 5000
+6) Pre-requis local
+-------------------
+Python:
+- Python 3.13 recommande dans ce poste
+- Installer rembg:
+  py -3.13 -m pip install "rembg[cli]"
 
-Commande test rapide rembg:
-curl -F "file=@C:\path\image.png" http://localhost:5000/api/remove --output out.png
+Run rembg server:
+- C:\Users\agence digilab\AppData\Local\Programs\Python\Python313\Scripts\rembg.exe s -h 127.0.0.1 -p 5000 -l info -t 1
+
+Backend run:
+- cd C:\Dev\digimart-backend
+- $env:IMAGE_BG_REMOVAL_ENABLED="true"
+- $env:IMAGE_BG_REMOVAL_REMBG_URL="http://127.0.0.1:5000"
+- $env:IMAGE_BG_REMOVAL_REMBG_ENDPOINT="/api/remove"
+- $env:IMAGE_BG_REMOVAL_TIMEOUT_SECONDS="180"
+- .\mvnw -pl digimart-api -am spring-boot:run
+
+Note:
+- image.bg-removal.enabled=false dans application.properties par defaut
+  => activer via env pour dev local.
 
 
-Activation backend
+7) Verification rapide (E2E)
+----------------------------
+A) Remove-bg + watermark
+1. Ouvrir produit > Images
+2. Cliquer remove background
+3. Verifier image derivee ajoutee
+4. Si plan N A PAS NO_PLATFORM_WATERMARK => watermark visible
+
+B) Change background
+1. Cliquer change background
+2. Sans backgroundFile, doit utiliser tenant studio background
+3. Verifier resultat ajoute dans queue
+
+C) Focus X/Y
+1. Selectionner image
+2. Modifier X et Y
+3. Quitter modal et rouvrir
+4. Verifier card produit suit X et Y
+
+
+8) Troubleshooting
 ------------------
-Dans application.properties (ou variable env), activer:
+503 "Background removal is disabled"
+- IMAGE_BG_REMOVAL_ENABLED=true manquant.
 
-image.bg-removal.enabled=true
-image.bg-removal.rembg-url=http://localhost:5000
-image.bg-removal.rembg-endpoint=/api/remove
-image.bg-removal.timeout-seconds=30
-image.bg-removal.platform-watermark-enabled=true
-image.bg-removal.platform-watermark-text=Digimart
+502 "service unreachable"
+- rembg non lance, mauvais port, timeout trop court.
 
-Puis redemarrer l'API.
+Watermark absent alors qu attendu
+- verifier PLATFORM_WATERMARK_ENABLED=true
+- verifier tenant n a pas feature NO_PLATFORM_WATERMARK
+- verifier PLATFORM_WATERMARK_KIND + TEXT/LOGO URL configures
 
-
-Etapes de verification manuelle (end-to-end)
----------------------------------------------
-1) Ouvrir la page Produits -> Ajouter/Modifier produit
-2) Aller a l'etape Images
-3) Ajouter une image
-4) Cliquer l'icone "magic" sur l'image
-5) Verifier:
-   - image source conservee
-   - image traitee ajoutee en preview
-   - pas d'erreur API
-6) Enregistrer le produit
-7) Re-ouvrir le produit et verifier:
-   - image traitee presente
-   - ordre des images correct
-
-Cas edition image existante:
-1) Ouvrir un produit avec images existantes
-2) Cliquer "magic" sur une image existante
-3) Enregistrer
-4) Verifier:
-   - image originale conservee
-   - image traitee ajoutee
-   - reorder ok
+X ok, Y semble non applique
+- verifier que image n est pas deja saturant verticalement avec object-fit:cover
+- verifier que zoom hover image est desactive sur ProductCard
+- verifier focusY sauvegarde en base et renvoye par API
 
 
-API contract (reference)
-------------------------
-Request 1:
-POST /api/products/images/remove-background
-Content-Type: multipart/form-data
-Body:
-  file=<image png/jpg/webp/gif max 20MB>
-
-Response success:
-HTTP 200
-Content-Type: image/png (ou autre image/*)
-Body: bytes image traitee
-
-Errors:
-- 400/413: image invalide (type/size)
-- 503: feature desactivee
-- 502: rembg indisponible ou erreur upstream
-
-Request 2:
-POST /api/products/images/change-background
-Content-Type: multipart/form-data
-Body:
-  file=<image png/jpg/webp/gif max 20MB>
-  fit=COVER|CONTAIN (optionnel, default COVER)
-  backgroundFile=<image optionnelle>
-
-Response success:
-HTTP 200
-Content-Type: image/png
-Body: bytes image composee
-
-Errors:
-- 400/413: image invalide (type/size)
-- 400: fit invalide
-- 400: aucun fond studio configure (si backgroundFile absent)
-- 503: feature desactivee
-- 502: rembg indisponible
-
-Request 3:
-POST /api/products/images/add-watermark
-Content-Type: multipart/form-data
-Body:
-  file=<image png/jpg/webp/gif max 20MB>
-  mode=AUTO|PLATFORM|CUSTOM
-
-Response success:
-HTTP 200
-Content-Type: image/png
-Body: bytes image watermarkee
-
-Errors:
-- 400/413: image invalide (type/size)
-- 400: mode watermark invalide
-- 403: mode=CUSTOM sans feature CUSTOM_WATERMARK
-- 503: watermark plateforme desactive/non configure
-
-Request 4:
-POST /api/tenants/{id}/studio-background
-Content-Type: multipart/form-data
-Body:
-  file=<image png/jpg/webp/gif max 20MB>
-
-Response success:
-HTTP 200
-Body: TenantResponse avec studioBackgroundUrl
-
-Tenant custom watermark source:
-- Le logo tenant utilise est celui deja configure sur le tenant (logoUrl).
-- Le tenant peut le modifier via son action "Changer logo".
-
-
-Checklist robustesse
---------------------
-1) Validation size/type au backend (fait)
-2) Timeout HTTP vers rembg (fait)
-3) Gestion interruption thread (fait)
-4) Erreurs upstream lisibles cote frontend (fait)
-5) Pas de persistence anticipée lors du remove-bg (fait)
-6) Feature toggle pour rollback instantane (fait)
-
-
-Plan de migration production (post-PFE)
----------------------------------------
-Phase 1 (0-10k images/mois):
-- rembg self-hosted uniquement
-
-Phase 2:
-- rembg primary + fallback API cloud (circuit breaker)
-
-Phase 3:
-- routage par plan tenant (premium vs enterprise)
-
-
-Monitoring recommande
----------------------
-A instrumenter des que possible:
-- latence remove-background p50/p95
-- taux echec rembg
-- volume images/jour
-- erreurs par tenant
-
-
-Troubleshooting
----------------
-Symptome: HTTP 502 "service unreachable"
-Action:
-- verifier rembg lance sur bon port
-- verifier image.bg-removal.rembg-url
-- tester curl direct sur rembg
-
-Symptome: image non remplacee dans form
-Action:
-- verifier console frontend
-- verifier reponse endpoint /api/products/images/remove-background
-- verifier token auth envoye
-
-Symptome: save echoue apres remplacement image existante
-Action:
-- verifier delete pending images + reorder sequence
-- verifier logs API sur endpoints /images/{id} et /images/order
-
-
-Commandes utilisees pendant implementation
-------------------------------------------
+9) Build commands
+-----------------
 Backend compile:
-  ./mvnw -pl digimart-api -am -DskipTests compile
+- .\mvnw -pl digimart-api -am -DskipTests compile
 
 Frontend build:
-  npm run build
+- cd C:\Dev\nexashop-frontend
+- npm run build
 
-Terminal 1: rembg
-  C:\Users\agence digilab\AppData\Local\Programs\Python\Python313\Scripts\rembg.exe s -h 127.0.0.1 -p 5000 -l info -t 1
 
-Terminal 2: backend
-  cd C:\Dev\digimart-backend
-  $env:IMAGE_BG_REMOVAL_ENABLED="true"
-  $env:IMAGE_BG_REMOVAL_REMBG_URL="http://127.0.0.1:5000"
-  $env:IMAGE_BG_REMOVAL_REMBG_ENDPOINT="/api/remove"
-  $env:IMAGE_BG_REMOVAL_TIMEOUT_SECONDS="180"
-  .\mvnw -pl digimart-api -am spring-boot:run
+10) Next hardening (recommande)
+-------------------------------
+- Ajouter tests backend watermark (with/without NO_PLATFORM_WATERMARK)
+- Ajouter migration SQL explicite focus_x/focus_y
+- Ajouter logs explicites "watermark applied/skipped + reason"
