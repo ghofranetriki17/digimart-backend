@@ -52,6 +52,8 @@ public class ProductImageBackgroundRemovalService {
     private static final Logger log = LoggerFactory.getLogger(ProductImageBackgroundRemovalService.class);
     private static final String PART_NAME = "file";
     private static final String CRLF = "\r\n";
+    private static final String BACKGROUND_REMOVAL_FEATURE_CODE = "BACKGROUND_REMOVAL";
+    private static final String BACKGROUND_CHANGE_FEATURE_CODE = "BACKGROUND_CHANGE";
     private static final String NO_PLATFORM_WATERMARK_FEATURE_CODE = "NO_PLATFORM_WATERMARK";
     private static final String CUSTOM_WATERMARK_FEATURE_CODE = "CUSTOM_WATERMARK";
     private static final String PLATFORM_WATERMARK_TEXT_CONFIG_KEY = "PLATFORM_WATERMARK_TEXT";
@@ -115,6 +117,10 @@ public class ProductImageBackgroundRemovalService {
     }
 
     public ProcessedImage removeBackground(MultipartFile file) throws IOException {
+        requireFeatureForCurrentTenant(
+                BACKGROUND_REMOVAL_FEATURE_CODE,
+                "Background removal"
+        );
         ProcessedImage processed = removeBackgroundRaw(file);
         WatermarkPayload payload = resolveAutoPlatformWatermarkPayload();
         if (payload != null) {
@@ -124,6 +130,14 @@ public class ProductImageBackgroundRemovalService {
     }
 
     public ProcessedImage changeBackground(MultipartFile file, MultipartFile backgroundFile, BackgroundFit fit) throws IOException {
+        requireFeatureForCurrentTenant(
+                BACKGROUND_REMOVAL_FEATURE_CODE,
+                "Background removal"
+        );
+        requireFeatureForCurrentTenant(
+                BACKGROUND_CHANGE_FEATURE_CODE,
+                "Background change"
+        );
         ProcessedImage foreground = removeBackgroundRaw(file);
         BufferedImage background = resolveBackgroundImage(backgroundFile);
         ProcessedImage composed = composeWithBackground(
@@ -150,6 +164,22 @@ public class ProductImageBackgroundRemovalService {
         WatermarkMode resolvedMode = mode == null ? WatermarkMode.AUTO : mode;
         WatermarkPayload payload = resolveRequestedWatermarkPayload(resolvedMode);
         return applyWatermark(sourceBytes, contentType, payload);
+    }
+
+    private void requireFeatureForCurrentTenant(String featureCode, String featureLabel) {
+        CurrentUser currentUser = currentUserProvider.getCurrentUser();
+        if (currentUser == null || currentUser.tenantId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Tenant context is required for image processing features"
+            );
+        }
+        if (!hasFeatureEnabled(currentUser.tenantId(), featureCode)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    featureLabel + " is not enabled in the active plan"
+            );
+        }
     }
 
     private BufferedImage resolveBackgroundImage(MultipartFile backgroundFile) throws IOException {
@@ -695,14 +725,15 @@ public class ProductImageBackgroundRemovalService {
         int cropSafeInsetX = Math.max(edgePaddingX, Math.round(width * 0.18f));
         int cropSafeInsetY = Math.max(edgePaddingY, Math.round(height * 0.18f));
 
-        int maxWidth = Math.max(28, Math.round(width * 0.24f));
-        int maxHeight = Math.max(28, Math.round(height * 0.24f));
+        // Keep logo watermark compact so it stays visible without dominating the product image.
+        int maxWidth = Math.max(18, Math.round(width * 0.14f));
+        int maxHeight = Math.max(18, Math.round(height * 0.14f));
         float scale = Math.min(
                 (float) maxWidth / Math.max(1, logo.getWidth()),
                 (float) maxHeight / Math.max(1, logo.getHeight())
         );
-        int drawWidth = Math.max(24, Math.round(logo.getWidth() * scale));
-        int drawHeight = Math.max(24, Math.round(logo.getHeight() * scale));
+        int drawWidth = Math.max(16, Math.round(logo.getWidth() * scale));
+        int drawHeight = Math.max(16, Math.round(logo.getHeight() * scale));
 
         int preferredX = width - cropSafeInsetX - drawWidth;
         int minX = edgePaddingX;
@@ -714,19 +745,9 @@ public class ProductImageBackgroundRemovalService {
         int maxY = Math.max(minY, height - edgePaddingY - drawHeight);
         int y = Math.max(minY, Math.min(preferredY, maxY));
 
-        int bgPadding = Math.max(4, Math.round(base * 0.008f));
-        g2d.setColor(new Color(0, 0, 0, 92));
-        g2d.fillRoundRect(
-                x - bgPadding,
-                y - bgPadding,
-                drawWidth + (bgPadding * 2),
-                drawHeight + (bgPadding * 2),
-                Math.max(8, bgPadding * 2),
-                Math.max(8, bgPadding * 2)
-        );
-
         var previousComposite = g2d.getComposite();
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.9f));
+        // Draw only the logo itself (no background badge behind it).
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.88f));
         g2d.drawImage(logo, x, y, drawWidth, drawHeight, null);
         g2d.setComposite(previousComposite);
     }

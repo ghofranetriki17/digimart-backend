@@ -85,7 +85,9 @@ public class BillingSeedConfig {
                 new FeatureSeed("CUSTOM_DOMAIN", "Custom Domain", "Use your own domain name", FeatureCategory.TECHNICAL, 8),
                 new FeatureSeed("LOYALTY_PROGRAM", "Loyalty Program", "Customer rewards and points", FeatureCategory.MARKETING, 9),
                 new FeatureSeed("NO_PLATFORM_WATERMARK", "No Platform Watermark", "Remove Digimart watermark from background-removed images", FeatureCategory.MARKETING, 10),
-                new FeatureSeed("CUSTOM_WATERMARK", "Custom Watermark", "Apply tenant watermark (tenant logo if available, otherwise tenant name)", FeatureCategory.MARKETING, 11)
+                new FeatureSeed("CUSTOM_WATERMARK", "Custom Watermark", "Apply tenant watermark (tenant logo if available, otherwise tenant name)", FeatureCategory.MARKETING, 11),
+                new FeatureSeed("BACKGROUND_REMOVAL", "Background Removal", "Remove product image backgrounds in product studio", FeatureCategory.MARKETING, 12),
+                new FeatureSeed("BACKGROUND_CHANGE", "Background Change", "Compose product image on tenant studio background", FeatureCategory.MARKETING, 13)
         );
 
         seeds.forEach(seed -> featureRepository.findByCode(seed.code()).orElseGet(() -> {
