@@ -64,6 +64,12 @@ Body JSON:
 }
 Retour: ProductImageResponse
 
+F) Platform logo (sidebar admin)
+POST /api/platform-config/logo
+Body multipart:
+- file=<png|jpg|webp|gif, max 20MB>
+Retour: PlatformConfigResponse (key=PLATFORM_LOGO_URL)
+
 
 3) Watermark rules (important)
 ------------------------------
@@ -85,6 +91,10 @@ Config platform watermark (admin/billing config):
 - PLATFORM_WATERMARK_KIND=TEXT|IMAGE
 - PLATFORM_WATERMARK_TEXT=<texte>
 - PLATFORM_WATERMARK_LOGO_URL=/uploads/...
+
+Config logo plateforme (admin/billing config):
+- PLATFORM_LOGO_URL=/uploads/...
+- Configure depuis: Admin > Billing config > "Logo plateforme sidebar"
 
 
 4) Focus X/Y (partie visible)
@@ -110,6 +120,8 @@ Comportement front:
 5) Fichiers principaux modifies
 -------------------------------
 Backend:
+- digimart-api/src/main/java/com/nexashop/api/controller/billing/PlatformConfigController.java
+- digimart-api/src/main/java/com/nexashop/api/config/BillingSeedConfig.java
 - digimart-api/src/main/java/com/nexashop/api/service/ProductImageBackgroundRemovalService.java
 - digimart-api/src/main/java/com/nexashop/api/controller/catalog/ProductController.java
 - digimart-api/src/main/java/com/nexashop/api/controller/store/StoreController.java
@@ -124,6 +136,12 @@ Backend:
 - digimart-infrastructure/src/main/java/com/nexashop/infrastructure/persistence/mapper/ProductImageMapper.java
 
 Frontend:
+- C:/Dev/nexashop-frontend/src/pages/billing/PlatformConfigPage.jsx
+- C:/Dev/nexashop-frontend/src/pages/billing/PlatformConfigPage.css
+- C:/Dev/nexashop-frontend/src/components/organisms/Sidebar/Sidebar.jsx
+- C:/Dev/nexashop-frontend/src/components/organisms/Sidebar/Sidebar.css
+- C:/Dev/nexashop-frontend/src/layouts/AdminLayout.jsx
+- C:/Dev/nexashop-frontend/src/App.jsx
 - C:/Dev/nexashop-frontend/src/pages/catalog/ProductsPage.jsx
 - C:/Dev/nexashop-frontend/src/components/organisms/ProductFormModal/ProductFormModal.jsx
 - C:/Dev/nexashop-frontend/src/components/organisms/ProductFormModal/ProductFormModal.css

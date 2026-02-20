@@ -1,0 +1,83 @@
+Scope Phase 1 - Stores Permissions + Audit
+==========================================
+
+Objectif
+--------
+Mettre en place un RBAC minimal et cohérent sur le module Stores, avec contrôle backend, feedback UI, et audit des actions réussies.
+
+1) Backend - Permissions applicatives sur Stores
+------------------------------------------------
+- Ajouter un guard applicatif pour calculer les permissions effectives:
+  - Source: user_role_assignments -> role_permissions -> permissions
+  - SUPER_ADMIN: bypass total immédiat
+- Appliquer dans StoreUseCase:
+  - list/get -> STORE_VIEW
+  - create -> STORE_CREATE
+  - update/image/activate/deactivate -> STORE_UPDATE
+  - delete -> STORE_DELETE
+- Si refus:
+  - Lancer ForbiddenException
+  - Retour HTTP 403
+
+2) Backend - Endpoint permissions du user courant
+-------------------------------------------------
+- Ajouter dans UserUseCase:
+  - resolveCurrentUserPermissionCodes()
+- Exposer via UserController:
+  - GET /api/users/me/permissions
+  - Retour: Set<String>
+
+3) Backend - Audit stores (actions réussies uniquement)
+-------------------------------------------------------
+- Ajouter le port + adapter repository audit:
+  - AuditEventRepository (application)
+  - AuditEventJpaRepository (infrastructure)
+  - AuditEventRepositoryAdapter (infrastructure)
+- Ajouter AuditEventUseCase pour enregistrer:
+  - action: CREATE | UPDATE | DELETE
+  - entityType: STORE
+  - entityId
+  - beforeJson / afterJson
+  - actorUserId
+  - correlationId (UUID si absent)
+  - occurredAt (now)
+- Brancher l'écriture audit dans StoreUseCase sur create/update/delete.
+
+Note:
+- Le CHECK SQL actuel sur audit_events.action n'accepte pas ACCESS_DENIED.
+- Donc phase 1: audit des actions réussies uniquement.
+- Phase 2 possible: migration enum + AuditAction.ACCESS_DENIED.
+
+4) Frontend - Stores UI verrouillée par permission
+--------------------------------------------------
+- StoresPage.jsx:
+  - Charger GET /api/users/me/permissions
+  - Calculer canView/canCreate/canUpdate/canDelete
+  - Si pas STORE_VIEW: écran locked dédié
+  - Bouton "Ajouter un magasin": disabled + tooltip
+  - Bloquer ouverture modal si pas STORE_CREATE
+- StoreCard.jsx:
+  - Props: canUpdate, canDelete
+  - Edit/toggle liés à canUpdate
+  - Delete lié à canDelete
+  - Afficher tooltip explicite (title)
+- StoreCard.css:
+  - Style disabled lisible (opacity + cursor + états visuels)
+
+5) Matrice de test minimale
+---------------------------
+- User A: STORE_VIEW
+  - Liste visible
+  - Add/Edit/Delete/Toggle disabled
+  - POST/PUT/DELETE => 403
+- User B: STORE_VIEW + STORE_CREATE
+  - Add actif
+  - Edit/Delete/Toggle disabled
+- User C: STORE_VIEW + STORE_UPDATE
+  - Edit/Toggle actifs
+  - Delete disabled
+- User D: STORE_VIEW + STORE_DELETE
+  - Delete actif seulement
+- User E: SUPER_ADMIN
+  - Tout actif
+  - Aucun blocage

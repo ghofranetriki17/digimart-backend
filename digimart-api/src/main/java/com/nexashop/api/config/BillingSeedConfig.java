@@ -57,6 +57,7 @@ public class BillingSeedConfig {
                 "INITIAL_WALLET_BALANCE", "500",
                 "LOW_BALANCE_THRESHOLD", "50",
                 "DEFAULT_CURRENCY", "TND",
+                "PLATFORM_LOGO_URL", "",
                 "PLATFORM_WATERMARK_ENABLED", "true",
                 "PLATFORM_WATERMARK_TEXT", "Digimart",
                 "PLATFORM_WATERMARK_KIND", "TEXT",

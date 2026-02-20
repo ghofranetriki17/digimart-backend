@@ -13,30 +13,36 @@ import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.User;
 import com.nexashop.domain.user.entity.UserRoleAssignment;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 
 public class UserUseCase {
 
+    private static final String SUPER_ADMIN_ROLE_CODE = "SUPER_ADMIN";
+
     private final CurrentUserProvider currentUserProvider;
     private final TenantRepository tenantRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserRoleAssignmentRepository assignmentRepository;
+    private final AuthorizationUseCase authorizationUseCase;
 
     public UserUseCase(
             CurrentUserProvider currentUserProvider,
             TenantRepository tenantRepository,
             UserRepository userRepository,
             RoleRepository roleRepository,
-            UserRoleAssignmentRepository assignmentRepository
+            UserRoleAssignmentRepository assignmentRepository,
+            AuthorizationUseCase authorizationUseCase
     ) {
         this.currentUserProvider = currentUserProvider;
         this.tenantRepository = tenantRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.assignmentRepository = assignmentRepository;
+        this.authorizationUseCase = authorizationUseCase;
     }
 
     public User createUser(User user, Long targetTenantId) {
@@ -61,7 +67,7 @@ public class UserUseCase {
         User saved = userRepository.save(user);
 
         if (totalUsers == 0) {
-            assignRole(saved, "SUPER_ADMIN", "Platform Admin");
+            assignRole(saved, SUPER_ADMIN_ROLE_CODE, "Platform Admin");
         }
         if (existingUsers == 0) {
             assignRole(saved, "OWNER", "Tenant Owner");
@@ -205,6 +211,13 @@ public class UserUseCase {
                         .filter(role -> role != null && !role.isBlank())
                         .collect(Collectors.toSet());
 
+        boolean requestedSuperAdminRole = desired.stream()
+                .map(this::normalizeRoleCode)
+                .anyMatch(SUPER_ADMIN_ROLE_CODE::equals);
+        if (requestedSuperAdminRole && !isSuperAdmin) {
+            throw new ForbiddenException("Only SUPER_ADMIN can assign SUPER_ADMIN role");
+        }
+
         List<Role> desiredRoles = desired.isEmpty()
                 ? List.of()
                 : roleRepository.findByTenantIdAndCodeIn(user.getTenantId(), desired);
@@ -217,6 +230,10 @@ public class UserUseCase {
                 Set<String> missing = new java.util.HashSet<>(desired);
                 missing.removeAll(foundCodes);
                 for (String code : missing) {
+                    if (SUPER_ADMIN_ROLE_CODE.equals(normalizeRoleCode(code))) {
+                        assignRole(user, SUPER_ADMIN_ROLE_CODE, "Platform Admin");
+                        continue;
+                    }
                     Role created = new Role();
                     created.setTenantId(user.getTenantId());
                     created.setCode(code);
@@ -275,9 +292,13 @@ public class UserUseCase {
     }
 
     public User grantSuperAdmin(Long id) {
+        CurrentUser currentUser = currentUserProvider.requireUser();
+        if (!currentUser.hasRole(SUPER_ADMIN_ROLE_CODE)) {
+            throw new ForbiddenException("SUPER_ADMIN access required");
+        }
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
-        assignRole(user, "SUPER_ADMIN", "Platform Admin");
+        assignRole(user, SUPER_ADMIN_ROLE_CODE, "Platform Admin");
         return user;
     }
 
@@ -293,6 +314,10 @@ public class UserUseCase {
         return roleRepository.findByTenantIdAndIdIn(user.getTenantId(), roleIds).stream()
                 .map(Role::getCode)
                 .collect(Collectors.toSet());
+    }
+
+    public Set<String> resolveCurrentUserPermissionCodes() {
+        return authorizationUseCase.resolveCurrentUserPermissionCodes();
     }
 
     private void assignRole(User user, String code, String label) {
@@ -319,6 +344,10 @@ public class UserUseCase {
                     assignment.setActive(true);
                     return assignmentRepository.save(assignment);
                 });
+    }
+
+    private String normalizeRoleCode(String roleCode) {
+        return roleCode == null ? "" : roleCode.trim().toUpperCase(Locale.ROOT);
     }
 }
 

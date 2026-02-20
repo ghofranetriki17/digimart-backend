@@ -2,6 +2,7 @@ package com.nexashop.api.config;
 
 import com.nexashop.application.port.out.ActivitySectorRepository;
 import com.nexashop.application.port.out.AiTextProvider;
+import com.nexashop.application.port.out.AuditEventRepository;
 import com.nexashop.application.port.out.CategoryRepository;
 import com.nexashop.application.port.out.CurrentUserProvider;
 import com.nexashop.application.port.out.PermissionRepository;
@@ -38,6 +39,10 @@ import com.nexashop.application.usecase.CategoryUseCase;
 import com.nexashop.application.usecase.AdminProvisionUseCase;
 import com.nexashop.application.usecase.AdminTenantSubscriptionUseCase;
 import com.nexashop.application.usecase.AuthUseCase;
+import com.nexashop.application.usecase.AuthorizationUseCase;
+import com.nexashop.application.usecase.AuditEventUseCase;
+import com.nexashop.application.usecase.AuditLogUseCase;
+import com.nexashop.application.usecase.AuditMaintenanceUseCase;
 import com.nexashop.application.usecase.PermissionUseCase;
 import com.nexashop.application.usecase.PlatformConfigUseCase;
 import com.nexashop.application.usecase.PremiumFeatureUseCase;
@@ -174,6 +179,46 @@ public class UseCaseConfig {
     }
 
     @Bean
+    public AuthorizationUseCase authorizationUseCase(
+            CurrentUserProvider currentUserProvider,
+            UserRoleAssignmentRepository userRoleAssignmentRepository,
+            RolePermissionRepository rolePermissionRepository,
+            PermissionRepository permissionRepository
+    ) {
+        return new AuthorizationUseCase(
+                currentUserProvider,
+                userRoleAssignmentRepository,
+                rolePermissionRepository,
+                permissionRepository
+        );
+    }
+
+    @Bean
+    public AuditEventUseCase auditEventUseCase(
+            CurrentUserProvider currentUserProvider,
+            AuditEventRepository auditEventRepository
+    ) {
+        return new AuditEventUseCase(currentUserProvider, auditEventRepository);
+    }
+
+    @Bean
+    public AuditLogUseCase auditLogUseCase(
+            CurrentUserProvider currentUserProvider,
+            AuditEventRepository auditEventRepository,
+            UserRepository userRepository,
+            TenantRepository tenantRepository
+    ) {
+        return new AuditLogUseCase(currentUserProvider, auditEventRepository, userRepository, tenantRepository);
+    }
+
+    @Bean
+    public AuditMaintenanceUseCase auditMaintenanceUseCase(
+            AuditEventRepository auditEventRepository
+    ) {
+        return new AuditMaintenanceUseCase(auditEventRepository);
+    }
+
+    @Bean
     public PlatformConfigUseCase platformConfigUseCase(
             CurrentUserProvider currentUserProvider,
             PlatformConfigRepository configRepository
@@ -248,9 +293,17 @@ public class UseCaseConfig {
     public StoreUseCase storeUseCase(
             CurrentUserProvider currentUserProvider,
             StoreRepository storeRepository,
-            TenantRepository tenantRepository
+            TenantRepository tenantRepository,
+            AuthorizationUseCase authorizationUseCase,
+            AuditEventUseCase auditEventUseCase
     ) {
-        return new StoreUseCase(currentUserProvider, storeRepository, tenantRepository);
+        return new StoreUseCase(
+                currentUserProvider,
+                storeRepository,
+                tenantRepository,
+                authorizationUseCase,
+                auditEventUseCase
+        );
     }
 
     @Bean
@@ -305,9 +358,17 @@ public class UseCaseConfig {
             UserRepository userRepository,
             RoleRepository roleRepository,
             TenantRepository tenantRepository,
-            UserRoleAssignmentRepository assignmentRepository
+            UserRoleAssignmentRepository assignmentRepository,
+            AuthorizationUseCase authorizationUseCase
     ) {
-        return new UserUseCase(currentUserProvider, tenantRepository, userRepository, roleRepository, assignmentRepository);
+        return new UserUseCase(
+                currentUserProvider,
+                tenantRepository,
+                userRepository,
+                roleRepository,
+                assignmentRepository,
+                authorizationUseCase
+        );
     }
 
     @Bean

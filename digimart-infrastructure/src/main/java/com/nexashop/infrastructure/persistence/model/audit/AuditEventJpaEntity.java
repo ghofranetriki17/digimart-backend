@@ -11,6 +11,8 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "audit_events")
@@ -28,9 +30,11 @@ public class AuditEventJpaEntity extends TenantScopedJpaEntity {
     @Column(nullable = false)
     private AuditAction action;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String beforeJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String afterJson;
 

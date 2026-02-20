@@ -74,6 +74,19 @@ public class PlatformConfigController {
         return toResponse(config);
     }
 
+    @PostMapping(value = "/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public PlatformConfigResponse uploadPlatformLogo(
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        UploadUtil.StoredFile stored = UploadUtil.storeImage(file, uploadBaseDir, "platform");
+        PlatformConfig config = configUseCase.updateConfig(
+                "PLATFORM_LOGO_URL",
+                stored.relativeUrl(),
+                "platform logo url"
+        );
+        return toResponse(config);
+    }
+
     private PlatformConfigResponse toResponse(PlatformConfig config) {
         return PlatformConfigResponse.builder()
                 .configKey(config.getConfigKey())

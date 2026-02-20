@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -98,6 +99,11 @@ public class UserController {
     public UserResponse getCurrentUser() {
         User user = userUseCase.getCurrentUser();
         return toResponse(user);
+    }
+
+    @GetMapping("/me/permissions")
+    public Set<String> getCurrentUserPermissions() {
+        return userUseCase.resolveCurrentUserPermissionCodes();
     }
 
     @PutMapping("/{id}")

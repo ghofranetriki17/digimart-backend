@@ -11,6 +11,7 @@ import com.nexashop.domain.user.entity.Permission;
 import com.nexashop.domain.user.entity.Role;
 import com.nexashop.domain.user.entity.RolePermission;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,6 +21,7 @@ public class RoleUseCase {
     public record RoleDetails(Role role, Set<String> permissions) {}
 
     private static final Long TEMPLATE_TENANT_ID = 0L;
+    private static final String SUPER_ADMIN_ROLE_CODE = "SUPER_ADMIN";
 
     private final CurrentUserProvider currentUserProvider;
     private final RoleRepository roleRepository;
@@ -73,6 +75,7 @@ public class RoleUseCase {
         if (!template.isSystemRole() || !TEMPLATE_TENANT_ID.equals(template.getTenantId())) {
             throw new ForbiddenException("Role is not a template");
         }
+        ensureRoleCodeIsNotReserved(code);
 
         if (roleRepository.findByTenantIdAndCode(tenantId, code).isPresent()) {
             throw new ConflictException("Role code already exists");
@@ -116,6 +119,7 @@ public class RoleUseCase {
         if (!isSuperAdmin && !tenantId.equals(requesterTenantId)) {
             throw new ForbiddenException("Tenant access required");
         }
+        ensureRoleCodeIsNotReserved(code);
         if (roleRepository.findByTenantIdAndCode(tenantId, code).isPresent()) {
             throw new ConflictException("Role code already exists");
         }
@@ -136,6 +140,7 @@ public class RoleUseCase {
         if (!hasPlatformAdmin) {
             throw new ForbiddenException("Platform admin access required");
         }
+        ensureRoleCodeIsNotReserved(code);
         if (roleRepository.findByTenantIdAndCode(TEMPLATE_TENANT_ID, code).isPresent()) {
             throw new ConflictException("Role code already exists");
         }
@@ -221,6 +226,16 @@ public class RoleUseCase {
                 .map(Permission::getCode)
                 .collect(Collectors.toSet());
         return new RoleDetails(role, permissions);
+    }
+
+    private void ensureRoleCodeIsNotReserved(String code) {
+        if (SUPER_ADMIN_ROLE_CODE.equals(normalizeRoleCode(code))) {
+            throw new ForbiddenException("Role code SUPER_ADMIN is reserved");
+        }
+    }
+
+    private String normalizeRoleCode(String code) {
+        return code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
     }
 }
 

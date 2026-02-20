@@ -5,6 +5,7 @@ import com.nexashop.domain.user.entity.Permission;
 import com.nexashop.infrastructure.persistence.jpa.PermissionJpaRepository;
 import com.nexashop.infrastructure.persistence.mapper.UserMapper;
 import com.nexashop.infrastructure.persistence.model.user.PermissionJpaEntity;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -45,5 +46,13 @@ public class PermissionRepositoryAdapter
     @Override
     public List<Permission> findByCodeIn(Set<String> codes) {
         return toDomainList(repository.findByCodeIn(codes));
+    }
+
+    @Override
+    public List<Permission> findByIdIn(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return toDomainList(repository.findAllById(ids));
     }
 }
