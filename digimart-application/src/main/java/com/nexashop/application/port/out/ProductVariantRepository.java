@@ -7,6 +7,8 @@ public interface ProductVariantRepository extends CrudRepositoryPort<ProductVari
 
     List<ProductVariant> findByProductId(Long productId);
 
+    List<ProductVariant> findByProductIds(List<Long> productIds);
+
     void deleteByProductId(Long productId);
 
     boolean existsByProductId(Long productId);

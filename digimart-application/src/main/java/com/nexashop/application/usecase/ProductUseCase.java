@@ -40,8 +40,10 @@ import com.nexashop.domain.catalog.entity.VariantStoreInventory;
 import com.nexashop.domain.store.entity.Store;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.time.LocalDateTime;
@@ -468,6 +470,9 @@ public class ProductUseCase {
         deleteVariantsForProduct(productId);
 
         if (requested.isEmpty()) {
+            product.setStockQuantity(null);
+            product.setUpdatedBy(currentUser.userId());
+            productRepository.save(product);
             return List.of();
         }
 
@@ -528,6 +533,7 @@ public class ProductUseCase {
         if (!linksToSave.isEmpty()) {
             variantOptionValueRepository.saveAll(linksToSave);
         }
+        refreshProductGlobalStockFromVariants(product, savedVariants, currentUser.userId());
 
         return listProductVariants(productId);
     }
@@ -725,24 +731,38 @@ public class ProductUseCase {
         Product product = getProduct(productId);
         if (productVariantRepository.existsByProductId(productId)) {
             List<ProductVariant> variants = productVariantRepository.findByProductId(productId);
+            Set<Long> visibleStoreIds = new LinkedHashSet<>();
+            List<StoreRef> stores = new ArrayList<>();
+
+            boolean hasGlobalVariantStock = variants.stream().anyMatch(this::isVisibleGlobalVariant);
+            if (hasGlobalVariantStock) {
+                List<Store> tenantStores = storeRepository.findByTenantId(product.getTenantId());
+                for (Store store : tenantStores) {
+                    if (store != null && store.isActive() && visibleStoreIds.add(store.getId())) {
+                        stores.add(new StoreRef(store.getId(), store.getName()));
+                    }
+                }
+            }
+
+            Map<Long, ProductVariant> variantsById = variants.stream()
+                    .collect(Collectors.toMap(ProductVariant::getId, variant -> variant, (a, b) -> a));
             List<Long> variantIds = variants.stream()
                     .filter(ProductVariant::isTrackStock)
                     .map(ProductVariant::getId)
                     .toList();
-            if (variantIds.isEmpty()) {
-                return List.of();
-            }
-            List<VariantStoreInventory> inventories = variantStoreInventoryRepository.findByVariantIds(variantIds);
-            List<StoreRef> stores = new ArrayList<>();
-            for (VariantStoreInventory inventory : inventories) {
-                if (inventory == null || inventory.getStoreId() == null || !inventory.isActiveInStore()) {
-                    continue;
+            if (!variantIds.isEmpty()) {
+                List<VariantStoreInventory> inventories = variantStoreInventoryRepository.findByVariantIds(variantIds);
+                for (VariantStoreInventory inventory : inventories) {
+                    ProductVariant variant = inventory == null ? null : variantsById.get(inventory.getVariantId());
+                    if (!isVisibleVariantStoreInventory(variant, inventory)) {
+                        continue;
+                    }
+                    Store store = storeRepository.findById(inventory.getStoreId()).orElse(null);
+                    if (store != null && store.isActive() && visibleStoreIds.add(store.getId())) {
+                        stores.add(new StoreRef(store.getId(), store.getName()));
+                    }
                 }
-                Store store = storeRepository.findById(inventory.getStoreId()).orElse(null);
-                if (store != null) {
-                    stores.add(new StoreRef(store.getId(), store.getName()));
-                }
-            }
+            }            
             return stores;
         }
         if (!product.isTrackStock()) {
@@ -750,12 +770,13 @@ public class ProductUseCase {
         }
         List<ProductStoreInventory> inventories = inventoryRepository.findByProductId(productId);
         List<StoreRef> stores = new ArrayList<>();
+        Set<Long> visibleStoreIds = new LinkedHashSet<>();
         for (ProductStoreInventory inventory : inventories) {
-            if (inventory == null || inventory.getStoreId() == null || !inventory.isActiveInStore()) {
+            if (!isVisibleProductStoreInventory(inventory)) {
                 continue;
             }
             Store store = storeRepository.findById(inventory.getStoreId()).orElse(null);
-            if (store != null && store.getName() != null) {
+            if (store != null && store.isActive() && store.getName() != null && visibleStoreIds.add(store.getId())) {
                 stores.add(new StoreRef(store.getId(), store.getName()));
             }
         }
@@ -811,6 +832,79 @@ public class ProductUseCase {
         return Math.max(0, Math.min(100, value));
     }
 
+    private boolean hasPositiveQuantity(Integer quantity) {
+        return quantity != null && quantity > 0;
+    }
+
+    private boolean isVariantActive(ProductVariant variant) {
+        return variant != null && (variant.getStatus() == null || variant.getStatus() == VariantStatus.ACTIVE);
+    }
+
+    private boolean isVisibleVariantStoreInventory(ProductVariant variant, VariantStoreInventory inventory) {
+        return variant != null
+                && variant.isTrackStock()
+                && isVariantActive(variant)
+                && inventory != null
+                && inventory.getStoreId() != null
+                && inventory.isActiveInStore()
+                && hasPositiveQuantity(inventory.getQuantity());
+    }
+
+    private boolean isVisibleGlobalVariant(ProductVariant variant) {
+        return variant != null
+                && !variant.isTrackStock()
+                && isVariantActive(variant)
+                && hasPositiveQuantity(variant.getStockQuantity());
+    }
+
+    private boolean isVisibleProductStoreInventory(ProductStoreInventory inventory) {
+        return inventory != null
+                && inventory.getStoreId() != null
+                && inventory.isActiveInStore()
+                && hasPositiveQuantity(inventory.getQuantity());
+    }
+
+    private void refreshProductGlobalStockFromVariants(Product product, List<ProductVariant> variants, Long updatedBy) {
+        if (product == null || variants == null || variants.isEmpty()) {
+            return;
+        }
+        List<Long> trackStockVariantIds = variants.stream()
+                .filter(ProductVariant::isTrackStock)
+                .map(ProductVariant::getId)
+                .toList();
+
+        Map<Long, Integer> stockByVariantId = new HashMap<>();
+        if (!trackStockVariantIds.isEmpty()) {
+            List<VariantStoreInventory> inventories = variantStoreInventoryRepository.findByVariantIds(trackStockVariantIds);
+            for (VariantStoreInventory inventory : inventories) {
+                if (inventory == null || inventory.getVariantId() == null || !inventory.isActiveInStore()) {
+                    continue;
+                }
+                if (!hasPositiveQuantity(inventory.getQuantity())) {
+                    continue;
+                }
+                stockByVariantId.merge(inventory.getVariantId(), inventory.getQuantity(), Integer::sum);
+            }
+        }
+
+        int totalGlobalStock = 0;
+        for (ProductVariant variant : variants) {
+            if (!isVariantActive(variant)) {
+                continue;
+            }
+            if (variant.isTrackStock()) {
+                totalGlobalStock += stockByVariantId.getOrDefault(variant.getId(), 0);
+            } else if (hasPositiveQuantity(variant.getStockQuantity())) {
+                totalGlobalStock += variant.getStockQuantity();
+            }
+        }
+
+        product.setTrackStock(false);
+        product.setStockQuantity(totalGlobalStock);
+        product.setUpdatedBy(updatedBy);
+        productRepository.save(product);
+    }
+
     public List<Product> listProductsForStore(Long storeId) {
         CurrentUser currentUser = currentUserProvider.requireUser();
         Store store = storeRepository.findById(storeId)
@@ -824,13 +918,47 @@ public class ProductUseCase {
         if (products.isEmpty()) {
             return List.of();
         }
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        List<ProductVariant> variants = productVariantRepository.findByProductIds(productIds);
+        Map<Long, List<ProductVariant>> variantsByProductId = variants.stream()
+                .collect(Collectors.groupingBy(ProductVariant::getProductId));
+        Map<Long, ProductVariant> variantById = new HashMap<>();
+        for (ProductVariant variant : variants) {
+            variantById.put(variant.getId(), variant);
+        }
+
+        List<VariantStoreInventory> variantInventories = variantStoreInventoryRepository.findByStoreId(storeId);
+        Set<Long> variantVisibleProductIds = new LinkedHashSet<>();
+        for (VariantStoreInventory inventory : variantInventories) {
+            ProductVariant variant = variantById.get(inventory.getVariantId());
+            if (!isVisibleVariantStoreInventory(variant, inventory)) {
+                continue;
+            }
+            variantVisibleProductIds.add(variant.getProductId());
+        }
+        Set<Long> globalVariantVisibleProductIds = variants.stream()
+                .filter(this::isVisibleGlobalVariant)
+                .map(ProductVariant::getProductId)
+                .collect(Collectors.toSet());
+
         List<ProductStoreInventory> inventories = inventoryRepository.findByStoreId(storeId);
         Set<Long> activeProductIds = inventories.stream()
-                .filter(ProductStoreInventory::isActiveInStore)
+                .filter(this::isVisibleProductStoreInventory)
                 .map(ProductStoreInventory::getProductId)
                 .collect(Collectors.toSet());
+
         return products.stream()
-                .filter(product -> !product.isTrackStock() || activeProductIds.contains(product.getId()))
+                .filter(product -> {
+                    List<ProductVariant> productVariants = variantsByProductId.get(product.getId());
+                    if (productVariants != null && !productVariants.isEmpty()) {
+                        return variantVisibleProductIds.contains(product.getId())
+                                || globalVariantVisibleProductIds.contains(product.getId());
+                    }
+                    if (!product.isTrackStock()) {
+                        return true;
+                    }
+                    return activeProductIds.contains(product.getId());
+                })
                 .toList();
     }
 

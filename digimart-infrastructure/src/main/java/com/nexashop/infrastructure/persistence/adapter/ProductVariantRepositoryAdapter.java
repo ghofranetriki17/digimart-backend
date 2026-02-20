@@ -37,6 +37,14 @@ public class ProductVariantRepositoryAdapter
     }
 
     @Override
+    public List<ProductVariant> findByProductIds(List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return List.of();
+        }
+        return toDomainList(repository.findByProductIdIn(productIds));
+    }
+
+    @Override
     @Transactional
     public void deleteByProductId(Long productId) {
         repository.deleteByProductId(productId);
